@@ -53,7 +53,7 @@ nữa — brief của nó thuộc về repo của chính nó.
 | [Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Mode 2 done | Backend Core | không thuộc phase nào |
 | [Pattern xác minh bất đồng bộ + gap logic tùy biến cho low-code](06-async-verification-pattern-and-lowcode-custom-logic.md) | proposed (ghi chú thảo luận, chỉ Option B là đề xuất code) | Backend Core | không thuộc phase nào |
 | [Tách phần SaaS low-code control-plane ra khỏi core](07-split-lowcode-saas-crates.md) | done | Backend Core | Phase 52 |
-| [Crate dùng chung `metap-contrib`](08-metap-contrib-common-crate.md) | in-progress | Backend Core | Phase 53 |
+| [Crate dùng chung `metap-runtime`](08-metap-runtime-common-crate.md) | done | Backend Core | Phase 53 |
 
 Brief của demo app (Sales Order/Inventory Movement/Journal Entry, từng nằm ở `demo/`) — xem
 `../metap-demo-crm/docs/features/demo/`.

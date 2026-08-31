@@ -114,7 +114,7 @@ việc đó là thừa.
   xác thực.
 - **Làm rõ phạm vi của "Không tách microservice cho hướng SaaS multi-tenant" (dòng ở trên, Phase 9):
   quyết định đó chỉ áp cho `metap`-core, không áp cho `metap-lowcode`.** (Chủ dự án quyết định
-  2026-08-31, lúc lên kế hoạch Phase 53 — `docs/roadmap/53-metap-contrib-and-lowcode-microservices-plan.md`.)
+  2026-08-31, lúc lên kế hoạch Phase 53 — `docs/roadmap/53-metap-runtime-and-lowcode-microservices-plan.md`.)
   Lý do quyết định gốc (modular monolith vì `CrudService`'s Dispatch contract sạch đã
   distributed-ready mà chưa trả giá phân tán ACID) chỉ đúng cho *business CRUD hot path* — đúng
   thứ `CrudService` phục vụ. `metap-lowcode` (repo private SaaS riêng, tách từ Phase 52) không
@@ -123,6 +123,6 @@ việc đó là thừa.
   đích** đi hướng ngược lại cho riêng repo này — microservice ngay từ đầu — vì (a) là sản phẩm
   private, ranh giới kiến trúc độc lập với `metap`-core, (b) muốn ranh giới service rõ để giao
   việc song song cho nhiều agent code. `metap`-core's quyết định monolith giữ nguyên không đổi.
-  Xem `docs/features/08-metap-contrib-common-crate.md` và `../metap-lowcode/docs/architecture.md`
+  Xem `docs/features/08-metap-runtime-common-crate.md` và `../metap-lowcode/docs/architecture.md`
   cho thiết kế cụ thể (đặc biệt: cách giải bài toán registry distribution mà thiết kế
   in-process `ArcSwap` cũ giả định trước).

@@ -1,4 +1,4 @@
-## Phase 53: Đổi tên `metap-lowcode-platform` → `metap-lowcode`, thêm crate dùng chung `metap-contrib`, rà soát mono-repo microservices cho `metap-lowcode` (2026-08-31, in-progress)
+## Phase 53: Đổi tên `metap-lowcode-platform` → `metap-lowcode`, thêm crate dùng chung `metap-runtime`, rà soát mono-repo microservices cho `metap-lowcode` (2026-08-31, in-progress)
 
 Tiếp nối Phase 52 (tách tầng SaaS low-code control-plane). 3 phần việc:
 
@@ -9,12 +9,15 @@ Tiếp nối Phase 52 (tách tầng SaaS low-code control-plane). 3 phần việ
 `docs/features/07-*.md`, đã `Trạng thái: done`) giữ nguyên tên cũ, đúng tiền lệ không sửa lịch sử.
 Verify: `cargo build --workspace` sạch ở cả `metap-lowcode` và `metap-demo-crm` sau khi đổi.
 
-**2. Crate `metap-contrib` (xong, chi tiết ở `docs/features/08-metap-contrib-common-crate.md`).**
+**2. Crate `metap-runtime` (xong, chi tiết ở `docs/features/08-metap-runtime-common-crate.md`).**
 Rà soát dependency graph thật tìm boilerplate lặp giữa `metap` và `metap-lowcode`, xác nhận 3 ứng
 viên thật (HTTP client thiếu timeout — rủi ro hang thật, không chỉ trùng lặp; bearer-token parse
-lặp 3 lần 3 error type; env-var-with-default lặp ~35 lần tổng cộng), tạo `crates/metap-contrib`
-làm nơi chung — build/test/clippy sạch. **Chưa di trú call site cũ nào** sang dùng crate mới (theo
-đúng yêu cầu "rà soát trước" của chủ dự án) — đó là follow-up riêng.
+lặp 3 lần 3 error type; env-var-with-default lặp ~35 lần tổng cộng), tạo `crates/metap-runtime`
+làm nơi chung — build/test/clippy sạch. **Di trú xong** (lượt thứ 2 cùng ngày, sau khi chủ dự án
+hỏi "core có cần update nữa k, tách vào contrib"): 7 crate (`metap-infra`/`metap-http`/
+`metap-grpc`/`metap-jwks`/`graphql-gateway`/`cron-scheduler`/`dev-tools`) chuyển sang dùng
+`metap-runtime`, thêm 1 module thứ 4 (`env::optional`) phát hiện lúc migrate, cộng 9 chỗ lặp ở
+`dev-tools` bị bỏ sót lúc rà soát ban đầu (file CLI không được quét kỹ như các crate transport).
 
 **3. Mono-repo microservices cho `metap-lowcode` — hướng đã chốt, T1 xong, T2-T6 chưa code.** Yêu
 cầu ban đầu: tách `metap-lowcode-http`/`metap-control-http`/`reconciler-orchestrator` thành các
@@ -48,4 +51,4 @@ task breakdown (T1-T6) ở `../metap-lowcode/docs/architecture.md`:
   outbox/EventBus có sẵn, không phải poll mới, cùng pattern `notification-worker` đã dùng); 2
   binary mới `services/lowcode-admin-api`/`services/control-api`; subscriber trong
   `metap-demo-crm/src/main.rs` (rủi ro cao nhất — sửa repo khác, cần e2e Postgres+RabbitMQ thật);
-  `metap_contrib::bootstrap` (tách sau khi có caller thứ 2/3 thật, không tách trước).
+  `metap_runtime::bootstrap` (tách sau khi có caller thứ 2/3 thật, không tách trước).
