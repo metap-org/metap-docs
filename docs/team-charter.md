@@ -131,7 +131,30 @@ tự (spec của Stream A trước khi implement; ADR của Stream C trước kh
 Nảy sinh từ các buổi thảo luận kiến trúc, hợp lý về mặt sản phẩm nhưng đi trước trigger-based
 discipline hiện tại (`docs/architectures/02-constraints.md`'s "Tiến hóa theo trigger"). Ghi lại
 ở đây để không quên, không phải để bắt đầu code — mỗi mục cần một feature brief trong
-`docs/features/` (trạng thái `proposed`) nêu rõ trigger cụ thể trước khi ai đó bắt tay vào:
+`docs/features/` (trạng thái `proposed`) nêu rõ trigger cụ thể trước khi ai đó bắt tay vào.
+
+**Bảng tóm tắt** (thêm 2026-09-02 — trước đó danh sách này chỉ tồn tại dạng văn xuôi, phải đọc lại
+cả đoạn mỗi lần cần tra; chi tiết đầy đủ từng mục vẫn ở phần văn xuôi bên dưới, bảng chỉ để tra
+nhanh). Độ khó/effort là ước lượng định tính, không phải estimate chính thức:
+
+| # | Ý | Brief | Trigger đang chờ | Độ khó | Effort |
+|---|---|---|---|---|---|
+| 1 | Workflow hai chế độ (in-process + cross-module) | [`09`](features/09-workflow-two-modes.md) | 1 module thứ 2 thật cần cross-module workflow | Cao | XL |
+| 2 | Workflow visualize / BPM nhẹ | [`10`](features/10-workflow-visualize.md) | Chưa có yêu cầu cụ thể | Thấp-TB | M |
+| 3 | Tiny deployment profile (1 binary, SQLite, không RabbitMQ) | [`11`](features/11-tiny-deployment-profile.md) | Quyết định sản phẩm: có nhắm self-host không | TB-Cao | L-XL |
+| 4 | Migration path generic-table → bảng riêng | [`12`](features/12-migration-generic-to-dedicated-table.md) | 1 entity đo được nghẽn hiệu năng thật | TB | M |
+| 5 | Computed/derived field | [`13`](features/13-computed-derived-field.md) — **approved, đang implement 2026-09-02** | (chủ động implement, không chờ trigger) | TB | M |
+| 6 | Schema versioning cho entity | [`14`](features/14-entity-schema-versioning.md) | 1 entity cần đổi field shape không muốn migrate hết record cũ | Cao | L-XL |
+| 7 | Organization & Identity P1/P2 (positions/locations, manager self-ref, org chart) | [`03`](features/03-organization-identity.md) — **P1 done 2026-09-02**, P2 chưa có trigger | Chưa có, P0 đã xong | Thấp (P1) / TB (P2) | S-M (P1) |
+| 8 | Metadata low-code theo Tenant | [`15`](features/15-tenant-scoped-lowcode-metadata.md) | Chưa tenant nào cần entity/field khác shape nhau | Cao | XL |
+| 9 | Cross-entity relations Mode 1 (denormalize lúc ghi) | [`05`](features/05-cross-entity-relations.md) | Nghiệp vụ cần snapshot (audit trail, hoá đơn) | Thấp | S-M |
+| 10 | Cross-entity relations Mode 3 (JOIN thật) | [`05`](features/05-cross-entity-relations.md) | Nhu cầu filter/sort xuyên entity thật | Rất cao | XL |
+| 11 | Entity variant polymorphic/discriminated-union | [`16`](features/16-entity-variant-polymorphic.md) | 1 entity thật cần nhiều schema trong cùng logical collection | **Cao nhất** | XL |
+| 12 | Tầm nhìn dài hạn: durable workflow runtime (Temporal-style) | [`17`](features/17-durable-workflow-runtime-vision.md) | Level 4/5 trong roadmap 5-level, hiện ở level 1-2 | Rất cao | XL (multi-quý) |
+
+**#5 và #7 (P1) đã `done`, implement chủ động 2026-09-02, verify sống qua HTTP thật** — chủ dự án
+chọn không chờ trigger cho 2 ý này (thiết kế khó đã giải sẵn trong doc, rủi ro thấp), khác 10 ý còn
+lại vẫn giữ nguyên "chưa nên bắt đầu" cho tới khi có trigger thật.
 
 - **Workflow hai chế độ** (in-process trong một module, cross-module qua command/event) mà
   cùng một logical model chạy được ở cả hai, không rewrite khi deployment đổi. Đối lập trực

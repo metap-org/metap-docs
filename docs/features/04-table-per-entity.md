@@ -1,11 +1,15 @@
 # Table-per-entity — readiness brief
 
-- **Trạng thái:** in-progress — cả 5/5 bước đã code + kiểm chứng bằng e2e (2026-08-23,
-  `crates/metap-reconciler`), nhưng **chưa wire vào bất kỳ boot sequence nào** — không entity
-  sản phẩm nào thật sự chạy qua table-per-entity, và chưa có binary orchestrator chạy nền thật
+- **Trạng thái:** done — cả 5/5 bước đã code + kiểm chứng bằng e2e (2026-08-23,
+  `crates/metap-reconciler`), và đã wire vào boot sequence thật cùng ngày: Phase 21
+  (`../metap-demo-jira`, 2 entity đầu tiên `jira.projects`/`jira.issues`, `reconcile()` chạy lúc
+  boot). `CLAUDE.md`'s mục "Table-per-entity is real now" xác nhận đang chạy thật, không chỉ còn
+  ở mức library surface — dòng trạng thái này trước đó (viết cùng ngày 2026-08-23, trước khi
+  Phase 21 ship) chưa được cập nhật theo đúng quy trình, sửa lại 2026-09-02.
 - **Người đề xuất:** chủ dự án (yêu cầu lên plan cùng Organization & Identity), 2026-08-22
 - **Track sở hữu:** Backend Core
-- **Phase roadmap liên quan:** chưa gắn phase — sẵn sàng gắn khi chủ dự án chốt lịch build đầy đủ
+- **Phase roadmap liên quan:** Phase 21 (và 6 phase demo-Jira tiếp theo dùng lại cùng cơ chế —
+  24/26/29/30/31/32, xem `../metap-demo-jira/docs/roadmap/`)
 
 ## Đây KHÔNG phải một thiết kế mới
 

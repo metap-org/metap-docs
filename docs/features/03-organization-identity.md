@@ -1,6 +1,7 @@
 # Organization & Identity Layer (org structure, role scope)
 
-- **Trạng thái:** P0 done (2026-08-22); P1/P2 vẫn proposed, chưa code
+- **Trạng thái:** P0 done (2026-08-22); **P1 done (2026-09-02)** — xem "P1 — đã làm, verify sống"
+  bên dưới; P2 vẫn proposed, chưa code
 - **Người đề xuất:** chủ dự án, 2026-08-22
 - **Track sở hữu:** Backend Core (phần entity mẫu liên quan track App/Entity)
 - **Phase roadmap liên quan:** Phase 18 (`docs/roadmap.md`)
@@ -126,11 +127,40 @@ cần benchmark riêng, cache đã loại bỏ chính nỗi lo ban đầu (rủi
 - Deployment không set `AUTH_CONTEXT_ENTITY` (toàn bộ e2e suite hiện có, chạy lại nguyên vẹn) —
   hành vi y hệt trước thay đổi này, xác nhận qua `cargo test --workspace -- --ignored`.
 
-**P1:**
-- `hr.positions`, `hr.locations` (field thêm trên entity mẫu, không cần core mới).
-- `Employee.managerId` self-reference + ví dụ policy "chỉ manager trực tiếp mới sửa được" — verify
-  bằng cross-record condition đã có.
-- Docs pattern cho FE/entity author: cách viết một "org-scoped policy" đúng chuẩn.
+**P1 — đã làm, verify sống (2026-09-02):**
+- `hr.positions` (`title`), `hr.locations` (`name`/`address`) — 2 entity mới qua low-code builder,
+  cùng cách P0 đã làm.
+- `hr.employees` thêm 3 field `Reference` mới: `managerId` (self-reference →`hr.employees`),
+  `positionId` (→`hr.positions`), `locationId` (→`hr.locations`) — cập nhật draft + publish lại,
+  giữ nguyên field cũ (`userId`/`name`/`departmentId`).
+- **Policy "chỉ manager trực tiếp mới sửa được"** — dùng đúng cross-record condition đã có, dotted
+  path 2 tầng qua field `Reference` của chính record đang sửa:
+  `{"attribute": "managerId.userId", "op": "eq", "value": {"fromContext": "userId"}}` — tức "field
+  `userId` của employee record mà `managerId` trỏ tới phải bằng `userId` của người gọi". Cần thêm
+  **1 policy entity-level riêng** (role gate, không condition) trước — record-level condition chỉ
+  chạy sau khi entity-level đã cho qua, không tự đủ một mình.
+- **Verify sống qua HTTP thật** (`../metap-demo-crm`, tenant tạo mới qua `dev-tools
+  provision-tenant`): tạo `hr.departments`→`hr.employees` (Alice, manager) →`hr.employees` (Bob,
+  `managerId`=Alice); tạo user thật `alice@hr-demo.local` + `stranger@hr-demo.local` cùng role
+  `hr_manager`, gán `hr.employees(Alice).userId` = user thật của Alice. **Positive**: Alice
+  `PATCH /api/hr.employees/{bob}` → `200`, update thành công. **Negative**: Stranger (cùng role,
+  không phải manager của Bob) `PATCH` cùng record → `403 forbidden`. Xác nhận cross-record
+  condition đánh giá đúng theo *identity thật của người gọi*, không phải chỉ role.
+- **Docs pattern cho FE/entity author** (rút ra từ lần làm thật ở trên):
+  1. `PUT /admin/lowcode/entities/{name}/draft` (body `{label, fields, listViews}` — field mới
+     dùng `kind: "reference"` + `refEntity`/`refDisplayField` cho self-reference hoặc reference
+     entity khác) rồi `POST /admin/lowcode/entities/{name}/publish`.
+  2. **Entity được reference phải `enabled: true` trước khi publish entity tham chiếu nó** —
+     `PATCH /admin/lowcode/entities/{name}` `{"enabled": true}` — publish sẽ báo lỗi
+     `lowcode_validation_failed`/"references unknown entity" nếu bỏ qua bước này, dù entity đích
+     đã publish (registry hợp nhất chỉ tính entity đã bật cho đúng tenant).
+  3. Org-scoped policy cần **2 policy row**, không phải 1: (a) entity-level, role gate thuần
+     (`subject: "context"`, không `condition`) để role đó vượt qua permission check tầng entity;
+     (b) record-level (`subject: "record"`, có `condition` dùng `fromContext`/dotted path) để giới
+     hạn theo đúng record. Thiếu (a) thì (b) không bao giờ được đánh giá tới.
+  4. `POST /api/:entity` và `PATCH /api/:entity/:id` đều bọc payload trong `{"data": {...}}`;
+     `PATCH` cần thêm `"version"` (không phải `"expectedVersion"`) khớp `version` hiện tại của
+     record (optimistic locking).
 
 **P2 — chưa cần, đúng như đề xuất gốc:**
 - Legal Entity, Business Unit, Cost Center, Job Level, Employment Type, Org Chart visualize,
@@ -178,32 +208,15 @@ cho field `indexed: true` của một entity, đúng shape `WHERE entity = 'hr.e
 tier T2/T3 hay tách bảng gì cả. Latency-sensitivity không phải lý do hợp lệ để đẩy sớm
 table-per-entity ở đây.
 
-**3. Reference integrity — gap thật, đã xác nhận bằng code, tồn tại NGAY CẢ SAU khi
-table-per-entity xong (cho bảng chung), và Organization data (Department bị xoá trong khi
-Employee vẫn tham chiếu) làm nó lộ rõ hơn hẳn so với các entity khác trong repo hôm nay.**
-`multi-tenant-platform-design.md` §3.3 giả định "Ref tới bảng chung → fallback check ở
-`CrudService` lúc write" đã tồn tại cho thế giới bảng-chung hiện tại — **kiểm tra trực tiếp
-`CrudService::delete()` (`crates/metap-crud/src/crud_service.rs`) xác nhận điều này SAI**: `delete`
-chỉ là một `UPDATE records SET deleted = true ...` thuần tuý, không quét bất kỳ record nào khác
-đang tham chiếu tới nó qua field `Reference`. Xoá một `hr.departments` record trong khi nhiều
-`hr.employees` vẫn có `departmentId` trỏ tới nó **không báo lỗi, không chặn** — để lại tham chiếu
-treo (orphan reference) âm thầm. `crm.customers.referredBy` (self-reference đã dùng để verify
-cross-record condition #3) hiếm khi lộ bug này vì xoá một customer bị referral tới không phải
-thao tác thường gặp; Department/Employee thì khác — xoá một phòng ban đang có nhân sự là thao tác
-sẽ xảy ra thật. **Gap này độc lập với table-per-entity**: kể cả khi Step 3 triển khai xong, nó chỉ
-cho FK thật với entity **đã tách bảng** — Organization data (dưới ngưỡng 10M) nhiều khả năng vẫn
-ở bảng `records` chung vô thời hạn, nên "chờ table-per-entity" không phải câu trả lời. Cần một
-câu trả lời riêng cho thế giới bảng-chung: `CrudService::delete()` (và có thể `update` khi
-`departmentId` bị đổi) quét `Reference` field nào trỏ tới entity/id đang bị xoá (đọc metadata,
-biết field nào là `Reference` + `refEntity` trỏ tới entity này) — chặn (`Restrict`, mặc định an
-toàn) hoặc cho phép tuỳ chọn theo field (tương lai, không phải bây giờ).
-
-**Kết luận**: Organization & Identity không phải trigger cho table-per-entity — nên tiếp tục coi
-table-per-entity là trigger-based, chưa kích hoạt (đúng kỷ luật hiện tại). Nhưng nó lộ ra một gap
-reference-integrity có thật, đang tồn tại, không phụ thuộc bất kỳ phase nào khác — nên được ghi
-nhận độc lập (xem `docs/architectures/11-risks.md`, hàng mới thêm cùng ngày) và cân nhắc đóng
-**trước** khi P1 (`Employee.managerId`/`departmentId`) đi vào sản xuất thật, nếu không một thao
-tác xoá phòng ban bình thường sẽ để lại dữ liệu hỏng âm thầm.
+**3. Reference integrity — gap có thật lúc viết mục này (2026-08-22), đã đóng từ đó, không còn
+chặn P1.** Lúc viết, `CrudService::delete()` chỉ là một `UPDATE records SET deleted = true ...`
+thuần tuý, không quét record nào khác đang tham chiếu tới nó. **Cập nhật 2026-09-02 — đã kiểm tra
+lại code thật, gap này đã đóng**: `CrudService::delete()`
+(`crates/metap-crud/src/crud_service/delete.rs:80-84`) giờ gọi `find_referencing_record` trước
+khi xoá — nếu có record khác (kể cả trên entity khác) còn tham chiếu qua field `Reference`, xoá bị
+chặn (`403`/lỗi rõ ràng), không còn để lại tham chiếu treo âm thầm. Xoá một `hr.departments` đang
+có `hr.employees` trỏ tới sẽ bị chặn đúng như mong đợi — **P1 không còn phụ thuộc gì cần đóng
+trước khi code**.
 
 Điểm phụ, đáng ghi vì liên quan trực tiếp thiết kế entity mẫu ở P0/P1: §3.3 của
 `multi-tenant-platform-design.md` phân biệt `relationMode: referenced` (record riêng, query/

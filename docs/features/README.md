@@ -47,13 +47,22 @@ nữa — brief của nó thuộc về repo của chính nó.
 | Tính năng | Trạng thái | Track | Phase liên quan |
 |---|---|---|---|
 | [Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | proposed (1 trong 4 gap đã xong) | Frontend Platform | chưa gắn |
-| [Metadata-driven Workflow Engine](02-workflow-engine.md) | Increment 1 done | Backend Core | Phase 17 |
-| [Organization & Identity Layer](03-organization-identity.md) | P0 done | Backend Core | Phase 18 |
-| [Table-per-entity — readiness brief](04-table-per-entity.md) | in-progress — 5/5 bước code+e2e xong (2026-08-23), chưa wire vào binary nào | Backend Core | chưa gắn phase |
+| [Metadata-driven Workflow Engine](02-workflow-engine.md) | done — Increment 1+2+3 (2026-08-21 → 2026-08-28) | Backend Core | Phase 17 |
+| [Organization & Identity Layer](03-organization-identity.md) | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger | Backend Core | Phase 18 |
+| [Table-per-entity — readiness brief](04-table-per-entity.md) | done — wire vào boot sequence thật từ Phase 21 (2026-08-23) | Backend Core | Phase 21 |
 | [Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Mode 2 done | Backend Core | không thuộc phase nào |
 | [Pattern xác minh bất đồng bộ + gap logic tùy biến cho low-code](06-async-verification-pattern-and-lowcode-custom-logic.md) | proposed (ghi chú thảo luận, chỉ Option B là đề xuất code) | Backend Core | không thuộc phase nào |
 | [Tách phần SaaS low-code control-plane ra khỏi core](07-split-lowcode-saas-crates.md) | done | Backend Core | Phase 52 |
 | [Crate dùng chung `metap-runtime`](08-metap-runtime-common-crate.md) | done | Backend Core | Phase 53 |
+| [Workflow hai chế độ (in-process + cross-module)](09-workflow-two-modes.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
+| [Workflow visualize / BPM nhẹ](10-workflow-visualize.md) | proposed, chưa có trigger | Frontend Platform | không thuộc phase nào |
+| [Tiny deployment profile](11-tiny-deployment-profile.md) | proposed, chưa có trigger (quyết định sản phẩm) | Backend Ops-Infra | không thuộc phase nào |
+| [Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
+| [Computed/derived field](13-computed-derived-field.md) | done (2026-09-02) | Backend Core | chưa gắn phase |
+| [Schema versioning cho entity](14-entity-schema-versioning.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
+| [Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
+| [Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | proposed, chưa có trigger — rủi ro cao nhất backlog | Backend Core | không thuộc phase nào |
+| [Tầm nhìn dài hạn: Durable Workflow Runtime](17-durable-workflow-runtime-vision.md) | vision, không phải spec sẵn sàng | Backend Core | không thuộc phase nào |
 
 Brief của demo app (Sales Order/Inventory Movement/Journal Entry, từng nằm ở `demo/`) — xem
 `../metap-demo-crm/docs/features/demo/`.
