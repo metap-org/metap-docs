@@ -126,3 +126,39 @@ việc đó là thừa.
   Xem `docs/features/08-metap-runtime-common-crate.md` và `../metap-lowcode/docs/architecture.md`
   cho thiết kế cụ thể (đặc biệt: cách giải bài toán registry distribution mà thiết kế
   in-process `ArcSwap` cũ giả định trước).
+- **Thêm 1 exception nữa (2026-09-01, `../metap-demo-waf`'s Customer Portal backend), lý do
+  khác hẳn `metap-lowcode` ở trên** — `metap-demo-waf/data-plane` tách từ 1 binary duy nhất
+  (9 entity, cả 4 trụ cột nghiệp vụ) thành 3 service theo pillar: `zones-service`
+  (`waf.zones`/`waf.ddos_policies`/`waf.firewall_rules`), `scanning-service`
+  (`waf.scan_jobs`/`waf.scan_findings`), `alerting-service`
+  (`waf.security_events`/`waf.incidents`/`waf.alert_policies`/`waf.alert_notifications`). Khác
+  `metap-lowcode`, đây **vẫn là business CRUD hot path thật** (đúng thứ ADR gốc bảo vệ) — lý do
+  tách không phải "tránh ACID phân tán" (ACID *vẫn giữ được*, xem dưới), mà là 4 pillar có chu kỳ
+  scale/traffic khác nhau thật: `waf.security_events` (khối lượng lớn nhất hệ thống, ghi từ
+  edge-plane near real-time) cần scale độc lập với `waf.zones`/`waf.ddos_policies` (cấu hình, ghi
+  hiếm). **Khác biệt kỹ thuật quan trọng với `metap-lowcode`**: cả 3 service WAF dùng **CHUNG 1
+  Postgres database của từng tenant** (`Router::pool_for`, không tách theo data layer) — không
+  phải multi-DB-per-service. `zoneId` ở `scanning-service`/`alerting-service` hạ xuống `String`
+  (không `Reference`, cùng workaround `SecurityEvent.triggeredById` polymorphic đã dùng) vì
+  `validate_references()` bắt buộc entity đích registered CÙNG registry, và đăng ký
+  `zone_entity()` ở service không sở hữu nó sẽ lộ CRUD `waf.zones` qua route generic
+  `/api/:entity*` của chính service đó — **đây là lý do quyết định thật, phát hiện qua code khi
+  lên plan, không phải suy đoán.**
+  **Sửa lại 1 chỗ đã ghi quá lời lúc đầu** (kiểm tra thêm sau khi T1-T6 xong, 2026-09-01):
+  cả 9 entity WAF đều dùng `table_name: "records"` (bảng chung, JSONB) — **không phải
+  table-per-entity** — nên `metap-reconciler::compile()` (nơi thật sự build FK Postgres) chưa
+  từng chạy cho bất kỳ entity nào ở đây, kể cả trước khi tách. `Reference`'s validate (`metap-crud/
+  src/validation.rs`) chỉ check đúng định dạng UUID, không check bản ghi có tồn tại; cái thật sự
+  "mất" khi hạ `zoneId` xuống `String` là **`relatedDisplay` tự động** (tiện hiển thị) và
+  **delete-guard cùng-tiến-trình** (`find_referencing_record`, quét record tham chiếu trước khi
+  xoá) — guard này vốn chỉ quét registry của TIẾN TRÌNH ĐANG CHẠY (`referencing_fields()` nhận
+  `&MetadataRegistry` của chính service đó), nên đã **không bao giờ** bảo vệ được tham chiếu
+  cross-service dù có giữ `Reference` hay không — tách service tự nó đã xoá khả năng này, không
+  liên quan gì tới lựa chọn `String` vs `Reference`. Kết luận thật vẫn không đổi (tách theo
+  `zoneId: String` là đúng, lý do route-leak vẫn đứng vững), chỉ phần "giữ chung DB để không mất
+  FK" ở trên là diễn giải sai — không có FK Postgres thật nào để giữ hay mất trong sản phẩm này.
+  Xem `docs/roadmap/61-waf-microservices-split.md` cho chi tiết đầy đủ. GraphQL
+  (`metap/crates/graphql-gateway`, tái dùng nguyên trạng — không code mới) là lớp gộp query
+  cross-service cho FE, chỉ dùng cho read, không dùng cho mutation (gateway hiện chỉ decode-only
+  auth, không propagate identity người gọi thật xuống từng upstream). Xem
+  `../metap-demo-waf/data-plane/README.md` cho bảng service/port cụ thể.

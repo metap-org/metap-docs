@@ -74,6 +74,20 @@ Tránh những quyết định khiến việc bổ sung một low-code control p
 - bỏ qua (bypass) metadata runtime phía server
 - đưa vào user scripting không kiểm soát quá sớm
 
+## Một trục độc lập, dễ nhầm với trục authoring ở trên (làm rõ 2026-09-02)
+
+Lộ trình "code → persisted+versioned → low-code" ở trên là trục **entity được định nghĩa bằng
+gì** — không phải trục **deployment được consume ra sao**. Dễ nhầm 2 trục này thành 1 (đã nhầm
+thật, sửa lại cùng ngày): low-code KHÔNG có nghĩa "phải consume qua GraphQL", và code-tay KHÔNG có
+nghĩa "chỉ dùng REST". Một deployment monolith (1 process, REST truy cập thẳng) hay tách
+microservice (nhiều service, gộp sau 1 GraphQL gateway) là lựa chọn *deployment topology*, áp dụng
+như nhau cho entity dù định nghĩa bằng code hay bằng low-code — xem `metap-lowcode/docs/
+architecture.md`'s "Trục định nghĩa entity và trục consume deployment là 2 trục độc lập" cho ví dụ
+cụ thể (`metap-demo-waf`: 3 service, toàn entity code tay, vẫn gộp sau `graphql-gateway`;
+`metap-demo-crm`: entity low-code, vẫn chạy monolith-REST). `graphql-gateway`'s
+identity-propagation + self-refreshing service-auth (2026-09-02) là điều kiện để trục deployment
+topology này thật sự dùng được cho production, không phụ thuộc trục authoring ở trên.
+
 ## Quan hệ với các tài liệu khác
 
 - [`docs/architectures/01-introduction.md`](architectures/01-introduction.md) là phát biểu vision súc tích, as-built, nằm trong bộ tài liệu arc42 mô tả kiến trúc như nó tồn tại ngày nay — không phải một mục tiêu chưa được triển khai.
