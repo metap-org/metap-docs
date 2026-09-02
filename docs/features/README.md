@@ -55,7 +55,7 @@ nữa — brief của nó thuộc về repo của chính nó.
 | [Tách phần SaaS low-code control-plane ra khỏi core](07-split-lowcode-saas-crates.md) | done | Backend Core | Phase 52 |
 | [Crate dùng chung `metap-runtime`](08-metap-runtime-common-crate.md) | done | Backend Core | Phase 53 |
 | [Workflow hai chế độ (in-process + cross-module)](09-workflow-two-modes.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
-| [Workflow visualize / BPM nhẹ](10-workflow-visualize.md) | proposed, chưa có trigger | Frontend Platform | không thuộc phase nào |
+| [Workflow visualize / BPM nhẹ](10-workflow-visualize.md) | done (2026-09-02) | Frontend Platform | không thuộc phase nào |
 | [Tiny deployment profile](11-tiny-deployment-profile.md) | proposed, chưa có trigger (quyết định sản phẩm) | Backend Ops-Infra | không thuộc phase nào |
 | [Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | proposed, chưa có trigger | Backend Core | không thuộc phase nào |
 | [Computed/derived field](13-computed-derived-field.md) | done (2026-09-02) | Backend Core | chưa gắn phase |

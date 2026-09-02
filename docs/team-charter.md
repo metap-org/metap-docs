@@ -140,7 +140,7 @@ nhanh). Độ khó/effort là ước lượng định tính, không phải estim
 | # | Ý | Brief | Trigger đang chờ | Độ khó | Effort |
 |---|---|---|---|---|---|
 | 1 | Workflow hai chế độ (in-process + cross-module) | [`09`](features/09-workflow-two-modes.md) | 1 module thứ 2 thật cần cross-module workflow | Cao | XL |
-| 2 | Workflow visualize / BPM nhẹ | [`10`](features/10-workflow-visualize.md) | Chưa có yêu cầu cụ thể | Thấp-TB | M |
+| 2 | Workflow visualize / BPM nhẹ | [`10`](features/10-workflow-visualize.md) — **done 2026-09-02** | (đã có trigger thật, xong) | Thấp-TB | M |
 | 3 | Tiny deployment profile (1 binary, SQLite, không RabbitMQ) | [`11`](features/11-tiny-deployment-profile.md) | Quyết định sản phẩm: có nhắm self-host không | TB-Cao | L-XL |
 | 4 | Migration path generic-table → bảng riêng | [`12`](features/12-migration-generic-to-dedicated-table.md) | 1 entity đo được nghẽn hiệu năng thật | TB | M |
 | 5 | Computed/derived field | [`13`](features/13-computed-derived-field.md) — **approved, đang implement 2026-09-02** | (chủ động implement, không chờ trigger) | TB | M |
@@ -152,18 +152,20 @@ nhanh). Độ khó/effort là ước lượng định tính, không phải estim
 | 11 | Entity variant polymorphic/discriminated-union | [`16`](features/16-entity-variant-polymorphic.md) | 1 entity thật cần nhiều schema trong cùng logical collection | **Cao nhất** | XL |
 | 12 | Tầm nhìn dài hạn: durable workflow runtime (Temporal-style) | [`17`](features/17-durable-workflow-runtime-vision.md) | Level 4/5 trong roadmap 5-level, hiện ở level 1-2 | Rất cao | XL (multi-quý) |
 
-**#5 và #7 (P1) đã `done`, implement chủ động 2026-09-02, verify sống qua HTTP thật** — chủ dự án
-chọn không chờ trigger cho 2 ý này (thiết kế khó đã giải sẵn trong doc, rủi ro thấp), khác 10 ý còn
-lại vẫn giữ nguyên "chưa nên bắt đầu" cho tới khi có trigger thật.
+**#5, #7 (P1) và #2 đã `done` 2026-09-02** — #5/#7 implement chủ động (thiết kế khó đã giải sẵn
+trong doc, rủi ro thấp); #2 có trigger thật (chủ dự án xác nhận nhu cầu luôn tồn tại + cho spec cụ
+thể), verify qua `pnpm typecheck`/`lint`/`format:check` sạch (frontend verification policy — chưa
+tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn lại vẫn giữ nguyên "chưa nên bắt
+đầu" cho tới khi có trigger thật.
 
 - **Workflow hai chế độ** (in-process trong một module, cross-module qua command/event) mà
   cùng một logical model chạy được ở cả hai, không rewrite khi deployment đổi. Đối lập trực
   tiếp với kết luận hiện tại trong `docs/architectures/09-adr.md`: `WorkflowRuntime` là một
   trong các Capability SPI **chưa có trigger**, chưa nên xây. Cần một trigger cụ thể (một
   module thứ hai thật sự cần cross-module workflow — Phase 7/Phase 9) trước khi đảo lại.
-- **Workflow visualize được / hướng BPM nhẹ** — chưa có ở đâu trong roadmap hay entity nào hiện
-  tại yêu cầu điều này. Giá trị sản phẩm hợp lý cho low-code, nhưng là yêu cầu mới, chưa phải
-  kiến trúc đã quyết.
+- **Workflow visualize được / hướng BPM nhẹ** — **done 2026-09-02**, xem
+  [`10`](features/10-workflow-visualize.md) cho chi tiết implementation
+  (`WorkflowDiagram`/`TransitionButtons`/`layout.ts` trong `platform-ui`).
 - **Tiny deployment profile** (single binary, SQLite, in-memory EventBus, không cần RabbitMQ)
   — đã được đặt tên trong `docs/modular-spi-architecture.md`'s Deployment Profiles, nhưng chính
   tài liệu đó khuyến nghị "Option 1: giữ một triết lý deployment duy nhất" cho hiện tại. Chọn

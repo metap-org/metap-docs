@@ -14,6 +14,30 @@ tiếp) và **cross-module** (một module publish event, module khác subscribe
 riêng nó). Hôm nay `metap-cron`'s workflow-automation layer (Phase 17) chỉ chạy in-process — một
 `cron_jobs` row dispatch tới đúng 1 target trong cùng deployment.
 
+## Ghi chú thảo luận (2026-09-03, chưa phải thiết kế)
+
+Chủ dự án vẫn chưa có use case thật ("chưa nghĩ ra usecase... đang suy nghĩ thêm") — mục dưới đây
+chỉ ghi lại mạch suy nghĩ minh hoạ để không quên, **không phải trigger cụ thể**, không kích hoạt
+việc bắt đầu thiết kế (xem điều kiện trigger ở mục "Rủi ro / phụ thuộc" bên dưới, chưa đổi).
+
+- **Ví dụ minh hoạ (giả định, không phải entity thật trong repo)**: thương mại điện tử —
+  `order → checkout → fulfillment → delivery` — mỗi bước có thể là 1 hệ thống/module khác nhau,
+  nhưng nghiệp vụ là 1 flow xuyên suốt. Nếu có use case thật dạng này trong repo (vd giữa
+  `metap-demo-crm`/`metap-demo-jira`/`metap-demo-waf`), đó mới là trigger đủ điều kiện.
+- **Yêu cầu visualize đi kèm**: nếu #1 thành hình, canvas ở
+  [`10-workflow-visualize.md`](10-workflow-visualize.md) (đã `done`) sẽ cần phân biệt được — nét
+  đứt/nét thường hoặc màu khác — giữa transition thuần nội bộ 1 module và transition
+  trigger/được-trigger-bởi module khác. Cần 1 field mới trên `WorkflowTransition`
+  (`crates/metap-metadata`) đánh dấu tính chất này trước khi `WorkflowDiagram` vẽ được — chưa có
+  hôm nay.
+- **Câu hỏi mở về outbox**: hiện `metap-workflow` bắn outbox event vô điều kiện trên **mọi**
+  transition (không tốn kém do outbox-pattern ghi cùng transaction, publish async — không phải vấn
+  đề hiệu năng), phục vụ `notification-worker`/`metap-cron`'s `WaitEvent` chain subscribe. Câu hỏi
+  chủ dự án nêu: có cần phân biệt transition nào "đáng publish có mục đích" (cross-module) với
+  transition thuần nội bộ không? Field đánh dấu ở ý trên (nếu làm) có thể dùng chung cho cả 2 mục
+  đích — vừa vẽ khác màu trên canvas, vừa quyết định event nào thật sự cần publish rõ ràng cho
+  module khác, thay vì bắn hết như hiện tại.
+
 ## Phạm vi
 
 **Trong phạm vi:**
