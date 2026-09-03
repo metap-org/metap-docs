@@ -1,6 +1,7 @@
 # Config trong database, phân tầng operator / platform-global / per-tenant
 
-- **Trạng thái:** proposed — chưa code, cần chốt phạm vi trước
+- **Trạng thái:** proposed — chưa code. Phạm vi đã chốt gồm cả tầng tenant (chủ dự án xác nhận
+  2026-09-03: webhook secret + theme là nhu cầu chắc chắn), còn chờ duyệt để bắt đầu lát 1.
 - **Người đề xuất:** chủ dự án, 2026-09-03 ("những config như này có thể set trong database, đầu
   API admin/config hay gì đó - per tenant, ngoài ra thì với lowcode thì có thêm mức config-global")
 - **Track sở hữu:** HTTP-API Surface (bề mặt `/admin/*`) + Backend Core (tầng đọc/cache)
@@ -63,11 +64,84 @@ nhất* và đang bị bỏ quên nhất, vì phần lớn hiện **hardcode tro
 - Từ env: `POLICY_CACHE_TTL_SECONDS`, `AUTH_CONTEXT_CACHE_TTL_SECONDS`, `CRON_TICK_MS`,
   `CRON_BATCH_SIZE`, `OUTBOX_POLL_MS`, `OUTBOX_BATCH_SIZE`.
 
-**Tầng 3 — thật sự per-tenant.** Danh sách này **gần như rỗng nếu chỉ nhìn env var** — bằng chứng
-cho nhận định ở trên. Ứng viên thật đến từ các hằng số tầng 2 khi cần khác nhau giữa các tenant:
-TTL session (tenant enterprise muốn ngắn hơn), rate limit riêng theo gói dịch vụ, `max_limit` của
-list view, locale mặc định của tenant. Cộng với những gì **đã** per-tenant và đã nằm trong DB rồi
-(`tenant_auth_configs`, `dashboard_configs`).
+**Tầng 3 — thật sự per-tenant.** Bản đầu của brief này viết "gần như rỗng" và đề xuất hoãn
+`tenant_configs` lại. **Sai, và sai vì đo nhầm thước**: khảo sát chỉ grep 47 env var đang có, mà
+env var thì theo định nghĩa là thứ operator set lúc deploy — không đời nào tìm ra nhu cầu
+per-tenant trong đó. Chủ dự án chỉ ra hai ca cụ thể, cả hai đều là feature tương lai nên không
+thể xuất hiện trong grep đó:
+
+- **Secret cho webhook gọi third-party.** Tenant khai một webhook đến Stripe/Slack/API nội bộ của
+  chính họ thì phải kèm credential. Đây là per-tenant theo đúng nghĩa đen — secret của tenant A
+  không được để tenant B thấy, và operator cũng không nên phải set tay một env var cho mỗi tenant.
+- **Theme.** Màu, logo, tên hiển thị theo tenant.
+
+Hai ca này **khác nhau về bản chất** chứ không chỉ khác giá trị, và đó là phần thiết kế phải làm
+cho đúng — xem 2 mục ngay dưới.
+
+## Secret không phải config — hai loại value, không phải một
+
+Nhét credential third-party vào cột `jsonb` rồi trả về qua `GET /admin/config` là tạo ra đúng ba
+vấn đề cùng lúc: giá trị nằm plaintext trong DB backup, lọt vào log ở bất kỳ chỗ nào log request/
+response, và ai đọc được config là đọc được credential.
+
+Repo **đã có sẵn hạ tầng đúng cho việc này**, đang dùng cho DSN của tenant `DedicatedDb`: trait
+`SecretStore` (`crates/metap-control/src/secret_store.rs`) với 4 impl — `EnvStore`, `VaultStore`,
+`AwsSecretsManagerStore`, `GcpSecretManagerStore` — và `build_secret_store(&AppConfig)` chọn backend
+từ env lúc boot. `control.tenants.dsn_secret_ref` lưu **tham chiếu**, giá trị thật nằm ở Vault/AWS/
+GCP. Đó chính xác là hình dạng webhook secret cần.
+
+Nên `tenant_configs` phải có hai loại value, phân biệt bằng schema chứ không bằng quy ước đặt tên:
+
+```
+{"theme": {"primaryColor": "#0af"}}                  → plain, đọc/ghi bình thường
+{"webhookAuth": {"secretRef": "tenant/<id>/stripe"}} → chỉ lưu ref, giá trị ở SecretStore
+```
+
+Ba ràng buộc bắt buộc, không phải tuỳ chọn:
+1. **`GET` không bao giờ trả giá trị secret**, chỉ trả `secretRef` (và có/không tồn tại). Ghi được,
+   đọc không được — semantics chuẩn cho credential.
+2. **`secretRef` phải được server tự gắn tiền tố `tenant_id`**, tenant không được tự đặt chuỗi ref
+   tuỳ ý — nếu không, tenant A đọc secret của tenant B chỉ bằng cách đoán ref. Đây đúng kỷ luật
+   `S3ObjectStore` đã áp: `s3.rs:69` build `{tenant_id}/{key}` **bên trong**, không call site nào
+   dựng được key chạm sang tenant khác.
+3. `SecretStore` hiện **chỉ có một method** `db_credentials(&self, dsn_secret_ref) -> DbCreds`, và
+   cả 4 impl đều hardcode payload `{"dsn": "..."}`. Phải thêm một method secret tổng quát
+   (`get_secret(ref) -> SecretString`) — không lớn, nhưng là thay đổi trait có 4 impl, phải tính
+   vào phạm vi chứ không phát hiện giữa chừng.
+
+## Va chạm trực tiếp với bản vá SSRF A#1 — đã kiểm chứng trong code
+
+Đây là điểm quan trọng nhất và không hiển nhiên. `executor/ssrf_guard.rs` vừa thêm hôm nay
+**chặn thẳng header `authorization`** (`FORBIDDEN_HEADERS`, gọi ở `webhook.rs:65`). Mà một webhook
+gọi third-party thì gần như luôn cần đúng header đó. **Tính năng secret cho webhook, làm nguyên
+trạng, sẽ bị chính bản vá A#1 chặn.**
+
+Không phải lỗi của bản vá — lý do cấm vẫn đúng: header + đích nội bộ = giả mạo credential vào
+service nội bộ. Nhưng lý do đó chỉ còn hiệu lực khi đích **có thể** là nội bộ; guard đã chặn riêng
+việc đó bằng kiểm tra IP rồi. Với một đích đã qua kiểm tra IP/allowlist, `Authorization` chỉ có thể
+mang secret **của chính tenant đó** đến một host **do chính tenant đó chọn** — chuyện bình thường.
+
+Hướng gỡ đề xuất (cần chốt khi làm, không tự quyết bây giờ): **cấm `Authorization` dạng literal,
+cho phép dạng `secretRef`**. Tenant không gõ được credential thành text vào config; họ trỏ tới một
+secret đã lưu, và executor resolve nó qua `SecretStore` ngay trước khi gửi. Như vậy vừa mở đúng ca
+dùng thật, vừa giữ nguyên tính chất mà A#1 cần: giá trị header không đến từ nội dung request, và
+không bao giờ đi ngược vào `cron_job_runs` để tenant admin đọc lại. `cookie`/`proxy-authorization`
+thì giữ cấm tuyệt đối — không có ca dùng hợp lệ nào.
+
+Kèm theo: cần test khẳng định response body của webhook **không** chứa secret vừa gửi đi, vì
+`cron_job_runs` là thứ tenant admin đọc được.
+
+## Theme có đường đọc riêng, không đi chung với các config khác
+
+Theme phải hiển thị **trên màn hình login** — lúc đó browser chưa có session, chưa biết tenant nào.
+Nghĩa là nó cần một endpoint **public, không auth**, resolve tenant theo hostname/subdomain, khác
+hoàn toàn `GET /admin/config` (đã auth, đã biết tenant từ JWT).
+
+Hệ quả thiết kế: không thể có đúng một endpoint đọc `tenant_configs`. Phải có allowlist tường minh
+những khoá **được phép public** (màu, logo, tên hiển thị) và endpoint public chỉ bao giờ trả đúng
+tập đó — mọi khoá khác, kể cả khoá plain không phải secret, không bao giờ lọt ra đường này. Cùng
+tinh thần "allowlist trong code" ở trên: một cột `is_public` trong DB thì chính nó lại là thứ cần
+được bảo vệ.
 
 ## Mức "config-global" cho low-code
 
@@ -91,17 +165,22 @@ một cột trong DB thì chính nó lại cần một config để bảo vệ, 
 
 ## Phạm vi
 
-**Trong phạm vi (nếu chốt làm):**
+**Trong phạm vi:**
 - Một `ConfigKey` registry typed trong Rust: mỗi khoá khai báo tầng cho phép (`Operator` /
-  `PlatformGlobal` / `Tenant`), kiểu dữ liệu, giá trị mặc định, và validation.
+  `PlatformGlobal` / `Tenant`), kiểu dữ liệu, giá trị mặc định, validation, **và có phải secret
+  hay không, có được đọc public hay không** — 5 thuộc tính, không phải 3.
 - Bảng `platform_configs` (global) + `tenant_configs` (per-tenant), cùng shape `jsonb` như
   `tenant_auth_configs` đã dùng.
-- `GET/PUT /admin/config` (tenant admin, chỉ thấy/sửa được khoá `Tenant`) và
-  `GET/PUT /platform/config` (`PlatformAdminContext`, khoá `PlatformGlobal`).
+- `GET/PUT /admin/config` (tenant admin, chỉ thấy/sửa được khoá `Tenant`),
+  `GET/PUT /platform/config` (`PlatformAdminContext`, khoá `PlatformGlobal`), và một endpoint
+  **public** chỉ trả tập khoá được đánh dấu public, resolve tenant theo hostname (cho theme ở màn
+  hình login).
+- `SecretStore::get_secret(ref) -> SecretString` — method mới trên trait, 4 impl phải cài.
 - Cache đọc: cùng cơ chế đã có (`metap-cache` cho `PermissionService`, `RegistryCache`,
-  `ArcSwap` cho `MetadataRegistry`) — **không** query DB mỗi request.
-- Bắt đầu bằng đúng 3 khoá tầng 2 có giá trị rõ ràng và đang hardcode: `SchemaLimits`, rate limit,
-  session TTL.
+  `ArcSwap` cho `MetadataRegistry`) — **không** query DB mỗi request. Secret **không** cache chung
+  đường với config thường.
+- Gỡ va chạm với A#1: cho phép `Authorization` dạng `secretRef` trong webhook header, giữ cấm dạng
+  literal và cấm tuyệt đối `cookie`/`proxy-authorization`.
 
 **Ngoài phạm vi:**
 - Mọi khoá Tầng 0 và Tầng 1 — env var giữ nguyên, cố ý. Nói rõ trong doc rằng đây là *quyết định
@@ -117,6 +196,13 @@ một cột trong DB thì chính nó lại cần một config để bảo vệ, 
 - Một khoá khai báo `Operator` mà bị `PUT /admin/config` cố sửa → 403, và có test khẳng định điều
   đó cho **đúng** `CRON_WEBHOOK_ALLOW_PRIVATE_TARGETS` (regression trực tiếp cho audit 04 A#1).
 - `GET /admin/config` của tenant A không bao giờ trả về giá trị của tenant B.
+- **`GET` không bao giờ trả về giá trị của một khoá secret**, chỉ trả `secretRef` — có test.
+- **Tenant A không resolve được `secretRef` của tenant B**, kể cả khi gửi đúng chuỗi ref của B —
+  test trực tiếp, vì đây là ranh giới quan trọng nhất của tính năng.
+- Endpoint public chỉ trả đúng tập khoá đánh dấu public; một khoá `Tenant` không-public bị yêu cầu
+  qua đường đó → không có trong response (không phải 403 — không tiết lộ cả sự tồn tại).
+- Webhook gửi được `Authorization` từ `secretRef` tới host đã allowlist, **và** `cron_job_runs`
+  không chứa giá trị secret đó ở bất kỳ đâu — test.
 - Khoá không được set ở tầng nào → đọc ra đúng mặc định trong code, không phải `null`/lỗi.
 - Đổi `SchemaLimits` qua `/platform/config` có hiệu lực **không cần restart** (cùng cơ chế
   hot-swap `ArcSwap` mà registry đã dùng).
@@ -126,11 +212,14 @@ một cột trong DB thì chính nó lại cần một config để bảo vệ, 
 ## Ranh giới kiến trúc bị đụng tới
 
 - Bề mặt `/admin/*` mở rộng — thuộc HTTP-API Surface, không đụng `CrudService`.
+- **`SecretStore` đổi trait** (`metap-control`) — 4 impl, và `../metap-lowcode`'s
+  `reconciler-orchestrator` cũng gọi `build_secret_store`. Thay đổi lan sang repo khác, phải báo
+  trước.
 - **Không** biến config thành `EntityDefinition`. Cùng lý do `policies`/`cron_jobs`/`dashboard_configs`
   không phải entity: đây là bảng nền tảng, không phải dữ liệu nghiệp vụ của tenant.
-- Cần **ADR** cho đúng một điểm: bất biến "tầng là thuộc tính của khoá, cưỡng chế bằng allowlist
-  trong Rust" — vì nó là thứ duy nhất ngăn bề mặt tiện lợi này trở thành đường vòng qua mọi guard
-  operator đã đặt.
+- Cần **ADR** cho hai điểm: (1) bất biến "tầng là thuộc tính của khoá, cưỡng chế bằng allowlist
+  trong Rust"; (2) nới `FORBIDDEN_HEADERS` cho `secretRef` — vì nó sửa đúng một guard bảo mật vừa
+  đặt, phải có lý do ghi lại chứ không lặng lẽ đổi.
 
 ## Rủi ro / phụ thuộc
 
@@ -138,14 +227,19 @@ một cột trong DB thì chính nó lại cần một config để bảo vệ, 
   cái này per-tenant luôn đi" sẽ đến từ mọi phía, và mỗi lần nhượng bộ với một khoá Tầng 1 là một
   lỗ hổng. Allowlist trong code + test 403 ở trên là để chống lại chính áp lực đó, không phải
   chống người dùng.
+- Nới `FORBIDDEN_HEADERS` là chỗ dễ sai nhất trong toàn bộ đề xuất: làm ẩu thì gỡ luôn bản vá A#1
+  vừa xong. Phải đi kèm test khẳng định literal vẫn bị chặn.
 - Phụ thuộc `docs/features/15-tenant-scoped-lowcode-metadata.md` nếu muốn tầng low-code đầy đủ.
-- Nếu chỉ làm 3 khoá tầng 2 (khuyến nghị), không phụ thuộc gì và không đụng ai.
 
-## Khuyến nghị
+## Thứ tự đề xuất
 
-Làm **bản hẹp**: 3 khoá Tầng 2 đang hardcode (`SchemaLimits` — đóng luôn audit 04 B#7, rate limit,
-session TTL), một bảng `platform_configs`, một `GET/PUT /platform/config`. Chưa làm
-`tenant_configs` cho tới khi có một nhu cầu per-tenant *thật* (hôm nay khảo sát ra gần như không
-có — thứ per-tenant thật thì đã nằm trong DB sẵn rồi). Như vậy vừa gỡ được cái đang thực sự vướng
-(giá trị hardcode ở bề mặt public nhất), vừa không dựng sẵn một bề mặt per-tenant chưa ai cần —
-đúng quy ước "không xây trước khi có trigger" của `docs/team-charter.md`.
+Không còn là "làm hẹp rồi chờ trigger" — trigger đã có (webhook secret + theme). Nhưng vẫn nên chia
+3 lát, vì lát 1 không phụ thuộc gì và lát 3 là lát dễ sai nhất:
+
+1. **Khung + Tầng 2.** `ConfigKey` registry, `platform_configs`, `GET/PUT /platform/config`, gỡ 3
+   giá trị hardcode (`SchemaLimits` — đóng luôn audit 04 B#7, rate limit, session TTL). Không đụng
+   secret, không đụng `SecretStore`, không đụng A#1.
+2. **`tenant_configs` + theme.** Thêm tầng tenant vào chuỗi resolve, endpoint public theo hostname,
+   allowlist khoá public. Vẫn chưa đụng secret.
+3. **Secret.** `SecretStore::get_secret`, `secretRef` trong config, và nới `FORBIDDEN_HEADERS` cho
+   webhook — làm sau cùng, khi khung đã ổn định và có chỗ để test tử tế.
