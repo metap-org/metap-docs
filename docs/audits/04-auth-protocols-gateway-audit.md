@@ -461,7 +461,19 @@ mang trace đi:
 - `metap-jwks` → refresh JWKS.
 
 Kết quả: trace liền mạch qua gRPC, đứt qua REST. Đây là loại lỗ hổng quan sát chỉ lộ ra đúng lúc
-đang debug sự cố production. Sửa rẻ: gọi `attach_trace_context` ở 3 call site trên.
+đang debug sự cố production.
+
+> **Đính chính khi fix (2026-09-03):** bản audit đầu viết "sửa rẻ: gọi `attach_trace_context` ở 3
+> call site trên" — **sai**. Gọi thêm ở 3 chỗ đó thôi thì vẫn là no-op, vì cả 3 đều chạy **ngoài**
+> mọi request scope: `cron-scheduler` tiêu thụ từ RabbitMQ, gateway fetch metadata lúc boot,
+> `metap-jwks` refresh nền — nên `trace_context::current()` trả `None` ở cả ba. Lỗ hổng thật là
+> **không có gì tạo trace context ngoài request HTTP**, chứ không phải "quên gọi hàm".
+> Cách fix đã áp dụng: `dispatch::execute` mở một **root trace context mới cho mỗi job run**
+> (`from_headers` với header rỗng sinh trace id mới), rồi mới gắn `attach_trace_context` vào 3
+> callback REST của `workflow_transition`/`bulk_query_action` + webhook — giờ một record bị cron
+> ghi truy ngược được về đúng job run gây ra nó. Gateway metadata-fetch và JWKS refresh **cố ý để
+> nguyên**: chúng là thao tác boot/nền một lần, một root trace cho mỗi lần đó gần như không có giá
+> trị vận hành nào.
 
 ---
 
