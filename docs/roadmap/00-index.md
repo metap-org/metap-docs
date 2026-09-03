@@ -37,7 +37,7 @@ lại thông tin sai ở trang index này.
 
 ---
 
-### ✅ Done (52)
+### ✅ Done (54)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -93,6 +93,8 @@ lại thông tin sai ở trang index này.
 | [67. Tầng config per-tenant + bề mặt branding trước khi login](67-tenant-config-tier-public-theme.md) | bảng `tenant_configs`, `GET/PUT/DELETE /admin/config` (tenant lấy từ token, không bao giờ từ request), và `GET /public/config` không auth… |
 | [68. Secret cho webhook — `SecretStore` tổng quát, config write-only, nới `FORBIDDEN_HEADERS`](68-webhook-secret-tier.md) | lát brief tự cảnh báo là dễ sai nhất vì nó sửa đúng guard audit 04 A#1 vừa đặt cùng ngày. `SecretStore` thêm… |
 | [69. Dev tooling (docker-compose/mold) + fix phase 64's downstream fallout](69-dev-tooling-and-cookie-session-downstream-fixes.md) | trigger: câu hỏi thuần dev-tooling ("chưa có docker compose dev, rust build đỡ nặng k") lộ ra Phase 64 (cookie session) chưa lan xuống… |
+| [70. Aggregation API (`plan_aggregate`)](70-aggregate-api.md) | `GROUP BY`/`COUNT`/`SUM` cho mọi entity — core trước đó không có khả năng aggregate nào; **chưa build/test** |
+| [71. WAF Customer Portal thật + endpoint "phải tự code"](71-waf-admin-portal.md) | portal 10 module theo IA zone-centric + verify-dns/test-origin/sync-config-state/delete-guard/correlate/alert/scan; **chưa build/test** |
 
 ### 🟡 Done-partial / in-progress (8)
 
