@@ -72,11 +72,22 @@ sequenceDiagram
   Note right of Peripherals: email không tồn tại vẫn chạy argon2-verify<br/>với dummy hash — timing giống hệt sai mật khẩu
   Peripherals-->>AuthRoute: user hoặc lỗi invalid_credentials
   AuthRoute->>Peripherals: mint_jwt(userId, tenantId)
-  AuthRoute-->>EndUser: 200 {token}
+  Note right of AuthRoute: Phase 64 (2026-09-03) — response mang CẢ HAI: JSON body {token}<br/>(caller không phải browser: CLI, service-to-service) VÀ 2 Set-Cookie<br/>(browser: metap_session HttpOnly = chính JWT trên, metap_csrf<br/>random, JS đọc được — double-submit). Chi tiết cơ chế + lý do 2 cookie<br/>ở [08. Cross-cutting Concepts](08-cross-cutting.md#cookie-session-and-csrf).
+  AuthRoute-->>EndUser: 200 {token}<br/>Set-Cookie: metap_session, metap_csrf
 
-  Note over EndUser,Perm: 3. Mọi request sau đó — role tra mới từ DB, không bao giờ đọc từ JWT
-  EndUser->>ApiRoute: GET /api/sales.orders (Authorization: Bearer token)
-  ApiRoute->>ApiRoute: AuthContext: verify JWT (RS256) -> userId, tenantId
+  Note over EndUser,Perm: 3. Mọi request sau đó — role tra mới từ DB, không bao giờ đọc từ JWT.<br/>Hai tuyến xác thực song song, AuthContext tự chọn theo có header Authorization hay không:
+  alt 3a. Trình duyệt (không set header Authorization — fetch({credentials:"include"}) tự đính cookie)
+    EndUser->>ApiRoute: POST /api/sales.orders (Cookie: metap_session, metap_csrf)<br/>Header X-CSRF-Token = giá trị cookie metap_csrf (mọi request, không chỉ mutating)
+    ApiRoute->>ApiRoute: Không có header Authorization -> đọc cookie metap_session
+    alt method mutating (không GET/HEAD/OPTIONS)
+      ApiRoute->>ApiRoute: so X-CSRF-Token với cookie metap_csrf — lệch hoặc thiếu -> 401 luôn, dừng ở đây
+    end
+    ApiRoute->>ApiRoute: verify JWT trong metap_session (RS256) -> userId, tenantId
+  else 3b. CLI / service-to-service (dev-tools mint-token, cron-scheduler, graphql-gateway forward token...)
+    EndUser->>ApiRoute: GET /api/sales.orders (Authorization: Bearer token)
+    ApiRoute->>ApiRoute: Có header Authorization -> parse Bearer, KHÔNG check CSRF<br/>(header không thể bị browser tự đính kèm cross-site theo cùng cách cookie bị)
+    ApiRoute->>ApiRoute: verify JWT (RS256) -> userId, tenantId
+  end
   ApiRoute->>Peripherals: get_roles_for_user(pool, tenantId, userId)
   Peripherals->>DB: SELECT role FROM user_roles WHERE tenant_id, user_id
   Peripherals-->>ApiRoute: roles[]
@@ -98,6 +109,16 @@ sequenceDiagram
 
 Ghi chú:
 
+- **Cookie session là tuyến chính cho browser, Bearer vẫn nguyên vẹn cho tất cả caller khác**
+  (Phase 64, 2026-09-03 — [09. Architecture Decisions](09-adr.md)) — đây là đảo ngược một quyết
+  định cũ có chủ đích ("JWT chỉ sống trong React state, mất khi F5"), không phải sửa lỗi. Header
+  `Authorization` luôn thắng khi có mặt (nhánh 3b ở trên) nên toàn bộ CLI/service-to-service không
+  đổi gì. `GET /auth/token` (route riêng, dùng `AuthContext` nên chạy được dù caller vào bằng
+  cookie hay Bearer) mint 1 JWT ngắn hạn cho `graphql-gateway` — service này tự keypair/tự CORS
+  riêng, không tham gia cơ chế cookie. `POST /auth/logout` xoá cả 2 cookie (`Max-Age=0`) phía
+  server — client không tự xoá được cookie `HttpOnly`. Cơ chế double-submit CSRF + lý do 2 cookie
+  tách biệt (`metap_session` HttpOnly, `metap_csrf` không) ở
+  [08. Cross-cutting Concepts](08-cross-cutting.md#cookie-session-and-csrf).
 - **Mô hình phân quyền là deny-by-default cho non-admin, với deny-overrides-allow** (đổi từ
   "opt-in restriction" ngày 2026-08-21, xem [09. Architecture Decisions](09-adr.md)): một
   `(entity, action)` chưa có policy nào thì **không ai được phép** (trừ `admin`, luôn bypass toàn
@@ -112,7 +133,7 @@ Ghi chú:
   `record_policy_where_clause` cho `list()`) đều đi qua nó. Chi tiết ở
   [08. Cross-cutting Concepts](08-cross-cutting.md#permission-enforcement).
 - Có 3 tầng policy, phân biệt bằng cột `field`/`subject` của bảng `policies` (xem ER diagram ở
-  [05. Building Block View](05-building-blocks.md#database-design-er-diagram)): **context-level**
+  [05. Building Block View](05-building-blocks/04-data-model.md#database-design-er-diagram)): **context-level**
   (`field`/`subject` đều rỗng — gác toàn bộ action trên entity), **field-level** (`field` có giá
   trị, `action` là `"read"` để mask lúc đọc hoặc `"write"` để chặn lúc ghi), **record-level**
   (`subject: "record"` — dịch thành mệnh đề SQL `WHERE` trong `QueryPlanner`, lọc row nào hiện ra
@@ -123,7 +144,7 @@ Ghi chú:
   attribute path (vd `"referredBy.status"`, resolve 1-hop qua field kiểu `Reference`) — chỉ áp
   dụng cho thao tác trên một record đơn (`get`/`update`/`transition`/`delete`), **không** áp dụng
   cho `list()` (`metap-query` reject rõ ràng nếu gặp dotted path trong policy dùng cho `list()`,
-  vì SQL path chưa hỗ trợ join). Xem [05. Building Block View](05-building-blocks.md#permission-service).
+  vì SQL path chưa hỗ trợ join). Xem [05. Building Block View](05-building-blocks/03-core-services.md#permission-service).
 - `users` và `user_roles` là hai bảng tách biệt có chủ đích (xem ghi chú ở ER diagram) — một user
   có thể tồn tại (đăng nhập được) mà chưa có role nào, hoặc có nhiều role cùng lúc.
 - **Cách kiểm chứng cả luồng này** — `apps/crm-server/scripts/permission-smoke.sh` chạy qua HTTP

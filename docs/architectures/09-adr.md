@@ -68,7 +68,7 @@ việc đó là thừa.
   `PolicyCondition::Not`, vốn không giải được phủ định *xuyên* nhiều policy độc lập, chỉ phủ định
   được điều kiện *trong* một policy) vì đây là ngữ nghĩa quen thuộc kiểu IAM, dễ suy luận khi
   nhiều policy chồng nhau. Kèm tách `EntityAction::Transition` khỏi `Update` — sửa field và chuyển
-  workflow state giờ là hai quyền độc lập. Chi tiết: [05. Building Block View](05-building-blocks.md#permission-service), `docs/roadmap.md` Phase 3.
+  workflow state giờ là hai quyền độc lập. Chi tiết: [05. Building Block View](05-building-blocks/03-core-services.md#permission-service), `docs/roadmap.md` Phase 3.
 - **Cross-record permission condition: dotted attribute path, resolve 1-hop ở `CrudService`, `metap-permission` giữ nguyên thuần túy/đồng bộ.** (Cùng review 2026-08-21 — "cách tốt nhất cho
   tương lai, performance ưu tiên hàng đầu".) Cân nhắc để `metap-permission` tự làm I/O (fetch
   record liên quan bên trong khi evaluate) nhưng bác bỏ — sẽ phá vỡ tính pure-function của toàn bộ
@@ -77,7 +77,7 @@ việc đó là thừa.
   đầu của path, không I/O); `CrudService` là nơi duy nhất fetch, chỉ 1-hop qua field kiểu
   `Reference`, chỉ khi thật sự cần (rỗng thì không tốn gì), chỉ cho 4 method single-record — không
   áp dụng `list()` vì cần `QueryPlanner` JOIN (chưa xây, không phải mục tiêu của thay đổi này).
-  Chi tiết: [05. Building Block View](05-building-blocks.md#permission-service).
+  Chi tiết: [05. Building Block View](05-building-blocks/03-core-services.md#permission-service).
 - **Vault AppRole auth ưu tiên `renew_self`, chỉ fallback login lại khi renew thất bại.**
   (`VaultStore`, Phase 16 Giai đoạn 4.) Renewal ban đầu luôn login lại bằng AppRole + `secret_id`
   đã lưu — tự vỡ với một role cấu hình `secret_id_num_uses=1` (secret_id một lần dùng, login lại
