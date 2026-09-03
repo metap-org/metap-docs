@@ -291,7 +291,7 @@ biệt lập, thay vì tạo thêm một implementation frontend hard-code hoàn
 ## Chưa lên kế hoạch
 
 Các mục `[ ]` ở trên không tự động là backlog theo thứ tự ưu tiên — dự án đang theo kỷ luật
-trigger-based (`docs/architectures/02-constraints.md`), không xây trước khi có nhu cầu cụ thể.
+trigger-based (`docs/architectures/02-constraints/00-index.md`), không xây trước khi có nhu cầu cụ thể.
 Trước khi bắt đầu bất kỳ mục nào trong nhóm "Admin" (Integrations/API keys/Webhooks/Audit
 logs/System settings/Feature flags), "Developer / Platform UI", hay "Dashboard builder", nên có
 một feature brief trong `docs/features/` nêu rõ trigger, theo đúng cách các mục tương tự đã được

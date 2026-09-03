@@ -7,8 +7,8 @@ axum + sqlx + PostgreSQL + RabbitMQ + Outbox Pattern
 ```
 
 Chi tiết lựa chọn framework/DB-access (axum/sqlx) nằm ở
-[09. Architecture Decisions](architectures/09-adr.md) và
-[04. Solution Strategy](architectures/04-strategy.md). Tài liệu này giải thích lý do đằng sau
+[09. Architecture Decisions](architectures/09-adr/00-index.md) và
+[04. Solution Strategy](architectures/04-strategy/00-index.md). Tài liệu này giải thích lý do đằng sau
 các lựa chọn nền tảng bên dưới — PostgreSQL, RabbitMQ, Outbox Pattern, và cách tiếp cận
 metadata-driven — những lựa chọn không đổi qua lần chuyển ngôn ngữ implementation.
 

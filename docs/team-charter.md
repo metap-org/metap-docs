@@ -54,7 +54,7 @@ cần sign-off chéo track" đã có sẵn câu trả lời, thay vì phải th�
 | **App/Entity** | Consumer ví dụ cụ thể: đăng ký business entity, wire một binary chạy được, frontend demo harness. Nơi các module nghiệp vụ mới (Phase 7) sẽ nằm. | `apps/crm-server`, `apps/crm-fe` |
 
 Các ranh giới khiến việc phân track có ý nghĩa (danh sách đầy đủ ở
-`docs/architectures/02-constraints.md` và `CLAUDE.md`):
+`docs/architectures/02-constraints/00-index.md` và `CLAUDE.md`):
 
 - HTTP/API Surface không bao giờ vòng qua Backend Core để đụng thẳng `sqlx`/`lapin`.
 - App/Entity không bao giờ bị import ngược lại bởi bất kỳ crate `crates/metap-*` nào — hướng phụ
@@ -63,7 +63,7 @@ Các ranh giới khiến việc phân track có ý nghĩa (danh sách đầy đ�
   vào nội bộ backend.
 - Thay đổi cần đụng nhiều track (vd: thêm property mới cho `EntityField`, đụng cả Backend Core lẫn
   generated types của Frontend Platform) cần sign-off từ cả hai track, và thường nên có mục ADR
-  (`docs/architectures/09-adr.md`) vì đây đúng kiểu quyết định tốn kém nếu làm lại một mình.
+  (`docs/architectures/09-adr/00-index.md`) vì đây đúng kiểu quyết định tốn kém nếu làm lại một mình.
 
 ### Phân công hiện tại
 
@@ -108,10 +108,10 @@ metadata-driven generalize tốt qua field kind/workflow shape/list view khác n
 Phần còn lại của Phase 8 (tích hợp secret manager, load test, backup/restore drill) và quyết định
 cutover thật sự của Phase 12. Cả hai đang bị block rõ ràng trong `docs/roadmap.md` bởi một điều
 kiện tiên quyết còn thiếu: **chưa có quyết định về deployment topology cho production**
-(`docs/architectures/11-risks.md`).
+(`docs/architectures/11-risks/00-index.md`).
 
 **Việc đầu tiên của stream này không phải code** — mà là một ADR chọn deployment topology
-(`docs/architectures/09-adr.md`): thực tế sẽ chạy ở đâu, secret manager là gì, "production" nghĩa
+(`docs/architectures/09-adr/00-index.md`): thực tế sẽ chạy ở đâu, secret manager là gì, "production" nghĩa
 là gì với một dự án ở giai đoạn này. Mọi thứ khác trong Phase 8/12 phụ thuộc vào quyết định đó và
 không nên bắt đầu trước, để tránh harden theo một topology mà sau này lại chọn khác.
 
@@ -129,7 +129,7 @@ tự (spec của Stream A trước khi implement; ADR của Stream C trước kh
 ## Định hướng đang ghi nhận, chưa có trigger — không phải stream, chưa nên bắt đầu
 
 Nảy sinh từ các buổi thảo luận kiến trúc, hợp lý về mặt sản phẩm nhưng đi trước trigger-based
-discipline hiện tại (`docs/architectures/02-constraints.md`'s "Tiến hóa theo trigger"). Ghi lại
+discipline hiện tại (`docs/architectures/02-constraints/00-index.md`'s "Tiến hóa theo trigger"). Ghi lại
 ở đây để không quên, không phải để bắt đầu code — mỗi mục cần một feature brief trong
 `docs/features/` (trạng thái `proposed`) nêu rõ trigger cụ thể trước khi ai đó bắt tay vào.
 
@@ -160,7 +160,7 @@ tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn l�
 
 - **Workflow hai chế độ** (in-process trong một module, cross-module qua command/event) mà
   cùng một logical model chạy được ở cả hai, không rewrite khi deployment đổi. Đối lập trực
-  tiếp với kết luận hiện tại trong `docs/architectures/09-adr.md`: `WorkflowRuntime` là một
+  tiếp với kết luận hiện tại trong `docs/architectures/09-adr/00-index.md`: `WorkflowRuntime` là một
   trong các Capability SPI **chưa có trigger**, chưa nên xây. Cần một trigger cụ thể (một
   module thứ hai thật sự cần cross-module workflow — Phase 7/Phase 9) trước khi đảo lại.
 - **Workflow visualize được / hướng BPM nhẹ** — **done 2026-09-02**, xem
@@ -169,12 +169,12 @@ tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn l�
 - **Tiny deployment profile** (single binary, SQLite, in-memory EventBus, không cần RabbitMQ)
   — đã được đặt tên trong `docs/modular-spi-architecture.md`'s Deployment Profiles, nhưng chính
   tài liệu đó khuyến nghị "Option 1: giữ một triết lý deployment duy nhất" cho hiện tại. Chọn
-  Tiny nghĩa là sửa `docs/architectures/02-constraints.md`'s ràng buộc Postgres/RabbitMQ-duy-
+  Tiny nghĩa là sửa `docs/architectures/02-constraints/00-index.md`'s ràng buộc Postgres/RabbitMQ-duy-
   nhất và kiểm toán dialect Postgres-specific của `QueryPlanner` — một quyết định sản phẩm
   (có nhắm khách self-host không?), không phải gap kỹ thuật.
 - **Migration path từ generic `records` table sang bảng riêng cho một entity** — chưa viết ở
   đâu. Chỉ nên viết thành spec khi Data Model Strategy Step 3
-  (`docs/architectures/05-building-blocks.md`) thực sự được kích hoạt bởi một nhu cầu hiệu năng
+  (`docs/architectures/05-building-blocks/00-index.md`) thực sự được kích hoạt bởi một nhu cầu hiệu năng
   đo được của một entity cụ thể, không phải chuẩn bị sẵn trước.
 - **Computed/derived field** (field tính từ field khác *cùng một record*, ví dụ
   `display_name = first_name + " " + last_name`) — mở rộng tự nhiên từ `searchable`/`sortable`
@@ -197,7 +197,7 @@ tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn l�
   đụng độ tên. Trigger: một entity thật sự cần đổi field shape mà không muốn migrate toàn bộ
   record cũ ngay lập tức.
 - **Organization & Identity layer — P1/P2 còn lại** (P0 đã xong, xem `docs/roadmap.md` Phase 18
-  và `docs/architectures/09-adr.md`; mục này chỉ còn giữ phần chưa code). P0 đóng đúng gap hẹp đã
+  và `docs/architectures/09-adr/00-index.md`; mục này chỉ còn giữ phần chưa code). P0 đóng đúng gap hẹp đã
   phát hiện 2026-08-22: RBAC+ABAC (`metap-permission`) đã đủ biểu đạt lực cho "role có scope" (vd
   "Sales Manager chỉ áp dụng trong phòng Sales"), chỉ thiếu chỗ để `RequestContext` mang attribute
   của caller — nay đã có (`context_attributes`, opt-in qua `AUTH_CONTEXT_ENTITY`, có cache). Còn
@@ -343,7 +343,7 @@ tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn l�
     single-tenant "trivial" mặc định, repo multi-tenancy private cung cấp impl SaaS thật implement
     trait đó. Chi tiết Vault production-readiness (HA/unseal/backup — một mối quan tâm liên quan
     nhưng khác, thuộc về lúc chọn hạ tầng production) nằm ở
-    `docs/architectures/07-deployment.md`'s "Vault production readiness — open questions".
+    `docs/architectures/07-deployment/00-index.md`'s "Vault production readiness — open questions".
   - Tách frontend (`packages/platform-react`/`apps/crm-fe`) ra repo riêng — chưa đánh giá coupling
     cụ thể (frontend chỉ giao tiếp qua HTTP, nên về nguyên tắc là sạch nhất trong 4 mảnh), để lại
     đánh giá chi tiết khi trigger thật sự xảy ra thay vì đoán trước.

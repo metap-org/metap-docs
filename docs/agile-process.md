@@ -47,7 +47,7 @@ Việc nhỏ (fix bug rõ ràng, sửa doc, refactor cục bộ) không cần qu
 2. `docs/roadmap.md` đã cập nhật nếu trạng thái phase đổi.
 3. File tương ứng trong `docs/features/` (nếu có) đã cập nhật trạng thái (vd: `in-progress` →
    `done`).
-4. Quyết định kiến trúc non-trivial đã có mục trong `docs/architectures/09-adr.md`.
+4. Quyết định kiến trúc non-trivial đã có mục trong `docs/architectures/09-adr/00-index.md`.
 5. Nếu có bug thật phát hiện trong lúc verify (không phải lỗi giả định) — ghi lại vào roadmap hoặc
    ADR liên quan, giống cách Phase 13/15 đã làm — để lần sau không lặp lại cùng lỗi.
 

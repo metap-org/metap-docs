@@ -6,7 +6,7 @@ mỗi cái trả lời một câu hỏi khác nhau — thư mục này lấp đ�
 | Tài liệu | Trả lời câu hỏi |
 |---|---|
 | `docs/roadmap.md` | Đang ở phase lớn nào, phase đó xong chưa |
-| `docs/architectures/09-adr.md` | Vì sao chọn giải pháp kiến trúc này (quyết định *kỹ thuật*) |
+| `docs/architectures/09-adr/00-index.md` | Vì sao chọn giải pháp kiến trúc này (quyết định *kỹ thuật*) |
 | `docs/features/*.md` (thư mục này) | Một tính năng cụ thể làm gì, phạm vi tới đâu, khi nào coi là xong (yêu cầu *sản phẩm*) |
 
 Không phải việc nhỏ nào cũng cần một file ở đây — xem Definition of Ready trong

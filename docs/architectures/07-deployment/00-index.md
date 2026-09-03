@@ -1,6 +1,16 @@
 # 7. Deployment View
 
-Topology triển khai cho local development (`docker compose` + các process Rust chạy qua wrapper script của `pnpm`, hoặc `cargo run` trực tiếp). Production chưa được xây dựng ([Phase 8: Hardening](../roadmap.md) đang tiến hành — đã có `Dockerfile` non-root và CI, nhưng chưa có topology triển khai production/orchestrator/secrets-manager thực sự) — tài liệu này phản ánh setup dev thực tế hiện tại, không phải một topology production mục tiêu. (Physical View của Kruchten 4+1.)
+Topology triển khai cho local development (`docker compose` + các process Rust chạy qua `cargo run` trực tiếp). Production chưa được xây dựng ([Phase 8: Hardening](../../roadmap.md) đang tiến hành — đã có `Dockerfile` non-root và CI, nhưng chưa có topology triển khai production/orchestrator/secrets-manager thực sự) — tài liệu này phản ánh setup dev thực tế hiện tại, không phải một topology production mục tiêu. (Physical View của Kruchten 4+1.)
+
+**Cập nhật 2026-09-04**: mermaid graph + ghi chú dưới đây còn nhắc `pnpm dev:rs`/`pnpm dev:web`/
+`pnpm worker:*:rs`/`pnpm start` — các script `package.json` gốc `metap` đã bị **xoá hẳn** cùng đợt
+tách repo (`metap` giờ 0 Node/pnpm). Lệnh thật hiện tại: `cd ../metap-demo-crm && cargo run` (API,
+:3000), `cd ../metap-demo-crm/web && pnpm dev` (:5173), `cargo run --manifest-path
+../metap/crates/outbox-publisher/Cargo.toml`/`cron-scheduler`/`notification-worker` tương tự (hoặc
+chạy inline qua `OUTBOX_WORKER_INLINE`/`NOTIFICATION_WORKER_INLINE`, xem README từng repo) — xem
+`../05-building-blocks/00-index.md`'s ghi chú Development View cho layout 9-repo đầy đủ. Cũng
+xem `docker-compose.dev.yml` mới ở gốc từng repo (`docs/roadmap/69-*.md`) cho 1 lệnh hot-reload
+thay cho việc gõ tay từng lệnh trên.
 
 ```mermaid
 graph TB
@@ -11,7 +21,7 @@ graph TB
   end
 
   subgraph procs["Rust processes"]
-    API["API Server<br/>pnpm dev:rs (apps/crm-server)<br/>:3000 — gộp /api, /admin, /auth, /metadata, /admin/lowcode, /platform/tenants"]
+    API["API Server<br/>pnpm dev:rs (../metap-demo-crm)<br/>:3000 — gộp /api, /admin, /auth, /metadata, /admin/lowcode, /platform/tenants"]
     OutboxW["Outbox Publisher<br/>pnpm worker:outbox:rs"]
     CronW["Cron Scheduler<br/>pnpm worker:cron:rs"]
     NotifW["Notification Worker<br/>pnpm worker:notification:rs<br/>(hoặc inline trong API Server, NOTIFICATION_WORKER_INLINE=true)"]
@@ -35,10 +45,10 @@ graph TB
 ## Ghi chú
 
 - API Server, Outbox Publisher, Cron Scheduler, và Notification Worker hiện là các binary/process riêng biệt, chưa phải các container riêng — mỗi cái đều có thể được đóng container độc lập mà không cần sửa code, vì chúng vốn đã chỉ giao tiếp qua PostgreSQL/RabbitMQ/HTTP.
-- **Phương án chạy đơn process**: `pnpm start` build `apps/crm-fe` rồi trỏ config `STATIC_DIR` của `apps/crm-server` vào thư mục output build đó, để API server tự phục vụ luôn các static file của frontend, chạy đơn process/đơn port. Đây là một chế độ tiện lợi khi triển khai, không phải phương án thay thế cho workflow dev tách rời ở trên (`pnpm dev:web` + `pnpm dev:rs`) — Outbox Publisher/Cron Scheduler không bao giờ bị gộp vào chế độ này, luôn là process riêng biệt dù chạy theo cách nào; Notification Worker là ngoại lệ duy nhất, có thể chạy inline trong API Server (`NOTIFICATION_WORKER_INLINE=true`) hoặc như process riêng — cả hai gọi chung một hàm `notification_worker::run` nên không lệch hành vi.
-- Chưa có tài liệu mô tả topology triển khai production — chưa có orchestrator (Kubernetes, ECS, v.v.), chưa có load balancer, chưa có autoscaling. Đây là khoản nợ kỹ thuật có thật, đã được ghi nhận — xem [11. Risks and Technical Debt](11-risks.md).
+- **Phương án chạy đơn process**: `pnpm start` build `../metap-demo-crm/web` rồi trỏ config `STATIC_DIR` của `../metap-demo-crm` vào thư mục output build đó, để API server tự phục vụ luôn các static file của frontend, chạy đơn process/đơn port. Đây là một chế độ tiện lợi khi triển khai, không phải phương án thay thế cho workflow dev tách rời ở trên (`pnpm dev:web` + `pnpm dev:rs`) — Outbox Publisher/Cron Scheduler không bao giờ bị gộp vào chế độ này, luôn là process riêng biệt dù chạy theo cách nào; Notification Worker là ngoại lệ duy nhất, có thể chạy inline trong API Server (`NOTIFICATION_WORKER_INLINE=true`) hoặc như process riêng — cả hai gọi chung một hàm `notification_worker::run` nên không lệch hành vi.
+- Chưa có tài liệu mô tả topology triển khai production — chưa có orchestrator (Kubernetes, ECS, v.v.), chưa có load balancer, chưa có autoscaling. Đây là khoản nợ kỹ thuật có thật, đã được ghi nhận — xem [11. Risks and Technical Debt](../11-risks/00-index.md).
 - `docker compose` ở đây chỉ là tiện ích cho local dev, không phải mục tiêu triển khai — `docker-compose.yml` chạy `postgres`, `rabbitmq` mặc định, cộng thêm các service opt-in cho từng feature cụ thể: `vault` (`VaultStore`, dedicated_db tenant), `dragonfly` (`metap-cache`'s `RedisCache`, Phase 23), `seaweedfs` (`metap-storage`'s `S3ObjectStore`, Phase 22), `mailhog` (`TargetType::Email` gửi SMTP, Phase 39, xem port 8025 để đọc email test). API/worker/frontend đều chạy dưới dạng process thuần trên host — không có gì trong docker-compose đóng vai trò datastore/broker chính ngoài `postgres`/`rabbitmq`.
-- **`apps/jira-server`** (Phase 21+) chạy như một process Rust riêng thứ hai, cạnh `apps/crm-server` — `cargo run -p jira-server` hoặc `pnpm dev:jira:rs`, port 3100 (không đụng port 3000 của crm-server), có thể tùy chọn chạy `outbox-publisher`'s drain loop inline (`OUTBOX_WORKER_INLINE=true`) vì tenant `dedicated_db` của nó cần drain riêng.
+- **`../metap-demo-jira`** (Phase 21+) chạy như một process Rust riêng thứ hai, cạnh `../metap-demo-crm` — `cargo run -p jira-server` hoặc `pnpm dev:jira:rs`, port 3100 (không đụng port 3000 của crm-server), có thể tùy chọn chạy `outbox-publisher`'s drain loop inline (`OUTBOX_WORKER_INLINE=true`) vì tenant `dedicated_db` của nó cần drain riêng.
 - Mỗi tenant `dedicated_db` cần đúng một service-account (`CRON_SERVICE_EMAIL`/`CRON_SERVICE_PASSWORD`)/executor để Cron Scheduler thực thi job của tenant đó — claim `tenantId` của token account đó cố định tenant nào một executor chạy được (ràng buộc đã biết, không phải lỗ hổng bảo mật — một job có `tenant_id` không khớp fail lúc thực thi, không tìm thấy record/entity). Token tự login qua `POST /auth/login` + tự refresh nền (`metap_runtime::service_token::ServiceTokenSource`, 2026-09-02) — thay cho `CRON_SERVICE_JWT` tĩnh mint tay trước đó.
 
 ### Secret manager — `SecretStore` + `VaultStore` (2026-08-17 → 2026-08-21)
@@ -53,7 +63,7 @@ Hai impl hôm nay:
 - **`VaultStore`** (`crates/metap-control/src/vault_store.rs`) — static KV v2 secret qua HTTP
   API của Vault. Hai auth method: token tĩnh (`VAULT_TOKEN`) hoặc AppRole
   (`VAULT_ROLE_ID`/`VAULT_SECRET_ID`, ưu tiên nếu có cả hai) kèm auto-renewal (re-login khi còn
-  dưới 60s là hết hạn, không cần background task riêng). `apps/crm-server/src/main.rs` chọn
+  dưới 60s là hết hạn, không cần background task riêng). `../metap-demo-crm/src/main.rs` chọn
   đúng một trong hai `SecretStore` **một lần lúc boot** — không có fallback runtime giữa
   chúng (xem "Open questions" bên dưới).
 
@@ -77,7 +87,7 @@ dưới đây hiện chưa có câu trả lời nào trong repo, ghi lại rõ �
   mode (auto-unseal bằng root token cố định, không Shamir shard) — production cần auto-unseal
   qua cloud KMS hoặc Shamir, chưa có ở đâu trong repo.
 - **Đã restore một snapshot Vault thành công chưa?** Chưa từng — có drill backup/restore cho
-  Postgres (Phase 8, `apps/crm-server/scripts/backup-restore-drill.sh`) nhưng chưa có gì tương
+  Postgres (Phase 8, `../metap-demo-crm/scripts/backup-restore-drill.sh`) nhưng chưa có gì tương
   đương cho Vault.
 
 Best-practice sản xuất tham khảo khi trigger triển khai production thật xảy ra:

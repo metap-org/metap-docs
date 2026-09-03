@@ -8,7 +8,7 @@ việc đó là thừa.
 
 - **Backend: Rust (axum + sqlx) + PostgreSQL + RabbitMQ, outbox pattern.** Chọn vì dấu chân hạ
   tầng tối thiểu, tốc độ, và event publishing đáng tin cậy qua transactional outbox. Chi tiết ở
-  [02. Architecture Constraints](02-constraints.md).
+  [02. Architecture Constraints](../02-constraints/00-index.md).
 - **Không có abstraction Repository/StorageProvider.** `sqlx::PgPool` được inject trực tiếp,
   kiểu cụ thể, vào mọi core service — YAGNI có chủ đích, chưa có trigger (chưa cần datastore
   thứ hai, chưa có deployment profile Tiny/SQLite). Nếu trigger đó xảy ra, seam đúng chỗ là bề
@@ -18,7 +18,7 @@ việc đó là thừa.
   nhất). Swap broker sau này (Kafka/NATS) là thêm một implementation mới, không phải viết lại
   call site.
 - **Layering `crates/metap-* -> apps/<consumer>`, một chiều.** Không crate thư viện nào được
-  biết business-entity cụ thể — đăng ký entity là việc của binary tiêu thụ (`apps/crm-server`).
+  biết business-entity cụ thể — đăng ký entity là việc của binary tiêu thụ (`../metap-demo-crm`).
 - **Expression của index phải khớp chính xác với expression của query.** Postgres khớp
   expression-index theo cú pháp, không theo ngữ nghĩa — `IndexReconciler` build index và
   `QueryPlanner` sinh filter/sort đều thống nhất dùng `jsonb_extract_path_text`.
@@ -27,7 +27,7 @@ việc đó là thừa.
   `MetadataCompiler` validate — không bao giờ từ request input.
 - **`PermissionService.scopedTenant` throw khi `tenantId` rỗng**, không fallback về một tenant
   mặc định — trường hợp đó chỉ có thể là bug ở phía trên. Xem
-  [08. Cross-cutting Concepts](08-cross-cutting.md#multi-tenancy).
+  [08. Cross-cutting Concepts](../08-cross-cutting/00-index.md#multi-tenancy).
 - **Capability SPI (`docs/modular-spi-architecture.md`) là một đích đến có tên gọi, chưa phải
   cam kết xây dựng.** Ngoài `EventBus`, không SPI nào khác (Storage/Scheduler/Identity/Cache/
   Search/WorkflowRuntime) có trigger hiện tại — không xây trước khi có.
@@ -48,14 +48,14 @@ việc đó là thừa.
   Chi tiết: `docs/roadmap.md` Phase 16 Giai đoạn 3.
 - **Bảng `records` JSONB dùng chung sẽ được thay bằng table-per-entity khi có tín hiệu scale
   (@ ~10M row/entity), không phải ngay bây giờ.** Giữ nguyên chiến lược hiện tại
-  (xem Data Model Strategy, [05. Building Block View](05-building-blocks.md)) cho tới khi trigger
+  (xem Data Model Strategy, [05. Building Block View](../05-building-blocks/00-index.md)) cho tới khi trigger
   đó xảy ra; khi xảy ra, dùng một reconciler DDL level-triggered (`reconcile = diff(desired,
   actual) → plan → execute`, tự lành sau crash, không cần rollback vì DDL online không rollback
   được) thay vì migration một-lần. Chi tiết: `docs/multi-tenant-platform-design.md` §3-§5.
 - **Không tách microservice cho hướng SaaS multi-tenant.** Modular monolith + Dispatch contract
   sạch (`CrudService`) đã "distributed-ready" mà chưa trả giá phân tán (mất ACID xuyên
   audit/outbox/lock). Tách một mảnh cụ thể khi có tín hiệu cụ thể — cùng tinh thần trigger-based
-  của Phase 9 ([04. Solution Strategy](04-strategy.md)), không phải quyết định trả trước. Chi
+  của Phase 9 ([04. Solution Strategy](../04-strategy/00-index.md)), không phải quyết định trả trước. Chi
   tiết: `docs/multi-tenant-platform-design.md` §10.
 - **Permission engine: deny-by-default cho non-admin, deny-overrides-allow, không phải
   opt-in-restriction fail-open.** (Review 2026-08-21, do chủ dự án yêu cầu.) Mô hình cũ ("chưa có
@@ -68,7 +68,7 @@ việc đó là thừa.
   `PolicyCondition::Not`, vốn không giải được phủ định *xuyên* nhiều policy độc lập, chỉ phủ định
   được điều kiện *trong* một policy) vì đây là ngữ nghĩa quen thuộc kiểu IAM, dễ suy luận khi
   nhiều policy chồng nhau. Kèm tách `EntityAction::Transition` khỏi `Update` — sửa field và chuyển
-  workflow state giờ là hai quyền độc lập. Chi tiết: [05. Building Block View](05-building-blocks/03-core-services.md#permission-service), `docs/roadmap.md` Phase 3.
+  workflow state giờ là hai quyền độc lập. Chi tiết: [05. Building Block View](../05-building-blocks/03-core-services.md#permission-service), `docs/roadmap.md` Phase 3.
 - **Cross-record permission condition: dotted attribute path, resolve 1-hop ở `CrudService`, `metap-permission` giữ nguyên thuần túy/đồng bộ.** (Cùng review 2026-08-21 — "cách tốt nhất cho
   tương lai, performance ưu tiên hàng đầu".) Cân nhắc để `metap-permission` tự làm I/O (fetch
   record liên quan bên trong khi evaluate) nhưng bác bỏ — sẽ phá vỡ tính pure-function của toàn bộ
@@ -77,7 +77,7 @@ việc đó là thừa.
   đầu của path, không I/O); `CrudService` là nơi duy nhất fetch, chỉ 1-hop qua field kiểu
   `Reference`, chỉ khi thật sự cần (rỗng thì không tốn gì), chỉ cho 4 method single-record — không
   áp dụng `list()` vì cần `QueryPlanner` JOIN (chưa xây, không phải mục tiêu của thay đổi này).
-  Chi tiết: [05. Building Block View](05-building-blocks/03-core-services.md#permission-service).
+  Chi tiết: [05. Building Block View](../05-building-blocks/03-core-services.md#permission-service).
 - **Vault AppRole auth ưu tiên `renew_self`, chỉ fallback login lại khi renew thất bại.**
   (`VaultStore`, Phase 16 Giai đoạn 4.) Renewal ban đầu luôn login lại bằng AppRole + `secret_id`
   đã lưu — tự vỡ với một role cấu hình `secret_id_num_uses=1` (secret_id một lần dùng, login lại

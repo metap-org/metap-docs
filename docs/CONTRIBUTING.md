@@ -65,8 +65,8 @@ xong — typecheck/lint/unit test ở đây không bắt được lỗi tích h�
 ## Ranh giới reviewer phải kiểm soát
 
 Đây là quy ước bắt buộc của dự án (từ `CLAUDE.md`, nhắc lại ở
-`docs/architectures/02-constraints.md`), không phải gợi ý về style — một PR vi phạm một trong các
-điều dưới đây không được merge nếu chưa có mục ADR (`docs/architectures/09-adr.md`) giải thích lý
+`docs/architectures/02-constraints/00-index.md`), không phải gợi ý về style — một PR vi phạm một trong các
+điều dưới đây không được merge nếu chưa có mục ADR (`docs/architectures/09-adr/00-index.md`) giải thích lý
 do ngoại lệ:
 
 - Route/handler code (`crates/metap-http`) không được import `sqlx`/`lapin` trực tiếp — phải đi
@@ -83,7 +83,7 @@ do ngoại lệ:
 
 - `docs/roadmap.md` là nguồn sự thật duy nhất cho trạng thái phase — cập nhật nó trong cùng PR làm
   thay đổi trạng thái phase đó, không để làm sau.
-- Quyết định kiến trúc không tầm thường phải có mục trong `docs/architectures/09-adr.md`, không
+- Quyết định kiến trúc không tầm thường phải có mục trong `docs/architectures/09-adr/00-index.md`, không
   chỉ nằm trong comment code.
 - Ngôn ngữ viết docs: xem `CLAUDE.md` để biết policy hiện hành (đang là tiếng Việt, xem ghi chú
   trong đó về việc chuyển sang tiếng Anh sau này).

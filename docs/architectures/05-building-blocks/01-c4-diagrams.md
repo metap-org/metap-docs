@@ -1,6 +1,6 @@
 # 5.1 C4 Diagrams (Containers & Components)
 
-[← 5. Building Block View](../05-building-blocks.md)
+[← 5. Building Block View](00-index.md)
 
 ## Các layer cấp cao
 
@@ -24,9 +24,9 @@ C4Container
   Person(platformadmin, "Platform Admin", "Superadmin xuyên tenant — tenant sentinel PLATFORM_TENANT_ID + role platform_admin")
 
   System_Boundary(metap, "Metap") {
-    Container(web, "Web Frontend", "React, Vite, TanStack Query", "Dev harness SPA — apps/crm-fe, dùng packages/platform-react qua workspace:*")
-    Container(api, "API Server", "Rust, axum", "apps/crm-server: một process, router gộp 3 crate — metap-http (/api, /auth, /admin, /metadata), metap-lowcode-http (/admin/lowcode), metap-control-http (/platform/tenants)")
-    Container(api2, "API Server (Jira)", "Rust, axum", "apps/jira-server, Phase 21+: module nghiệp vụ thứ hai, process/port riêng (3100), entity trên bảng riêng (table-per-entity) thay vì records chung, tenant dedicated_db riêng")
+    Container(web, "Web Frontend", "React, Vite, TanStack Query", "Dev harness SPA — ../metap-demo-crm/web, dùng ../platform-ui (@metap/platform-ui) qua workspace:*")
+    Container(api, "API Server", "Rust, axum", "../metap-demo-crm: một process, router gộp 3 crate — metap-http (/api, /auth, /admin, /metadata), metap-lowcode-http (/admin/lowcode), metap-control-http (/platform/tenants)")
+    Container(api2, "API Server (Jira)", "Rust, axum", "../metap-demo-jira, Phase 21+: module nghiệp vụ thứ hai, process/port riêng (3100), entity trên bảng riêng (table-per-entity) thay vì records chung, tenant dedicated_db riêng")
     Container(outboxworker, "Outbox Publisher", "Rust", "crates/outbox-publisher, binary riêng — outbox drain/publish loop của metap-infra")
     Container(cronworker, "Cron Scheduler", "Rust", "crates/cron-scheduler, binary riêng — ticker (poll cron_jobs) + executor (workflow_transition/bulk_query_action gọi lại API Server, webhook gọi ngoài)")
     Container(notifworker, "Notification Worker", "Rust", "crates/notification-worker, binary riêng theo mặc định — hoặc chạy inline trong API Server khi NOTIFICATION_WORKER_INLINE=true; subscribe EventBus, log mọi workflow transition")
@@ -50,7 +50,7 @@ C4Container
   Rel(notifworker, mq, "Subscribe #.workflow.transitioned", "AMQP")
 ```
 
-API Server, Outbox Publisher, Cron Scheduler, và Notification Worker (khi không chạy inline) là các process tách biệt một cách có chủ ý — khi RabbitMQ gặp sự cố, chỉ các worker bị ngưng trệ, API không bị ảnh hưởng, vì transactional outbox write đã commit xong rồi. `apps/crm-server` có thể tùy chọn phục vụ luôn static files đã build của `apps/crm-fe` trên cùng process/port (`pnpm start`, cấu hình `STATIC_DIR`) — đây chỉ là một tiện lợi khi triển khai, không làm thay đổi sự tách biệt này; các worker vẫn luôn là process riêng biệt (Notification Worker là ngoại lệ duy nhất, có thể chạy inline như một background task trong chính API Server qua `NOTIFICATION_WORKER_INLINE=true` — cả hai chế độ gọi chung một hàm `notification_worker::run`, nên không thể lệch hành vi nhau).
+API Server, Outbox Publisher, Cron Scheduler, và Notification Worker (khi không chạy inline) là các process tách biệt một cách có chủ ý — khi RabbitMQ gặp sự cố, chỉ các worker bị ngưng trệ, API không bị ảnh hưởng, vì transactional outbox write đã commit xong rồi. `../metap-demo-crm` có thể tùy chọn phục vụ luôn static files đã build của `../metap-demo-crm/web` trên cùng process/port (`pnpm start`, cấu hình `STATIC_DIR`) — đây chỉ là một tiện lợi khi triển khai, không làm thay đổi sự tách biệt này; các worker vẫn luôn là process riêng biệt (Notification Worker là ngoại lệ duy nhất, có thể chạy inline như một background task trong chính API Server qua `NOTIFICATION_WORKER_INLINE=true` — cả hai chế độ gọi chung một hàm `notification_worker::run`, nên không thể lệch hành vi nhau).
 
 ## C4 Level 3: Components (inside the API Server)
 

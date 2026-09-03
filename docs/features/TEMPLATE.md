@@ -28,7 +28,7 @@ tốt.">
 ## Ranh giới kiến trúc bị đụng tới
 
 <Xem `docs/CONTRIBUTING.md`'s "Ranh giới reviewer phải kiểm soát". Nếu có, ghi rõ có cần ADR
-(`docs/architectures/09-adr.md`) hay không.>
+(`docs/architectures/09-adr/00-index.md`) hay không.>
 
 ## Rủi ro / phụ thuộc
 

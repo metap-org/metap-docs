@@ -4,7 +4,7 @@ Ngày: 2026-08-15
 
 Trạng thái: directional (định hướng) — thiết kế đã chốt ở mức tài liệu, **chưa có dòng code
 triển khai nào**. Xem `docs/roadmap.md` Phase 16 cho trigger/tình trạng theo dõi, và
-[`09. Architecture Decisions`](architectures/09-adr.md) cho các quyết định cốt lõi rút gọn dạng
+[`09. Architecture Decisions`](architectures/09-adr/00-index.md) cho các quyết định cốt lõi rút gọn dạng
 bullet (bản này là bản chi tiết/lý do đầy đủ phía sau các bullet đó).
 
 ## Mục đích
@@ -19,7 +19,7 @@ dự án outsource nhanh, an toàn kể cả khi delivery ăn xổi" đã nêu �
 Phạm vi: tenant isolation, tenant provisioning, control-plane (router/secret/config), data-plane
 (storage tier, schema evolution, reconciler DDL online, fan-out multi-tenant), các capability
 phái sinh (audit/aggregation/inbound integration), FE onboarding shell, và deployment/HA cho
-topology SaaS. Đối chiếu với `docs/architectures/05-building-blocks.md`'s Data Model Strategy
+topology SaaS. Đối chiếu với `docs/architectures/05-building-blocks/00-index.md`'s Data Model Strategy
 hiện tại (một bảng `records` JSONB dùng chung, isolation app-level `WHERE tenant_id = $`) —
 tài liệu này là bước tiến hóa tiếp theo của đúng chiến lược đó khi có tín hiệu scale/SaaS thật,
 không phải một redesign từ đầu.
@@ -730,7 +730,7 @@ override. "Chuyển từ code mọi thứ sang code chỉ phần khác biệt."
 **GraphQL:** adapter transport ngồi trên Dispatch sẵn có, **schema sinh từ metadata**, gần free
 — nhưng bắt buộc **DataLoader (chống N+1 @ 10M)** + **complexity/depth limit** (giữ guardrail
 3s) + **permission xuyên nested** (field mask mọi tầng resolve). Hoãn tới khi FE thật cần shape
-linh hoạt (crate optional sẵn) — xem readiness-note đã có ở `docs/architectures/04-strategy.md`'s
+linh hoạt (crate optional sẵn) — xem readiness-note đã có ở `docs/architectures/04-strategy/00-index.md`'s
 "Sự sẵn sàng của backend cho GraphQL BFF tương lai".
 
 **Microservice: ĐỪNG.** Mâu thuẫn vision outsource/onboard-nhanh (client nhỏ không thể vận hành N

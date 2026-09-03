@@ -1,6 +1,6 @@
 # 5.5 Service Boundaries & Development View
 
-[← 5. Building Block View](../05-building-blocks.md)
+[← 5. Building Block View](00-index.md)
 
 ## Service Boundaries
 
@@ -12,7 +12,7 @@ Các phụ thuộc được phép:
 routes -> services
 services -> metadata / permission / query / workflow / outbox
 metap-infra -> database / messaging
-apps/crm-server -> crates/metap-* — never the other way around
+../metap-demo-crm -> crates/metap-* — never the other way around
 ```
 
 Tránh:
@@ -24,11 +24,38 @@ Tránh:
 
 ## Development View (workspace organization)
 
-Cùng quy tắc phụ thuộc ở trên, được hình dung dưới dạng các thành viên workspace (Development View của Kruchten 4+1). Repo này chồng lấn hai hệ thống workspace tại `apps/`: một Cargo workspace (`Cargo.toml` ở gốc) cho backend, một pnpm workspace (`pnpm-workspace.yaml`) cho frontend — mỗi ô bên dưới là một package/crate thật với manifest riêng, không chỉ là một thư mục trong cây source.
+**Cập nhật 2026-09-04 — không còn 1 repo/2 workspace nữa.** Bảng/mermaid graph dưới đây (kể cả
+tên node) vẫn mô tả hình dạng cũ, từ trước đợt tách repo 2026-08-28 → 2026-08-31 (`docs/roadmap/
+54-docs-repo-split.md` và các entry Phase 47/51/52 liền trước nó): khi đó `metap` là 1 repo duy
+nhất, `apps/` chồng lấn 2 hệ thống workspace (1 Cargo workspace backend + 1 pnpm workspace
+frontend). Từ đợt tách đó, `metap-org` là **9 repo riêng biệt** (mỗi cái tự `.git`), không phải 1
+repo/nhiều workspace — xem `../../CLAUDE.md` (gốc `metap-org`) cho layout đầy đủ. Cụ thể đổi gì:
 
-#### Bảng tra cứu nhanh — mọi crate/package
+- `metap` giờ **chỉ còn** Cargo workspace (`crates/metap-*` + ops binary) — không `apps/`, không
+  `pnpm-workspace.yaml`/`package.json` (xoá hẳn, 0 Node/pnpm trong repo này).
+- `apps/crm-server`/`apps/jira-server` (cũ) → `../metap-demo-crm`/`../metap-demo-jira`, mỗi cái
+  1 repo riêng, phụ thuộc `metap`'s crate qua Cargo **`path` dependency** xuyên repo
+  (`metap = { path = "../metap/crates/metap" }`), **không còn là Cargo workspace member** của
+  `metap` nữa.
+- `packages/platform-react` (Mantine-based, đã xoá hẳn) → `@metap/platform-ui` (repo riêng
+  `../platform-ui`, Tailwind + Radix, xây trên `@metap/ui` — repo riêng `../design-system`).
+- `apps/crm-fe`/`apps/jira-fe` (cũ) → `../metap-demo-crm/web`/`../metap-demo-jira/web`, mỗi cái
+  `pnpm install` độc lập, phụ thuộc `@metap/platform-ui`/`@metap/ui` qua pnpm **`link:`**
+  (sibling path thật, không phải `workspace:*` — không còn 1 pnpm workspace chung nào nữa).
+- `metap-lowcode`/`metap-lowcode-http`/`metap-control-http`/`reconciler-orchestrator` (bảng cũ
+  liệt kê như crate của `metap`) đã chuyển sang repo riêng `../metap-lowcode` (2026-08-31) —
+  không còn trong Cargo workspace của `metap` nữa; `metap-demo-crm` là consumer duy nhất còn lại
+  của 3 crate đó, qua `path` dependency 2 cấp (`../metap-lowcode/crates/...`).
 
-Bảng dưới liệt kê **mọi** thành viên Cargo/pnpm workspace hiện có, mỗi dòng một câu tóm tắt chức năng — dùng để tra cứu nhanh; xem mermaid graph ngay sau bảng để biết quan hệ phụ thuộc giữa chúng, và các bullet chi tiết hơn ở `CLAUDE.md` (gốc repo) cho từng crate.
+Bảng/mermaid graph dưới đây **chưa được vẽ lại** cho đúng 9-repo — vẫn còn nguyên giá trị để hiểu
+quan hệ phụ thuộc *nội bộ* giữa các crate `metap-*` (phần đó không đổi), chỉ sai ở khung ngoài
+("1 repo, 2 workspace", `workspace:*`, và việc liệt kê `metap-lowcode*`/`reconciler-orchestrator`
+như thành viên của `metap`). Việc vẽ lại đầy đủ theo 9-repo là việc riêng, chưa làm ở đợt dọn dẹp
+này (`docs/roadmap/69-*.md`).
+
+#### Bảng tra cứu nhanh — mọi crate/package (giá trị lịch sử, framing "1 repo/workspace" đã stale — xem cảnh báo trên)
+
+Bảng dưới liệt kê thành viên Cargo/pnpm workspace tại thời điểm còn là 1 repo, mỗi dòng một câu tóm tắt chức năng — dùng để tra cứu nhanh; xem mermaid graph ngay sau bảng để biết quan hệ phụ thuộc giữa chúng, và các bullet chi tiết hơn ở `CLAUDE.md` (gốc `metap`) cho từng crate hiện có (danh sách crate thật hiện tại nằm ở `metap`'s root `Cargo.toml`, đã có thêm `metap-runtime`/`metap-app`/`metap-config` không có trong bảng cũ dưới đây).
 
 **Thư viện entity-agnostic (`crates/metap-*`, Cargo workspace)**
 
@@ -70,20 +97,20 @@ Bảng dưới liệt kê **mọi** thành viên Cargo/pnpm workspace hiện có
 | `dev-tools` | CLI: `gen-keys`/`mint-token`/`seed-admin`/`create-user`/`provision-tenant`/`bootstrap-platform-admin`/`enqueue-reconcile`/`{vault,aws-secrets,gcp-secrets}-put-dsn` |
 | `graphql-gateway` | BFF thật — aggregate GraphQL xuyên nhiều microservice (`jira-server`+`crm-server`), route theo entity qua `CompositeBackend`+`GrpcBackend`, không Postgres/`CrudService` riêng |
 
-**Sample apps (`apps/*`, Cargo + pnpm)**
+**Sample apps (repo riêng, path dependency — KHÔNG còn là Cargo workspace member)**
 
 | App | Chức năng chính |
 |---|---|
-| `apps/crm-server` | Backend thật đầu tiên — entity `crm.customers`/`sales.orders`/`inventory.movements`/`accounting.journal`, gộp mọi crate `metap-*` + `metap-lowcode-http`/`metap-control-http`; opt-in gRPC (`GRPC_ENABLED`) |
-| `apps/jira-server` | Backend demo thứ hai — table-per-entity end-to-end (`jira.projects`/`sprints`/`issues`/...), tenant `dedicated_db` riêng, port 3100; mount GraphQL (`metap-graphql-http`) + opt-in gRPC cho chính entity của nó |
+| `../metap-demo-crm` | Backend thật đầu tiên — entity `crm.customers`/`sales.orders`/`inventory.movements`/`accounting.journal`, gộp mọi crate `metap-*` + `metap-lowcode-http`/`metap-control-http`; opt-in gRPC (`GRPC_ENABLED`) |
+| `../metap-demo-jira` | Backend demo thứ hai — table-per-entity end-to-end (`jira.projects`/`sprints`/`issues`/...), tenant `dedicated_db` riêng, port 3100; mount GraphQL (`metap-graphql-http`) + opt-in gRPC cho chính entity của nó |
 
-**Frontend (pnpm workspace)**
+**Frontend (repo riêng, pnpm `link:` — KHÔNG còn là 1 pnpm workspace chung)**
 
 | Package | Chức năng chính |
 |---|---|
 | `@metap/platform-ui` (repo riêng `../platform-ui`, Phase 47) | Component dùng chung: api-client, generated list/form, field renderer, `WorkflowActionBar`, `RecordDetail` — không còn trong pnpm workspace này, tiêu thụ qua `link:` |
-| `apps/crm-fe` | Dev harness cho `crm-server` (routing, login, trang entity) |
-| `apps/jira-fe` | Dev harness cho `jira-server` — thêm `DashboardPage`/`BoardPage` (kanban) |
+| `../metap-demo-crm/web` | Dev harness cho `crm-server` (routing, login, trang entity) |
+| `../metap-demo-jira/web` | Dev harness cho `jira-server` — thêm `DashboardPage`/`BoardPage` (kanban) |
 
 ```mermaid
 graph TD
@@ -122,21 +149,21 @@ graph TD
     gateway["graphql-gateway<br/>(package metap-graphql-gateway, Phase 50) BFF thật — aggregate GraphQL xuyên nhiều microservice,<br/>không Postgres/CrudService riêng, tự axum app riêng"]
   end
 
-  subgraph appscrmserver["apps/crm-server (Cargo + pnpm member) — module nghiệp vụ đầu tiên"]
+  subgraph appscrmserver["../metap-demo-crm (Cargo + pnpm member) — module nghiệp vụ đầu tiên"]
     customerentity["src/entities/customer_entity.rs"]
     mainrs["src/main.rs<br/>inline wiring, boot sequence — gộp cả metap-http + lowcode-http + control-http"]
   end
 
-  subgraph appsjiraserver["apps/jira-server (Cargo member, Phase 21+) — module nghiệp vụ thứ hai, PoC table-per-entity"]
+  subgraph appsjiraserver["../metap-demo-jira (Cargo member, Phase 21+) — module nghiệp vụ thứ hai, PoC table-per-entity"]
     issueentity["src/entities/issue_entity.rs, project/sprint/comment_entity.rs"]
     jiramainrs["src/main.rs<br/>reconcile() các entity lên bảng riêng lúc boot, port 3100 riêng"]
   end
 
-  subgraph pkgplatform["packages/platform-react (pnpm workspace member)"]
+  subgraph pkgplatform["../platform-ui (@metap/platform-ui) (pnpm workspace member)"]
     platform["GeneratedList/Form, FieldValue/Input,<br/>WorkflowActionBar, RecordDetail, api-client"]
   end
 
-  subgraph appscrmfe["apps/crm-fe (pnpm workspace member)"]
+  subgraph appscrmfe["../metap-demo-crm/web (pnpm workspace member)"]
     demoapp["src/App.tsx, src/demo/*<br/>React + Vite + TanStack Query"]
   end
 
@@ -182,7 +209,7 @@ graph TD
   reconcilerorc --> reconciler
   reconcilerorc -.->|"metap_lowcode::get_published — chỉ entity DB-authored đã publish"| lowcode
   controlhttp -.->|"POST /platform/reconciler/wave-rollout bọc advance_wave"| reconciler
-  demoapp -->|"workspace:*"| platform
+  demoapp -->|"link: (sibling repo, KHÔNG phải workspace:*)"| platform
   demoapp -.->|"chỉ qua HTTP, không bao giờ import Rust code"| http
   grpc --> crud
   graphql --> crud
@@ -196,4 +223,4 @@ graph TD
   gateway -.->|"GET /metadata/entities thật, bearer service JWT"| mainrs
 ```
 
-`apps/crm-server` phụ thuộc vào `crates/metap-*`; không có crate `metap-*` nào có đường phụ thuộc quay ngược lại `apps/crm-server` hay bất kỳ package `apps/*` nào khác — chính hướng phụ thuộc này giữ cho `metap-*` thực sự entity-agnostic, chứ không chỉ mang tính quy ước. `apps/crm-fe` là phần tương đương bên frontend: nó chỉ có thể tiếp cận backend qua HTTP (đường nét đứt), không bao giờ bằng cách import backend code, và nó dùng `packages/platform-react` theo cùng cách `apps/crm-server` dùng `crates/metap-*`. `metap-control` (control plane multi-tenancy) phụ thuộc `metap-peripherals` để có `Router::begin` khớp với cùng hạ tầng user/role — chiều phụ thuộc `metap-permission -> metap-control` sẽ khép vòng lặp, đó là lý do `PostgresPolicyStore` sống ở `metap-control` dù trait `PolicyStore` nó implement thì ở `metap-permission`. `apps/jira-server` là module nghiệp vụ thứ hai (Phase 21+), cùng hình dạng phụ thuộc như `apps/crm-server` (chỉ phụ thuộc `crates/metap-*`, không có crate nào phụ thuộc ngược lại nó) — điểm khác biệt duy nhất là nó gọi thẳng `metap-reconciler::reconcile()` lúc boot để đưa entity của mình lên bảng riêng (table-per-entity) thay vì dùng bảng `records` chung.
+`../metap-demo-crm` phụ thuộc vào `crates/metap-*`; không có crate `metap-*` nào có đường phụ thuộc quay ngược lại `../metap-demo-crm` hay bất kỳ package `apps/*` nào khác — chính hướng phụ thuộc này giữ cho `metap-*` thực sự entity-agnostic, chứ không chỉ mang tính quy ước. `../metap-demo-crm/web` là phần tương đương bên frontend: nó chỉ có thể tiếp cận backend qua HTTP (đường nét đứt), không bao giờ bằng cách import backend code, và nó dùng `../platform-ui (@metap/platform-ui)` theo cùng cách `../metap-demo-crm` dùng `crates/metap-*`. `metap-control` (control plane multi-tenancy) phụ thuộc `metap-peripherals` để có `Router::begin` khớp với cùng hạ tầng user/role — chiều phụ thuộc `metap-permission -> metap-control` sẽ khép vòng lặp, đó là lý do `PostgresPolicyStore` sống ở `metap-control` dù trait `PolicyStore` nó implement thì ở `metap-permission`. `../metap-demo-jira` là module nghiệp vụ thứ hai (Phase 21+), cùng hình dạng phụ thuộc như `../metap-demo-crm` (chỉ phụ thuộc `crates/metap-*`, không có crate nào phụ thuộc ngược lại nó) — điểm khác biệt duy nhất là nó gọi thẳng `metap-reconciler::reconcile()` lúc boot để đưa entity của mình lên bảng riêng (table-per-entity) thay vì dùng bảng `records` chung.

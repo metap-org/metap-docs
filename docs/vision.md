@@ -2,7 +2,7 @@
 
 Ngày: 2026-08-02
 
-Trạng thái: directional (định hướng) — không phải một mô tả as-built. Để biết những gì thực sự đã được triển khai, xem [`docs/architectures/01-introduction.md`](architectures/01-introduction.md) (arc42 Section 1), có đoạn "Tầm nhìn" ngắn gọn là phiên bản as-built súc tích đi kèm với phát biểu đầy đủ hơn này.
+Trạng thái: directional (định hướng) — không phải một mô tả as-built. Để biết những gì thực sự đã được triển khai, xem [`docs/architectures/01-introduction/00-index.md`](architectures/01-introduction/00-index.md) (arc42 Section 1), có đoạn "Tầm nhìn" ngắn gọn là phiên bản as-built súc tích đi kèm với phát biểu đầy đủ hơn này.
 
 ## Ý tưởng cốt lõi
 
@@ -25,7 +25,7 @@ Metap đã có nền tảng của một platform, chứ không chỉ là một a
 - CRUD tổng quát, query planning bị ràng buộc bởi metadata, và Workflow điều khiển bởi metadata
 - permission được điều khiển bởi policy và thực thi phía server
 - các frontend rendering primitive có thể tái sử dụng (`packages/platform-react`)
-- ranh giới rõ ràng giữa reusable core và từng business module (`crates/metap-*` + `apps/<module>`, ví dụ `apps/crm-server`), và giữa reusable frontend với demo consumer của nó (`packages/platform-react` + `apps/crm-fe`) — một cấu trúc workspace được chọn riêng để giữ định hướng này ít tốn kém, không phải một sở thích kỹ thuật chung chung (core đã chuyển từ TypeScript sang Rust vào 2026-08-07, xem [`docs/architectures/09-adr.md`](architectures/09-adr.md); bản thân cấu trúc ranh giới không đổi)
+- ranh giới rõ ràng giữa reusable core và từng business module (`crates/metap-*` + `apps/<module>`, ví dụ `apps/crm-server`), và giữa reusable frontend với demo consumer của nó (`packages/platform-react` + `apps/crm-fe`) — một cấu trúc workspace được chọn riêng để giữ định hướng này ít tốn kém, không phải một sở thích kỹ thuật chung chung (core đã chuyển từ TypeScript sang Rust vào 2026-08-07, xem [`docs/architectures/09-adr/00-index.md`](architectures/09-adr/00-index.md); bản thân cấu trúc ranh giới không đổi)
 - một contract được generate (không phải duy trì thủ công) giữa backend và frontend cho entity metadata, để hai bên không thể âm thầm lệch nhau theo cách được mô tả bên dưới trong phần "Điều này có ý nghĩa gì cho các quyết định hiện tại"
 
 Điều này đã lớn hơn một CRM app đơn lẻ, nhưng về cơ bản vẫn là một platform core được author bởi developer: metadata sống trong code (các Rust module định nghĩa Entity, ví dụ `apps/crm-server/src/entities/customer_entity.rs`), không phải trong một database mà người không phải developer có thể chỉnh sửa.
@@ -90,7 +90,7 @@ topology này thật sự dùng được cho production, không phụ thuộc tr
 
 ## Quan hệ với các tài liệu khác
 
-- [`docs/architectures/01-introduction.md`](architectures/01-introduction.md) là phát biểu vision súc tích, as-built, nằm trong bộ tài liệu arc42 mô tả kiến trúc như nó tồn tại ngày nay — không phải một mục tiêu chưa được triển khai.
+- [`docs/architectures/01-introduction/00-index.md`](architectures/01-introduction/00-index.md) là phát biểu vision súc tích, as-built, nằm trong bộ tài liệu arc42 mô tả kiến trúc như nó tồn tại ngày nay — không phải một mục tiêu chưa được triển khai.
 - [`docs/roadmap.md`](roadmap.md) theo dõi roadmap triển khai chính thức, theo từng phase, cho phạm vi dự án hiện tại.
 - [`docs/low-code-platform-v1.md`](low-code-platform-v1.md) mô tả một lộ trình thực tế, theo từng phase, từ kiến trúc hiện tại hướng tới phiên bản low-code platform thực sự đầu tiên.
 

@@ -24,5 +24,5 @@ Chạy unit test (không cần DB) bằng `pnpm test:rs` (`cargo test --workspac
 
 ## Ghi chú
 
-- Chưa có load/performance testing — quality scenario 4 (Performance) ở trên được kiểm chứng bằng thiết kế (regression test kiểm tra việc dùng index bằng `EXPLAIN`) chứ chưa bằng throughput/latency đo được dưới tải thực tế. Được ghi nhận ở [11. Risks and Technical Debt](11-risks.md).
+- Chưa có load/performance testing — quality scenario 4 (Performance) ở trên được kiểm chứng bằng thiết kế (regression test kiểm tra việc dùng index bằng `EXPLAIN`) chứ chưa bằng throughput/latency đo được dưới tải thực tế. Được ghi nhận ở [11. Risks and Technical Debt](../11-risks/00-index.md).
 - Phạm vi test trong codebase này chủ ý ở mức tối thiểu và có mục tiêu rõ ràng (một số case quan trọng cho mỗi feature), không phải một ma trận toàn diện — xem `docs/roadmap.md` Phase 12 để biết số lượng test hiện tại.

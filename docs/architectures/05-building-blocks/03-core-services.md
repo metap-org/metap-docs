@@ -1,6 +1,6 @@
 # 5.3 Whitebox: Core Services
 
-[← 5. Building Block View](../05-building-blocks.md)
+[← 5. Building Block View](00-index.md)
 
 ## Metadata Registry
 
@@ -21,7 +21,7 @@ Metap validate và compile metadata như một runtime artifact hạng nhất, t
 - **`TenantStatus`** — `Provisioning`/`Active`/`Migrating`/`Suspended`/`Expired`/`Deleted` (terminal, chỉ set qua `DELETE /platform/tenants/{id}`, không bao giờ set qua `PATCH .../status`). Mỗi status không phải `Active` map sang một mã lỗi HTTP cụ thể ở `CrudService` (`router_unavailable`) — `Suspended`/`Expired` → 403, `Migrating`/`Provisioning` → 503, `Deleted` → 404 — thay vì rơi vào nhánh lỗi 500 chung.
 - **`TenantStrategy`** — `Schema { schema_name }` (trial, thực tế luôn ghim `"public"` — isolation thật cần data-plane table-per-entity, chưa xây) hoặc `DedicatedDb { dsn_secret_ref }` (paid, đã có isolation vật lý thật).
 - **`Router::begin(tenant_id)`** — điểm duy nhất mở một transaction tenant-scoped, thay cho `CrudService` nhận thẳng một `PgPool`. Với `Schema`: `SET LOCAL search_path` trên connection mượn từ pool chung, scoped theo transaction (không thể rò sang request tiếp theo dùng lại cùng connection — bẫy nghiêm trọng nhất của thiết kế này, đã fix explicit). Với `DedicatedDb`: mở/tái dùng một `PgPool` riêng cho tenant đó, cache theo `dsn_secret_ref` (moka, idle TTL 10 phút). Một tenant chưa có row `control.tenants` fallback về hành vi tương thích ngược: `{status: Active, strategy: Schema("public")}`.
-- **`SecretStore`** trait (`EnvStore`/`VaultStore`) — resolve DSN cho `DedicatedDb`. `EnvStore` đọc thẳng biến môi trường tên đúng bằng `dsn_secret_ref`. `VaultStore` (`crates/metap-control/src/vault_store.rs`) gọi Vault KV v2 qua HTTP, hỗ trợ token tĩnh hoặc AppRole (ưu tiên AppRole nếu có cả hai) kèm auto-renewal (`renew_self` trước, fallback login lại bằng AppRole chỉ khi renew thất bại — tránh lỗi với role có `secret_id_num_uses=1`). Chi tiết vận hành + các câu hỏi production còn bỏ ngỏ ở [07. Deployment View](../07-deployment.md#secret-manager--secretstore--vaultstore-2026-08-17--2026-08-21).
+- **`SecretStore`** trait (`EnvStore`/`VaultStore`) — resolve DSN cho `DedicatedDb`. `EnvStore` đọc thẳng biến môi trường tên đúng bằng `dsn_secret_ref`. `VaultStore` (`crates/metap-control/src/vault_store.rs`) gọi Vault KV v2 qua HTTP, hỗ trợ token tĩnh hoặc AppRole (ưu tiên AppRole nếu có cả hai) kèm auto-renewal (`renew_self` trước, fallback login lại bằng AppRole chỉ khi renew thất bại — tránh lỗi với role có `secret_id_num_uses=1`). Chi tiết vận hành + các câu hỏi production còn bỏ ngỏ ở [07. Deployment View](../07-deployment/00-index.md#secret-manager--secretstore--vaultstore-2026-08-17--2026-08-21).
 - **`PostgresPolicyStore`** — sống ở `metap-control` chứ không phải `metap-permission` (thuần lý do dependency-cycle: `metap-permission -> metap-control` sẽ khép vòng lặp `metap-control -> metap-peripherals -> metap-metadata -> metap-permission`; trait `PolicyStore` vẫn ở `metap-permission`), mỗi lời gọi route qua `Router::begin`.
 - **Provisioning** — `provision_schema_tenant`/`provision_dedicated_db_tenant` (ghi row `control.tenants`, chạy migration lên DB riêng khi `dedicated_db`, tạo admin user đầu tiên) dùng chung giữa `dev-tools provision-tenant` (CLI) và `POST /platform/tenants` (`metap-control-http`, gate bởi `PlatformAdminContext` — tenant sentinel `PLATFORM_TENANT_ID` + role `"platform_admin"`, khác `AdminContext` chỉ ủy quyền trong tenant của chính người gọi).
 - **Delete/deprovision** (`DELETE /platform/tenants/{id}`) — chỉ detach routing (set `status: Deleted`, đóng dedicated pool nếu có), **không** tự động `DROP DATABASE` cho tenant `dedicated_db`, **không** tự động xóa data cho tenant `schema` — quyết định có chủ ý, tránh mất dữ liệu không thể hoàn tác qua một lời gọi API.
@@ -54,7 +54,7 @@ Lớp permission (`metap-permission::PermissionService`) sở hữu:
 - giải thích/debug policy — `PolicyExplainer` tạo ra một trace chỉ-đọc của mọi policy đã được xét và lý do, được expose qua endpoint mô phỏng `POST /admin/policies/explain` có bảo vệ admin
 - một `PermissionSnapshot` theo từng call gom các policy của một tenant/entity vào một lần fetch DB duy nhất, dùng lại xuyên suốt một lần gọi `CrudService` — cố ý không phải là cache theo kiểu cross-request/TTL
 
-Ban đầu chỉ là một scaffold cho phép mọi thứ để kiến trúc có thể chạy được (trong codebase TS gốc); ranh giới service đã được cố định ngay từ đầu và logic thật sự ở trên giờ đã lấp đầy nó, được port lại 1:1 sang Rust, rồi được siết lại đáng kể ngày 2026-08-21 (deny-by-default, effect, cross-record — ba gap được tìm ra qua một lần review permission engine, xem [09. Architecture Decisions](../09-adr.md)).
+Ban đầu chỉ là một scaffold cho phép mọi thứ để kiến trúc có thể chạy được (trong codebase TS gốc); ranh giới service đã được cố định ngay từ đầu và logic thật sự ở trên giờ đã lấp đầy nó, được port lại 1:1 sang Rust, rồi được siết lại đáng kể ngày 2026-08-21 (deny-by-default, effect, cross-record — ba gap được tìm ra qua một lần review permission engine, xem [09. Architecture Decisions](../09-adr/00-index.md)).
 
 ## Query Planner
 
@@ -66,7 +66,7 @@ Quy tắc:
 - mọi business query đều bao gồm tenant scope
 - frontend không thể gửi các toán tử truy vấn database tùy ý
 - các field filter/sort phải được khai báo trong metadata
-- các báo cáo tốn kém dùng report service riêng hoặc background job (hoãn lại, kích hoạt theo trigger — xem [11. Risks and Technical Debt](../11-risks.md))
+- các báo cáo tốn kém dùng report service riêng hoặc background job (hoãn lại, kích hoạt theo trigger — xem [11. Risks and Technical Debt](../11-risks/00-index.md))
 
 Xây dựng trên nền đó:
 
@@ -88,7 +88,7 @@ Transitions là các thao tác atomic có optimistic locking (một write bị l
 
 ## Outbox and EventBus
 
-Các transaction của API ghi outbox row vào PostgreSQL (`metap-infra::outbox::enqueue`, cùng transaction với business write). Một publisher (`outbox-publisher`, một binary riêng) drain các row này và publish sang RabbitMQ thông qua trait `EventBus` (`metap-infra::EventBus`; `RabbitEventBus` là implementation duy nhất hiện nay) — việc publish nằm sau một interface (xem [09. Architecture Decisions](../09-adr.md)).
+Các transaction của API ghi outbox row vào PostgreSQL (`metap-infra::outbox::enqueue`, cùng transaction với business write). Một publisher (`outbox-publisher`, một binary riêng) drain các row này và publish sang RabbitMQ thông qua trait `EventBus` (`metap-infra::EventBus`; `RabbitEventBus` là implementation duy nhất hiện nay) — việc publish nằm sau một interface (xem [09. Architecture Decisions](../09-adr/00-index.md)).
 
 Điều này bảo vệ hệ thống khỏi mất business event khi RabbitMQ tạm thời không khả dụng.
 

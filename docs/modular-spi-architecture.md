@@ -9,7 +9,7 @@ phần "Relationship to Current Architecture" bên dưới để biết điều 
 
 Tài liệu này không phải là roadmap sản phẩm chính. `docs/roadmap.md` theo dõi tiến độ
 xây dựng hiện tại của core platform và trạng thái phase chính thức; một architecture review
-(2026-08-07, nay chỉ còn lưu tóm tắt ở [09. Architecture Decisions](architectures/09-adr.md))
+(2026-08-07, nay chỉ còn lưu tóm tắt ở [09. Architecture Decisions](architectures/09-adr/00-index.md))
 đã rà từng thành phần một về những gì đang tồn tại tại thời điểm đó. Tài liệu này ghi lại một
 câu hỏi riêng biệt, đặt ra trực tiếp dựa trên phần Runtime Abstraction và
 Deployment Profiles của review đó:
@@ -32,7 +32,7 @@ Hướng đề xuất là **modular-first, không phải microservice-first**: c
 như một binary duy nhất cho khách hàng nhỏ, và như một hệ thống phân tán cho khách hàng lớn,
 chỉ chuyển đổi *cấu hình*, không bao giờ đổi code nghiệp vụ hay workflow. Đây không phải
 triết lý mới đối với Metap — đó vẫn là lập trường trigger-based, evolution-over-rewrite đã
-có sẵn trong `docs/architectures/04-strategy.md` và Phase 9 của `docs/roadmap.md` — nhưng
+có sẵn trong `docs/architectures/04-strategy/00-index.md` và Phase 9 của `docs/roadmap.md` — nhưng
 tài liệu này đặt tên cho một hình dạng mục tiêu cụ thể hơn cho boundary hạ tầng mà lập
 trường đó cần phát triển tới.
 
@@ -71,7 +71,7 @@ chưa có seam này.
 
 Capability SPI pattern của tài liệu này không phụ thuộc ngôn ngữ theo thiết kế; việc nó
 được triển khai bằng TypeScript hay Rust ban đầu được đặt ra như một câu hỏi tách biệt khỏi
-bản thân pattern. Câu hỏi đó đã được quyết định (xem [09. Architecture Decisions](architectures/09-adr.md)):
+bản thân pattern. Câu hỏi đó đã được quyết định (xem [09. Architecture Decisions](architectures/09-adr/00-index.md)):
 `packages/core` đang chuyển sang Rust (Option B, tất cả các profile), và Migration Order
 được ghi lại ở đó giờ đã **hoàn thành** — trait `EventBus` của `crates/metap-infra`
 (`trait EventBus { async fn publish(...); async fn close(...); }`) là thật, đã được xây
@@ -80,7 +80,7 @@ dựng, đã được test (unit + e2e), và chính là thứ mà `crates/metap-
 của đề xuất gốc. Điều này vẫn không thay đổi số lượng SPI trong *sáu SPI còn lại* đáng để
 xây dựng (vẫn là không cái nào — riêng `Storage` cố tình không được tách thành một trait
 chính thức; mọi crate Rust chạm vào DB đều dùng trực tiếp `sqlx::PgPool`, theo đúng lý lẽ
-gốc của review đó (xem [09. Architecture Decisions](architectures/09-adr.md)), mà quá trình port sang Rust
+gốc của review đó (xem [09. Architecture Decisions](architectures/09-adr/00-index.md)), mà quá trình port sang Rust
 đã tuân theo chứ không đảo ngược) hay quyết định về deployment-profile ở phần Deployment
 Profiles của review đó, vốn vẫn còn để ngỏ theo đúng nghĩa của nó.
 
@@ -103,7 +103,7 @@ storage:
 ```
 
 **Lưu ý, nói thẳng:** profile "Business" thực tế của Metap hiện nay là Postgres + RabbitMQ
-(không phải một in-process memory bus) — `docs/architectures/02-constraints.md` hiện đang
+(không phải một in-process memory bus) — `docs/architectures/02-constraints/00-index.md` hiện đang
 ràng buộc cả hai như *datastore/broker duy nhất*, chứ không phải như một profile trong số
 nhiều profile. Bảng trên mô tả mục tiêu, không phải hiện trạng; để dung hòa hai điều này
 cần có quyết định nêu trong phần "Relationship to Current Architecture" bên dưới.
@@ -125,7 +125,7 @@ quyết trong cùng process. Khi là `remote`, cùng những lời gọi đó đ
 network client đứng sau cùng các interface của Level 2 — business logic, định nghĩa
 workflow, và permission rule của module hoàn toàn không đổi trong cả hai trường hợp. Đây
 chính là phần "how" cụ thể đứng sau mục Multi-Service Split của
-`docs/architectures/04-strategy.md` và trigger Phase 9 của `docs/roadmap.md` ("một module
+`docs/architectures/04-strategy/00-index.md` và trigger Phase 9 của `docs/roadmap.md` ("một module
 thứ hai thực sự cần được xây thành một deployable unit riêng") — mục đó hiện chỉ nói *rằng*
 điều này sẽ xảy ra; tài liệu này bổ sung *cách* nó sẽ xảy ra mà không cần viết lại.
 
@@ -153,7 +153,7 @@ Platform tính toán kế hoạch migration đã gộp và sắp thứ tự trê
 để một developer thủ công theo dõi thứ tự migration xuyên module.
 
 Điều này ánh xạ vào Data Model Strategy Step 3 đã được ghi lại trong
-`docs/architectures/05-building-blocks.md` ("dedicated tables cho các đường xử lý trọng
+`docs/architectures/05-building-blocks/00-index.md` ("dedicated tables cho các đường xử lý trọng
 yếu về accounting/inventory") — hiện tại, một bảng `records` JSONB dùng chung phục vụ mọi
 entity/module, nên các thư mục migration theo từng module chưa có schema riêng để migrate.
 Cơ chế này chỉ trở nên cụ thể một khi Step 3 thực sự được kích hoạt, chứ không phải trước đó.
@@ -169,13 +169,13 @@ Cơ chế này chỉ trở nên cụ thể một khi Step 3 thực sự được
 **Tài liệu này không phải là:**
 - **Không phải một cam kết xây dựng sáu Capability SPI còn lại** (Storage, Scheduler,
   Identity, Cache, Search, WorkflowRuntime). Review kiến trúc 2026-08-07 (tóm tắt ở
-  [09. Architecture Decisions](architectures/09-adr.md))
+  [09. Architecture Decisions](architectures/09-adr/00-index.md))
   đã đánh giá từng cái dựa trên một trigger thực tế và không tìm thấy trigger nào ngoài
   `EventBus`. Kết luận đó không đổi bởi tài liệu này. Xây cả bảy SPI ngay bây giờ sẽ đúng
   là kiểu build-ahead-of-trigger mà dự án này đã nhiều lần và dứt khoát từ chối làm (Phase 1
   từ chối `BaseRepository` vì lý do này; Phase 4 từ chối một report query boundary vì lý do
   này).
-- **Không phải một thay đổi đối với `docs/architectures/02-constraints.md`.** File đó hiện
+- **Không phải một thay đổi đối với `docs/architectures/02-constraints/00-index.md`.** File đó hiện
   đang ràng buộc Postgres và RabbitMQ là datastore/broker *duy nhất* — dòng SQLite/Memory
   của profile Tiny trong bảng trên trực tiếp mâu thuẫn với ngôn ngữ ràng buộc đó. Chấp nhận
   Tiny như một mục tiêu thật đòi hỏi một quyết định riêng, tường minh để sửa đổi constraint
@@ -200,14 +200,14 @@ tự bên dưới.
 
 Không phải một roadmap phase mới — ánh xạ vào Phase 9 (Multi-Service Evolution) và quyết
 định deployment-profile còn để ngỏ được nêu trong phần Deployment Profiles của review kiến
-trúc 2026-08-07 (xem [09. Architecture Decisions](architectures/09-adr.md)). Mỗi bước dưới
+trúc 2026-08-07 (xem [09. Architecture Decisions](architectures/09-adr/00-index.md)). Mỗi bước dưới
 đây có giá trị độc lập; không bước nào ràng buộc phải làm bước tiếp theo.
 
 1. **`EventBus` SPI — đã xong.** Được xây dựng thành trait `EventBus` của
    `crates/metap-infra` + implementation `RabbitEventBus`, như một phần của toàn bộ Rust
    Migration Order, không phải như một lần tách riêng lẻ trên nền TS.
 2. **Ghi lại `deployment: remote`** trong mục Future Evolution của
-   `docs/architectures/04-strategy.md` — không có code, chỉ đặt tên cho cơ chế mà Phase 9
+   `docs/architectures/04-strategy/00-index.md` — không có code, chỉ đặt tên cho cơ chế mà Phase 9
    sẽ dùng.
 3. **Quyết định câu hỏi về profile Tiny / SQLite một cách tường minh** (architecture review
    Part 3) — chỉ khi đã quyết định thì một `Storage` SPI + SQLite provider mới đáng để xây.
