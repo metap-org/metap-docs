@@ -9,11 +9,11 @@ load lúc boot — và sub-project 3 (publish validation) được gộp thẳng
 `metap_lowcode::publish`/`rollback` thay vì tách riêng. File này giữ nguyên làm tài liệu lịch
 sử/tham khảo thiết kế gốc, không cập nhật theo code nữa. Được chuyển từ
 `docs/superpowers/specs/` vào ngày 2026-08-07 khi thư mục đó bị xóa (xem
-`docs/architectures/09-adr.md`) — đây là mục duy nhất trong `docs/superpowers/` chưa được
+`docs/architectures/09-adr/00-index.md`) — đây là mục duy nhất trong `docs/superpowers/` chưa được
 ship tại thời điểm đó, nên nội dung của nó được giữ lại ở đây thay vì bị bỏ đi.
 
 **Có trước quyết định ngày 2026-08-07 về việc chuyển `packages/core` sang Rust**
-(xem [09. Architecture Decisions](architectures/09-adr.md)). Thiết kế bên dưới (data model, service contract của
+(xem [09. Architecture Decisions](architectures/09-adr/00-index.md)). Thiết kế bên dưới (data model, service contract của
 draft/publish/rollback, ba quyết định phạm vi đã chốt) vẫn còn hiệu lực — về bản chất không
 có phần nào trong đó gắn riêng với TypeScript. Các đường dẫn file cụ thể và mẫu code Zod
 trong mục "Data model"/"Service" là từ layout TS cũ và cần được nhắm lại (re-target) sang
