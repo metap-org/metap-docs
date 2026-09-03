@@ -91,5 +91,5 @@ hỏng), `cargo clean` giải phóng ~30GB mỗi lần. Cùng triệu chứng Ph
 
 12/17 finding chưa xử lý. Hai cái cần chốt hướng trước vì đụng thiết kế: **B#1** (gateway
 aggregator tĩnh, fail-closed toàn phần) và **A#2** (`users_email_unique` unique toàn cục thay vì
-`(tenant_id, email)`). **B#7** (SchemaLimits hardcode) gộp vào
+`(tenant_id, email)`). **A#7** (SchemaLimits hardcode) gộp vào
 `docs/features/18-config-tiers-db-backed.md` thay vì sửa lẻ.

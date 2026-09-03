@@ -1,11 +1,12 @@
 # Config trong database, phân tầng operator / platform-global / per-tenant
 
-- **Trạng thái:** proposed — chưa code. Phạm vi đã chốt gồm cả tầng tenant (chủ dự án xác nhận
-  2026-09-03: webhook secret + theme là nhu cầu chắc chắn), còn chờ duyệt để bắt đầu lát 1.
+- **Trạng thái:** **lát 1 done 2026-09-03** (`metap-config` + `platform_configs` +
+  `/platform/config`, đóng audit 04 A#7 — xem `../roadmap/66-platform-config-tiers.md`). Lát 2
+  (`tenant_configs` + theme) và lát 3 (secret + nới `FORBIDDEN_HEADERS`) chưa bắt đầu.
 - **Người đề xuất:** chủ dự án, 2026-09-03 ("những config như này có thể set trong database, đầu
   API admin/config hay gì đó - per tenant, ngoài ra thì với lowcode thì có thêm mức config-global")
 - **Track sở hữu:** HTTP-API Surface (bề mặt `/admin/*`) + Backend Core (tầng đọc/cache)
-- **Phase roadmap liên quan:** không thuộc phase nào
+- **Phase roadmap liên quan:** Phase 66 (lát 1)
 
 ## Vấn đề / động lực
 
@@ -56,7 +57,7 @@ là thủng bảo mật, không phải "cấu hình sai":
 **Tầng 2 — platform-global, `platform_admin` sửa được, hợp lý để vào DB.** Đây là nhóm *có giá trị
 nhất* và đang bị bỏ quên nhất, vì phần lớn hiện **hardcode trong code chứ không phải env**:
 - `SchemaLimits` (depth 10 / complexity 1000) — hardcode ở `graphql-gateway/src/schema_builder.rs:143`,
-  chính là audit 04 **B#7**, và doc comment của `Default` tự nói "starting guardrails, not a
+  chính là audit 04 **A#7**, và doc comment của `Default` tự nói "starting guardrails, not a
   permanent tuning".
 - Rate limit (200ms / burst 300) — hardcode 2 chỗ: `metap-http/src/lib.rs:73`,
   `graphql-gateway/src/server.rs:131`.
@@ -237,7 +238,7 @@ Không còn là "làm hẹp rồi chờ trigger" — trigger đã có (webhook s
 3 lát, vì lát 1 không phụ thuộc gì và lát 3 là lát dễ sai nhất:
 
 1. **Khung + Tầng 2.** `ConfigKey` registry, `platform_configs`, `GET/PUT /platform/config`, gỡ 3
-   giá trị hardcode (`SchemaLimits` — đóng luôn audit 04 B#7, rate limit, session TTL). Không đụng
+   giá trị hardcode (`SchemaLimits` — đóng luôn audit 04 A#7, rate limit, session TTL). Không đụng
    secret, không đụng `SecretStore`, không đụng A#1.
 2. **`tenant_configs` + theme.** Thêm tầng tenant vào chuỗi resolve, endpoint public theo hostname,
    allowlist khoá public. Vẫn chưa đụng secret.
