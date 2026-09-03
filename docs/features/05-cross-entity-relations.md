@@ -104,6 +104,43 @@ riêng vì đụng 3 mối quan tâm (query, permission, pagination) cùng lúc.
 - Mode 3: cần ADR riêng khi có trigger — đụng `metap-query` (nền tảng nhất), `metap-permission`
   (record-level condition), keyset pagination cursor.
 
+## Cross-entity dependency check khi field bị xoá/đổi kiểu (2026-09-03)
+
+- **Trạng thái:** Phase 1 done (`metap-lowcode`); Phase 2 (`metap-reconciler`) proposed, chưa có
+  trigger.
+- **Người phát hiện:** rà code thật khi audit backlog "#9/#10 cross-entity relations", không phải
+  suy đoán.
+
+Refresh lại câu hỏi "sửa/xoá field ở entity A ảnh hưởng gì tới entity B đang tham chiếu A qua
+`refDisplayField`" (Mode 2 ở trên). Rà kỹ hai đường có thể gây destructive change:
+
+- **`metap-lowcode`'s publish flow** (`preview_publish`/`publish`): **xoá hẳn hoặc đổi tên** một
+  field đang được entity khác dùng làm `refDisplayField` **đã bị chặn cứng từ trước**, không phải
+  lỗ hổng — `validate_for_publish` chạy `MetadataRegistry::validate_references()` trên đúng
+  registry đã merge (mọi entity low-code khác đang published + draft đang xét), và hàm đó vốn đã
+  reject bất kỳ `refDisplayField` nào không còn resolve theo tên. Ban đầu tưởng đây là gap thật,
+  viết warning cho case này xong mới nhận ra warning đó là dead code (validate_references() luôn
+  throw trước khi warning kịp tính). Đã sửa lại: gap thật nằm ở chỗ field **giữ nguyên tên nhưng
+  đổi `kind`** — `validate_references()` chỉ check field có tồn tại theo tên, không check kiểu,
+  nên case này lọt qua mà `hydrate_related_display` (Mode 2) vẫn âm thầm trả về giá trị khác hình
+  dạng. `metap-lowcode/src/impact.rs`'s `cross_entity_impact()` (mới) bắt đúng case này, warning
+  advisory qua `ImpactKind::ReferencedByOtherEntity`, wire vào `preview_publish` cùng chỗ
+  `diff_impact` (tự-so-sánh entity) đã chạy — xem doc comment của `ImpactKind::
+  ReferencedByOtherEntity` và `cross_entity_impact` để biết lý do đầy đủ tại sao chỉ check
+  kind-change, không check removal. Test: 3 unit test thuần (`impact.rs`, không cần Postgres) +
+  1 e2e test (`tests/store.rs`, cần `DATABASE_URL`).
+- **`metap-reconciler`'s migration module** (`rename_field`/`drop_field` cho dedicated
+  table/table-per-entity): **vẫn là gap thật, chưa vá** — module này thao tác trực tiếp trên
+  `PhysicalSchema`/DDL cho MỘT `(tenant, entity)`, hoàn toàn không đi qua `MetadataRegistry`, nên
+  không có cơ chế nào tương đương `validate_references()` hay `cross_entity_impact()` chặn/cảnh
+  báo khi field bị đổi/xoá đang là `refDisplayField` của entity khác. **Chưa vá vì chưa có
+  trigger** — chưa có admin flow thật nào gọi `rename_field`/`drop_field` trên một dedicated table
+  đang bị entity khác tham chiếu (đúng quy ước của dự án: không code trước cho backlog chưa có
+  nhu cầu thật). Khi trigger xuất hiện (một admin API thật cho phép đổi/xoá field trên dedicated
+  table), việc wiring đó **phải tái dùng logic của `cross_entity_impact`/`validate_references()`**
+  (cùng nguồn sự thật `MetadataRegistry`) thay vì viết một cơ chế check thứ hai — tránh hai nơi
+  cùng trả lời một câu hỏi mà có thể lệch nhau.
+
 ## Rủi ro / phụ thuộc
 
 - Mode 2 tăng số query cho `list()` từ 1 lên `1 + số field Reference có refDisplayField` — chấp
