@@ -1,12 +1,14 @@
 # Config trong database, phân tầng operator / platform-global / per-tenant
 
-- **Trạng thái:** **lát 1 done 2026-09-03** (`metap-config` + `platform_configs` +
-  `/platform/config`, đóng audit 04 A#7 — xem `../roadmap/66-platform-config-tiers.md`). Lát 2
-  (`tenant_configs` + theme) và lát 3 (secret + nới `FORBIDDEN_HEADERS`) chưa bắt đầu.
+- **Trạng thái:** **lát 1 + lát 2 done 2026-09-03** — lát 1 (`metap-config` + `platform_configs` +
+  `/platform/config`, đóng audit 04 A#7) ở `../roadmap/66-platform-config-tiers.md`; lát 2
+  (`tenant_configs` + `/admin/config` + `/public/config` theo hostname + theme) ở
+  `../roadmap/67-tenant-config-tier-public-theme.md`. Lát 3 (secret + nới `FORBIDDEN_HEADERS`)
+  chưa bắt đầu.
 - **Người đề xuất:** chủ dự án, 2026-09-03 ("những config như này có thể set trong database, đầu
   API admin/config hay gì đó - per tenant, ngoài ra thì với lowcode thì có thêm mức config-global")
 - **Track sở hữu:** HTTP-API Surface (bề mặt `/admin/*`) + Backend Core (tầng đọc/cache)
-- **Phase roadmap liên quan:** Phase 66 (lát 1)
+- **Phase roadmap liên quan:** Phase 66 (lát 1), Phase 67 (lát 2)
 
 ## Vấn đề / động lực
 
@@ -237,10 +239,12 @@ một cột trong DB thì chính nó lại cần một config để bảo vệ, 
 Không còn là "làm hẹp rồi chờ trigger" — trigger đã có (webhook secret + theme). Nhưng vẫn nên chia
 3 lát, vì lát 1 không phụ thuộc gì và lát 3 là lát dễ sai nhất:
 
-1. **Khung + Tầng 2.** `ConfigKey` registry, `platform_configs`, `GET/PUT /platform/config`, gỡ 3
-   giá trị hardcode (`SchemaLimits` — đóng luôn audit 04 A#7, rate limit, session TTL). Không đụng
-   secret, không đụng `SecretStore`, không đụng A#1.
-2. **`tenant_configs` + theme.** Thêm tầng tenant vào chuỗi resolve, endpoint public theo hostname,
-   allowlist khoá public. Vẫn chưa đụng secret.
+1. ~~**Khung + Tầng 2.**~~ **Done, Phase 66.** `ConfigKey` registry, `platform_configs`,
+   `GET/PUT /platform/config`, gỡ 3 giá trị hardcode (`SchemaLimits` — đóng luôn audit 04 A#7,
+   rate limit, session TTL). Không đụng secret, không đụng `SecretStore`, không đụng A#1.
+2. ~~**`tenant_configs` + theme.**~~ **Done, Phase 67.** Tầng tenant vào chuỗi resolve,
+   `/admin/config`, endpoint public theo hostname (`control.tenant_hostnames`), allowlist khoá
+   public là flag trên chính khoá trong Rust. Vẫn chưa đụng secret.
 3. **Secret.** `SecretStore::get_secret`, `secretRef` trong config, và nới `FORBIDDEN_HEADERS` cho
-   webhook — làm sau cùng, khi khung đã ổn định và có chỗ để test tử tế.
+   webhook — làm sau cùng, khi khung đã ổn định và có chỗ để test tử tế. **Đây là phần còn lại
+   duy nhất của brief này.**
