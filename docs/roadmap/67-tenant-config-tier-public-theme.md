@@ -70,8 +70,13 @@ invalidation cross-process thì nền tảng này chưa có ở đâu cả.
 ## Xác minh
 
 `cargo test --workspace` 94/94 suite ok (từ 93), clippy `--workspace --all-targets -D warnings` sạch,
-fmt sạch. **7 e2e test mới chưa chạy** (tổng cộng 37 test `--ignored` trong repo) — phiên cloud không
-có Docker/Postgres, cần `cargo test --workspace -- --ignored`.
+fmt sạch. **7 e2e test mới chưa chạy** — phiên cloud không có Docker/Postgres, cần
+`cargo test --workspace -- --ignored`.
+
+> **Sửa số liệu (2026-09-03, phát hiện khi làm Phase 68):** bản đầu của mục này ghi "tổng cộng 37
+> test `--ignored` trong repo". **Sai** — đếm thật bằng `cargo test --workspace` rồi cộng các dòng
+> `N ignored` cho ra **157**. Con số 37 là ước lượng chứ không phải kết quả đo, và nó làm mức phủ
+> e2e chưa-chạy của repo trông nhỏ hơn thực tế đáng kể.
 
 Disk quota hết lần thứ 4 trong ngày giữa phiên, `cargo clean` giải phóng 30.5GB.
 

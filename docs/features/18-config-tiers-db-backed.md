@@ -1,14 +1,16 @@
 # Config trong database, phân tầng operator / platform-global / per-tenant
 
-- **Trạng thái:** **lát 1 + lát 2 done 2026-09-03** — lát 1 (`metap-config` + `platform_configs` +
+- **Trạng thái:** **DONE cả 3 lát, 2026-09-03.** Lát 1 (`metap-config` + `platform_configs` +
   `/platform/config`, đóng audit 04 A#7) ở `../roadmap/66-platform-config-tiers.md`; lát 2
   (`tenant_configs` + `/admin/config` + `/public/config` theo hostname + theme) ở
-  `../roadmap/67-tenant-config-tier-public-theme.md`. Lát 3 (secret + nới `FORBIDDEN_HEADERS`)
-  chưa bắt đầu.
+  `../roadmap/67-tenant-config-tier-public-theme.md`; lát 3 (`SecretStore::get/put/delete_secret`,
+  khoá config write-only, nới `FORBIDDEN_HEADERS` cho webhook) ở
+  `../roadmap/68-webhook-secret-tier.md`. **Còn nợ verify sống** — xem mục "Chưa verify được" của
+  Phase 68; và FE chưa đọc `/public/config` (Phase 67).
 - **Người đề xuất:** chủ dự án, 2026-09-03 ("những config như này có thể set trong database, đầu
   API admin/config hay gì đó - per tenant, ngoài ra thì với lowcode thì có thêm mức config-global")
 - **Track sở hữu:** HTTP-API Surface (bề mặt `/admin/*`) + Backend Core (tầng đọc/cache)
-- **Phase roadmap liên quan:** Phase 66 (lát 1), Phase 67 (lát 2)
+- **Phase roadmap liên quan:** Phase 66 (lát 1), Phase 67 (lát 2), Phase 68 (lát 3)
 
 ## Vấn đề / động lực
 
@@ -245,6 +247,8 @@ Không còn là "làm hẹp rồi chờ trigger" — trigger đã có (webhook s
 2. ~~**`tenant_configs` + theme.**~~ **Done, Phase 67.** Tầng tenant vào chuỗi resolve,
    `/admin/config`, endpoint public theo hostname (`control.tenant_hostnames`), allowlist khoá
    public là flag trên chính khoá trong Rust. Vẫn chưa đụng secret.
-3. **Secret.** `SecretStore::get_secret`, `secretRef` trong config, và nới `FORBIDDEN_HEADERS` cho
-   webhook — làm sau cùng, khi khung đã ổn định và có chỗ để test tử tế. **Đây là phần còn lại
-   duy nhất của brief này.**
+3. ~~**Secret.**~~ **Done, Phase 68.** `SecretStore::get_secret`/`put_secret`/`delete_secret`,
+   khoá config `secret` write-only (reference **suy ra** hoàn toàn, không nhận từ request — mạnh hơn
+   "server gắn tiền tố" mà brief này yêu cầu), và nới `FORBIDDEN_HEADERS` cho webhook đúng theo
+   hướng brief đề xuất: cấm literal, cho phép giá trị từ `SecretStore`, giữ cấm tuyệt đối
+   `cookie`/`proxy-authorization`.
