@@ -37,7 +37,7 @@ lại thông tin sai ở trang index này.
 
 ---
 
-### ✅ Done (54)
+### ✅ Done (55)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -95,6 +95,7 @@ lại thông tin sai ở trang index này.
 | [69. Dev tooling (docker-compose/mold) + fix phase 64's downstream fallout](69-dev-tooling-and-cookie-session-downstream-fixes.md) | trigger: câu hỏi thuần dev-tooling ("chưa có docker compose dev, rust build đỡ nặng k") lộ ra Phase 64 (cookie session) chưa lan xuống… |
 | [70. Aggregation API (`plan_aggregate`)](70-aggregate-api.md) | `GROUP BY`/`COUNT`/`SUM` cho mọi entity — core trước đó không có khả năng aggregate nào; **chưa build/test** |
 | [71. WAF Customer Portal thật + endpoint "phải tự code"](71-waf-admin-portal.md) | portal 10 module theo IA zone-centric + verify-dns/test-origin/sync-config-state/delete-guard/correlate/alert/scan; **chưa build/test** |
+| [72. `control-plane` + `edge-plane`](72-control-edge-planes.md) | phần chặn request thật lần đầu có code: config distributor (subscribe + resync + ingest) và mitigation engine (hyper trần, không `metap`); **chưa build/test** |
 
 ### 🟡 Done-partial / in-progress (8)
 
