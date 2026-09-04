@@ -87,19 +87,33 @@ Quyết định đáng ghi:
 
 ## Xác minh
 
-**Không có.** Chủ dự án yêu cầu rõ trong phiên này: "không verify code, không cần build, không cần
-test, chỉ code" — sẽ tự kéo nhánh về kiểm tra. Nên toàn bộ Phase 70 + 71 đang ở trạng thái **chưa
-compile lần nào**: chưa `cargo build`, chưa `tsc`, chưa `oxlint`, chưa chạy thật. Danh sách chỗ dễ
-sai nhất khi verify: (1) `plan_aggregate`'s SQL + `to_jsonb`, (2) `zone_delete_guard` có thực sự
-bắt đúng path và không chặn nhầm request khác, (3) prop của component `@metap/ui` dùng trong 12
-màn hình mới (`Select`/`Toggle`/`Stepper`/`Dialog` — viết theo type export, chưa render lần nào),
-(4) `Cargo.toml` mới thêm `reqwest`/`chrono`/`uuid` cho cả 3 service.
+**Cập nhật 2026-09-04**: build/test thật xong (phiên riêng, chủ dự án yêu cầu "bắt đầu viết test,
+build và verify các thay đổi"). `cargo build/clippy -D warnings/test --workspace` cho `data-plane`
+sạch (bắt đúng 1 lỗi clippy thật trong `scanning-service` — `useless_conversion`, sửa thành
+`Value::Object(data.data)`). `zone_delete_guard` build/clippy sạch, generic bounds của
+`run_resilient_consumer` không sao — 2 chỗ tôi nghi nhất hoá ra đúng ngay từ đầu.
+
+Frontend: **48 lỗi `tsc -b` thật**, tất cả đã sửa — sạch cả `tsc -b`/`oxlint`/`prettier --check`/
+`vite build` (1211 module, bundle 771KB) sau đó:
+- 36/48 lỗi: mọi `toast({ title, variant: "success" })` sai hoàn toàn signature thật của
+  `@metap/ui`'s `toast()` — hàm thật là `toast(message: string, { variant: "default" | "destructive" })`,
+  không có variant `"success"`. Sửa cả 36 chỗ, map `"success"` → `"default"`.
+- `OnboardingPage`'s `Stepper` dùng prop `state` không tồn tại (`StepperItem` thật dùng
+  `variant`), và cấu trúc đúng là mỗi step 1 `StepperGroup` nối bằng `StepperConnector`, không
+  phải gộp cả 4 step vào 1 group — viết lại đúng compound-component shape.
+- `AnalyticsPage` index mảng cố định (`WINDOWS[1]`) làm fallback — `noUncheckedIndexedAccess` báo
+  đúng vì kiểu vẫn là `T | undefined`; tách thành hằng số `DEFAULT_WINDOW` riêng.
+
+Thêm test thuần (không cần DB/network) cho logic dùng ngay được: 19 test cho `compile.rs`
+(`parse_match`/`compile_rule`/`compile_ddos`/`compile_zone`/`publishable`) ở `control-plane`, và
+35 test cho `evaluate.rs`/`ratelimit.rs`/`clearance.rs` ở `edge-plane` (chi tiết ở Phase 72's mục
+xác minh). Tổng: `cargo test --workspace` cả 4 workspace Rust trong `metap-org` đều xanh.
+
+**Vẫn chưa verify**: chạy thật qua HTTP với Postgres sống (không có docker daemon trong môi trường
+build), và test e2e `http_server.rs` của cả 3 service (đã có sẵn, `ignored`, cần
+`DATABASE_URL`/Postgres thật).
 
 ## Còn lại (không thuộc phase này)
 
-`control-plane` và `edge-plane` vẫn **0 dòng code** — phần khiến sản phẩm là một WAF thật (chặn
-được request) chưa tồn tại. Đường tới hạn nếu muốn demo end-to-end: `control-plane` (subscribe
-outbox → compile rule-set → Redis) rồi `edge-plane` tối thiểu 1 loại rule. Cộng: Admin Portal
-backend (`Plan`/`Subscription`), Traefik/reverse-proxy thật cho production (routing hiện chỉ chạy
-trong Vite dev-server), và telemetry edge→up vẫn là quyết định kiến trúc chưa chốt
-(`docs/04-architecture-boundary.md`).
+Xem Phase 72 (`72-control-edge-planes.md`) — `control-plane`/`edge-plane` giờ đã có code (cùng
+2026-09-04, phiên tiếp theo cùng ngày), phần "Còn lại" ở đó thay cho ghi chú cũ ở đây.

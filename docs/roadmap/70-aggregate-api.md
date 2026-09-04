@@ -44,10 +44,19 @@ mọi con số âm thầm thành "tối đa 50"), và chuyển cả bảng dữ 
 
 ## Xác minh
 
-**Chưa build, chưa test, chưa chạy** — phiên này chủ dự án yêu cầu rõ "không verify code, không
-cần build, không cần test, chỉ code". Toàn bộ phase này (và Phase 71) cần 1 vòng
-`cargo build`/`clippy`/e2e trước khi tin được. Rủi ro đã biết: `to_jsonb` + `apply_params` mới chỉ
-đọc code chứ chưa chạy thật lần nào.
+**Cập nhật 2026-09-04**: đã build/clippy/test thật (phiên riêng, chủ dự án yêu cầu "bắt đầu viết
+test, build và verify các thay đổi"). `cargo build --workspace`/`cargo clippy --workspace
+--all-targets -- -D warnings`/`cargo test --workspace` cho `metap` đều sạch — 335 test pass, 0
+fail. Thêm 26 unit test cho `plan_aggregate` (`crates/metap-query/src/aggregate/tests.rs`): scope
+tenant, SQL khác nhau giữa bảng chung/bảng riêng, allowlist `group_by` (field `indexed`/`enum`/nằm
+trong list-view filters, cộng carve-out `status` luôn được phép), đủ 5 hàm metric kể cả ngoại lệ
+`count` trên field không phải số, `bucket`/`since`/`until`, allowlist filter, clamp `limit`, và
+**policy ABAC được gấp vào `WHERE` trước khi đếm** (test `record_read_policy_is_folded_into_where_before_counting`).
+Phải thêm `#[derive(Debug)]` cho `PlannedAggregateQuery` (cần cho `unwrap_err()` trong test).
+
+**Vẫn chưa verify**: chạy thật qua HTTP (cần Postgres — không có docker daemon trong môi trường
+build này) và test e2e `query_planner_postgres.rs`-kiểu cho riêng `aggregate` (hiện chỉ có test
+thuần SQL-string, chưa test chạy query thật đếm đúng số).
 
 ## Consumer đầu tiên
 

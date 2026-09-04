@@ -71,9 +71,53 @@ proxy sang origin → non-allow thì queue SecurityEvent (không bao giờ chặ
 - **Block/challenge page**: đóng luôn gap `docs/14-cloudflare-gap-analysis.md` đề xuất cho v1 (một
   trang mặc định, chưa customise per-zone).
 
-## Chưa verify
+## Đã verify (cập nhật 2026-09-04, phiên riêng — "bắt đầu viết test, build và verify các thay đổi")
 
-**Không build, không test, không chạy** — đúng yêu cầu. Chỗ dễ sai nhất khi kiểm tra:
+Cả 5 chỗ tự nghi ở lần ghi đầu ("Chưa verify" gốc, giữ nguyên văn bên dưới để đối chiếu) đã có câu
+trả lời thật:
+
+1. **hyper 1.x/`hyper-util` legacy client, `proxy::forward`** — build sạch ngay lần đầu, không sửa
+   gì. Đúng.
+2. **`redis` 0.27 async API** — build sạch ngay lần đầu (cả `control-plane`'s `distribute.rs` lẫn
+   `edge-plane`'s `cache.rs`). Đúng.
+3. **`run_resilient_consumer`'s generic bounds** — build sạch; chỉ có 1 warning thật (unused
+   import `EventBus`, không phải lỗi kiểu) do `clippy -D warnings` bắt được, đã xoá import thừa.
+4. **`ip_in_cidr`** — viết 5 unit test riêng cho hàm này (`ip_in_cidr_matches_inside_the_prefix`,
+   `_zero_prefix_matches_everything`, `_bare_address_is_exact_match`, `_malformed_cidr_never_matches`,
+   `_ipv6_prefix_works`, `_mixed_families_never_match`) — tất cả pass, kể cả case gap đã biết
+   (IPv4-mapped IPv6 không match rule IPv4 — assert đúng hành vi hiện tại, không phải baokhuất).
+5. **Chưa từng `cargo build`** — giờ đã build/clippy/test sạch cả 2 workspace.
+
+`cargo build --workspace`/`cargo clippy --workspace --all-targets -- -D warnings`/`cargo test
+--workspace` cho cả `control-plane` và `edge-plane` đều xanh. Chi tiết lỗi/sửa thật tìm được:
+
+- **`control-plane`**: 1 warning clippy (unused import `EventBus` trong `subscribe.rs`) — sửa.
+  Thêm `.cargo/config.toml` nối vào target-dir chung + mold linker (đúng convention 5 repo Rust
+  khác trong `metap-org`) — trước đó build vào `target/` cục bộ, không track được. Thêm 19 unit
+  test cho `compile.rs`: `publishable` (chỉ `active`/`paused`), `action_from` (giá trị lạ luôn về
+  `Log`, không bao giờ đoán thành `Block`), `parse_match` (predicate/all/any/not/in, và case không
+  biểu diễn được → `None`), `compile_rule`/`compile_ddos` (rule/policy tắt bị loại hẳn),
+  `compile_zone` (sort priority đúng, thiếu hostname thì fail).
+- **`edge-plane`**: 5 warning `dead_code` (2 hàm thật sự không dùng — `body::empty()`,
+  `proxy::error_body()`, xoá hẳn; field `host` của `RequestContext` trùng lặp với biến `main.rs`
+  đã truyền riêng, xoá kèm comment giải thích; 4 field của `CompiledRule`/`CompiledZone` — dữ liệu
+  thật trên wire nhưng chưa đọc ở logic hiện tại — giữ lại với `#[allow(dead_code)]` + comment
+  thay vì xoá khỏi struct, vì vẫn cần cho `{:?}` log và tương thích ngược). Thêm `.cargo/config.toml`
+  (chỉ mold linker, **cố ý không** trỏ shared target-dir — plane này gần như không overlap
+  dependency với 5 repo kia). Thêm 35 unit test: 13 cho `evaluate()`/`eval_match`/`ip_in_cidr`
+  (gồm case DDoS budget check trước rule, first-match-wins, rate-limit rule chỉ fire khi vượt
+  ngưỡng, monitor mode hạ mọi action về `Log`), 6 cho `RateLimiter` (fixed-window reset, key độc
+  lập), 9 cho `clearance` cookie (issue/verify round-trip, sai zone/ip/secret bị từ chối, giả mạo
+  expiry bị từ chối nhờ expiry nằm trong phần đã ký, cookie hết hạn bị từ chối).
+
+**Vẫn chưa verify**: chưa chạy thật qua HTTP/Redis/RabbitMQ sống (không có docker daemon trong môi
+trường build này — thử `sudo service docker start` và `dockerd` đều bị chặn quyền), nên **chưa có
+bằng chứng runtime nào** cho `subscribe.rs`/`resync.rs`/`ingest.rs`/`cache.rs`'s refresh loop hay
+`main.rs`'s proxy pass-through thật — chỉ có build+clippy+unit test thuần logic. Test end-to-end
+"đổi rule trên portal → 10-30s sau edge chặn thật" (mục tiêu cuối) vẫn chưa làm được vì lý do đó.
+
+### Chưa verify (ghi lúc code, 2026-09-04 sớm hơn — giữ nguyên để đối chiếu với mục trên)
+
 1. hyper 1.x + `hyper-util` legacy client: kiểu body (`BoxBody`/`Incoming`/`Full`) là chỗ dễ sai
    kiểu nhất trong cả phase, đặc biệt `proxy::forward`.
 2. `redis` 0.27 async API (`smembers`/`get`/pipeline `query_async` turbofish) — viết theo trí nhớ
@@ -92,4 +136,6 @@ proxy sang origin → non-allow thì queue SecurityEvent (không bao giờ chặ
 - Admin Portal backend (`Plan`/`Subscription`) vẫn chưa có.
 - Origin health check định kỳ (gap thứ 2 mà `docs/14` đề xuất cho v1) chưa làm.
 - Chưa có test end-to-end "đổi rule trên portal → 10-30s sau edge chặn thật" — đây là thứ chứng
-  minh cả 3 plane nối đúng, và nên là việc đầu tiên sau khi build sạch.
+  minh cả 3 plane nối đúng, và nên là việc đầu tiên sau khi build sạch. **Vẫn là việc quan trọng
+  nhất còn lại** — build/unit-test sạch chỉ chứng minh logic từng phần đúng, không chứng minh 3
+  plane nối với nhau đúng qua Redis/RabbitMQ/HTTP thật.
