@@ -37,8 +37,8 @@ hướng đang ghi nhận, chưa có trigger".
 - [ ] Bulk actions — phụ thuộc row selection, chưa có
 - [x] Row actions — cột action View/Delete theo dòng (`GeneratedList.tsx:387-406`)
 - [ ] Export — không có nút export/CSV/JSON download nào trong `platform-ui/src`
-- [ ] Refresh — `refetch` của `useApiInfiniteQuery` chỉ gọi nội bộ sau delete
-      (`GeneratedList.tsx:209`), chưa có control cho người dùng
+- [x] Refresh — **2026-09-04**: `IconButton` cạnh nút "New" gọi `refetch()`
+      (`GeneratedList.tsx:230-251`), disable + xoay icon khi `isFetching`
 - [ ] Saved views — chưa persist filter/sort/column state ở đâu cả
 - [x] Virtualization — `@tanstack/react-virtual`, `useVirtualizer` (`GeneratedList.tsx:144-161`)
 
@@ -241,10 +241,12 @@ Action End
       `FieldInput.tsx`/`fieldKindConfig.ts`. `@metap/ui` **đã có sẵn atom `FileUpload`**
       (`design-system/src/components/file-upload/file-upload.tsx`) nhưng `platform-ui` chưa dùng
       — gap thấp công sức hơn các mục cần dựng atom mới từ đầu
-- [ ] Notification — outbox stub + `notification-worker` chỉ log stdout (Phase 5), chưa phải
-      kênh thật (email/SMS/webhook). `@metap/ui` **đã có sẵn atom `Toast`**
-      (`design-system/src/components/toast/toast.tsx`) nhưng chưa wiring vào flow nào của
-      `platform-ui` (0 chỗ dùng)
+- [ ] Notification — vẫn `[ ]` ở tầng **kênh backend thật** (outbox stub + `notification-worker`
+      chỉ log stdout, Phase 5, chưa phải email/SMS/webhook) — nhưng **2026-09-04**: tầng feedback
+      trong-app đã có, `AppShellLayout` mount `ToastProvider`, `GeneratedForm`/`GeneratedList`
+      toast khi tạo/sửa/xoá thành công (`shell/AppShellLayout.tsx`, `form/GeneratedForm.tsx:105-112`,
+      `list/GeneratedList.tsx:210-212`) — 2 khái niệm khác nhau, đừng nhầm "toast báo kết quả 1
+      action FE" với "kênh notification thật gửi ra ngoài hệ thống"
 - [ ] Realtime — 0 WebSocket/SSE/socket client trong `platform-ui/src`
 - [x] Admin — xem mục 4 ở trên
 
@@ -363,7 +365,13 @@ một feature brief trong `docs/features/` nêu rõ trigger, theo đúng cách c
 ghi nhận ở `docs/team-charter.md`.
 
 Gợi ý theo công sức khi cần chọn việc trong nhóm "làm được ngay" (mục 1-3, 6): những gap có sẵn
-atom ở `design-system` nhưng chưa wiring vào `platform-ui` (`Checkbox` cho row selection,
-`FileUpload` cho field kind file, `Toast` cho notification, `Tabs` cho Detail field groups) rẻ
-hơn những gap chưa có atom nào ở tầng nào cả (column resize/reorder, saved views, command
-palette, realtime).
+atom ở `design-system` nhưng chưa wiring vào `platform-ui` rẻ hơn những gap chưa có atom nào ở
+tầng nào cả (column resize/reorder, saved views, command palette, realtime). **Đã làm 2026-09-04**:
+`Toast` (notification, xem mục "Nhóm ưu tiên tiếp theo") và `Refresh` (không cần atom mới, chỉ lộ
+`refetch()` có sẵn ra UI). Còn lại trong nhóm này: `Checkbox` cho row selection (cần quyết định
+select-all nghĩa là gì khi list dùng infinite scroll + virtualization — chỉ chọn record đã load
+hay cả trang chưa fetch — và tự nó chưa có ý nghĩa nếu không có bulk action đi kèm, nên gộp 2 việc
+này lại khi làm), `FileUpload` cho field kind file (cần thêm `FieldKind` mới ở backend
+`metap-metadata` trước — không phải việc chỉ ở `platform-ui`), `Tabs` cho Detail field groups (cần
+khái niệm "group" mới trong `entityLayout.ts`, hiện chỉ có `span: 1|2` per-field, là quyết định
+thiết kế chứ không chỉ wiring).
