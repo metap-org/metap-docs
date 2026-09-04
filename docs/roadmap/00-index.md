@@ -96,6 +96,7 @@ lại thông tin sai ở trang index này.
 | [70. Aggregation API (`plan_aggregate`)](70-aggregate-api.md) | `GROUP BY`/`COUNT`/`SUM` cho mọi entity — core trước đó không có khả năng aggregate nào; build/clippy/test verify xong 2026-09-04 |
 | [71. WAF Customer Portal thật + endpoint "phải tự code"](71-waf-admin-portal.md) | portal 10 module theo IA zone-centric + verify-dns/test-origin/sync-config-state/delete-guard/correlate/alert/scan; build/test verify xong 2026-09-04 (48 lỗi tsc thật đã sửa) |
 | [72. `control-plane` + `edge-plane`](72-control-edge-planes.md) | phần chặn request thật lần đầu có code: config distributor (subscribe + resync + ingest) và mitigation engine (hyper trần, không `metap`); build/clippy/test verify xong 2026-09-04, chưa chạy qua Postgres/Redis/RabbitMQ thật |
+| [73. `metap-demo-waf`'s FE→BE giao thức chuẩn hoá về GraphQL](73-waf-graphql-protocol.md) | `data-plane/web` từ 100% REST sang gọi `waf-graphql-gateway`'s `/graphql` — CRUD generic + 8 field custom (verify DNS/scan/alert/`aggregate`), trừ `/auth/*`/`/preferences/*`/`/metadata/*`; extension point mới ở `metap` core (`build_schema_parts`) cho phép downstream thêm field ngoài CRUD; `tsc/oxlint/prettier/vite build` sạch, chưa browser-test |
 
 ### 🟡 Done-partial / in-progress (8)
 
