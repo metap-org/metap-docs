@@ -109,9 +109,24 @@ Thêm test thuần (không cần DB/network) cho logic dùng ngay được: 19 t
 35 test cho `evaluate.rs`/`ratelimit.rs`/`clearance.rs` ở `edge-plane` (chi tiết ở Phase 72's mục
 xác minh). Tổng: `cargo test --workspace` cả 4 workspace Rust trong `metap-org` đều xanh.
 
-**Vẫn chưa verify**: chạy thật qua HTTP với Postgres sống (không có docker daemon trong môi trường
-build), và test e2e `http_server.rs` của cả 3 service (đã có sẵn, `ignored`, cần
-`DATABASE_URL`/Postgres thật).
+**Cập nhật 2026-09-04 (lần 2, cùng ngày)**: đã chạy thật qua HTTP với Postgres sống. Docker Hub bị
+chặn bởi chính sách mạng của tổ chức (403 ở tầng CONNECT của proxy — không retry/bypass, theo đúng
+hướng dẫn của proxy đó), nên dùng Postgres/RabbitMQ cài native (apt, không qua Docker) thay
+`docker compose up -d postgres rabbitmq`, khớp credential `metap`/`metap` với file đó. Chạy
+`cargo test -p {zones,scanning,alerting}-service --test http_server -- --ignored` phát hiện bug
+thật giống hệt nhau ở cả 3 service: test mint JWT rồi gọi `POST /api/test.tasks` mà **không seed
+`user_roles`** cho user đó trước — `PermissionService::check_action` (deny-by-default ở entity
+level) đúng quy tắc trả `403` thay vì `201` test đang assert. Test `http_server.rs` gốc của
+`metap-http` (bản mẫu 3 service này copy) có seed `INSERT INTO user_roles (..., 'admin')` trước
+khi mint token; bản copy vào `metap-demo-waf` bị rớt dòng đó. Sửa giống hệt ở cả 3 file (thêm seed
++ teardown tương ứng) — cả 3 test giờ pass thật trên Postgres sống. Chạy luôn
+`cargo test --workspace -- --ignored` của `metap` core trên cùng Postgres/RabbitMQ native đó: xanh
+trên hàng chục file test — bằng chứng khá mạnh là các primitive nền tảng Phase 70-72 dựa vào vẫn
+đúng ở mức sâu hơn unit test.
+
+**Vẫn chưa verify**: `control-plane`/`edge-plane` chưa có e2e test cần hạ tầng sống của riêng
+chúng (test suite hiện tại là pure-logic unit test, đã xanh), và vẫn chưa có bằng chứng end-to-end
+là 1 thay đổi rule trên portal thật sự tới được edge và chặn được request.
 
 ## Còn lại (không thuộc phase này)
 
