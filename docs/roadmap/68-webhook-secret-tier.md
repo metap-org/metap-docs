@@ -131,3 +131,16 @@ Disk quota hết **lần thứ 5 và 6** trong ngày giữa phiên (`cargo clean
 lần thứ 6 là `/tmp` của harness đầy chứ không phải `.shared-target`). Quota thật của phiên ~29GB,
 tức là một lượt `cargo build --workspace --tests` gần chạm trần — đáng ghi vào CLAUDE.md nếu còn tái
 diễn.
+
+### Cập nhật 2026-09-04: 1 bug test tự tạo, phát hiện lúc verify phiên WAF
+
+Chạy `cargo test -p metap-http -- --ignored` thật lần đầu (Postgres native, phiên `metap-demo-waf`)
+phát hiện `platform_config_postgres.rs::an_operator_key_is_refused_even_for_a_platform_admin` và
+`tenant_config_postgres.rs::a_tenant_admin_cannot_write_an_operator_or_fleet_key` cùng fail — cả 2
+assert chặn cứng "không key nào bắt đầu bằng `cron.`" trên listing của `/platform/config`/
+`/admin/config`, viết **trước** khi `CRON_WEBHOOK_AUTHORIZATION` (`cron.webhookAuthorization`,
+phase này) tồn tại. Khoá đó là `ConfigLevel::Tenant`, không phải `Operator`, nên nó lên listing của
+cả 2 surface hợp lệ (`ConfigStore::platform_writable_view`/`tenant_view` chỉ loại `Operator`). Sửa
+2 assert thành kiểm tra đúng tên 2 khoá `Operator` (`cron.webhookAllowPrivateTargets`/
+`cron.webhookAllowedHosts`) thay vì so khớp tiền tố — cả 2 test pass thật trên Postgres sống sau
+khi sửa.
