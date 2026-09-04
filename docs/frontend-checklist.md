@@ -32,9 +32,12 @@ hướng đang ghi nhận, chưa có trigger".
       `@metap/ui`'s `Table` cũng chỉ là wrapper `<table>` thuần, chưa có primitive cho việc này.
 - [ ] Column ordering — thứ tự cột hardcode theo mảng `listView.fields`, không có drag/reorder
 - [ ] Column resizing — `table-fixed`, độ rộng suy ra từ header, không có resize handle/state
-- [ ] Row selection — không có cột checkbox; `@metap/ui` có sẵn atom `Checkbox` nhưng chưa dùng
-      cho mục đích này
-- [ ] Bulk actions — phụ thuộc row selection, chưa có
+- [x] Row selection — **2026-09-04**: checkbox mỗi dòng + "select all" ở header
+      (`GeneratedList.tsx`), phụ thuộc `design-system#3` (thêm prop `aria-label` cho `Checkbox`).
+      **Chỉ chọn được các dòng đã tải** (loaded rows) — không có khái niệm "chọn tất cả N bản ghi
+      trên mọi trang" khi list dùng infinite scroll + virtualization, quyết định có chủ đích chứ
+      không phải giới hạn kỹ thuật
+- [x] Bulk actions — **2026-09-04**: bulk delete (xem mục 2 Delete)
 - [x] Row actions — cột action View/Delete theo dòng (`GeneratedList.tsx:387-406`)
 - [ ] Export — không có nút export/CSV/JSON download nào trong `platform-ui/src`
 - [x] Refresh — **2026-09-04**: `IconButton` cạnh nút "New" gọi `refetch()`
@@ -57,8 +60,8 @@ Frontend đã hỗ trợ generic CRUD cho entity Metap bất kỳ qua
 - [x] Filter
 - [x] Sort
 - [x] Pagination
-- [ ] Bulk selection — xem mục 1
-- [ ] Bulk action
+- [x] Bulk selection — xem mục 1
+- [x] Bulk action — bulk delete, xem mục 2 Delete
 - [ ] Export
 - [ ] Saved view
 
@@ -110,7 +113,10 @@ Frontend đã hỗ trợ generic CRUD cho entity Metap bất kỳ qua
 - [x] Soft delete — backend (`CrudService.delete()`)
 - [ ] Restore — không có action/endpoint restore nào; `recordCapabilities.ts` chưa có
       `canRestore`/`deletedAt`
-- [ ] Bulk delete — phụ thuộc row selection, xem mục 1
+- [x] Bulk delete — **2026-09-04**: `handleBulkDelete` (`GeneratedList.tsx`), `Promise.allSettled`
+      nên thất bại một phần vẫn xoá được phần còn lại — toast số lượng xoá thành công thật sự,
+      báo lỗi tóm tắt cho phần fail (`bulkDeletePartialError`). Selection tự clear sau khi chạy dù
+      pass hay fail; dòng fail vẫn còn trong list sau refetch để xoá lại riêng lẻ
 
 ---
 
@@ -367,11 +373,11 @@ ghi nhận ở `docs/team-charter.md`.
 Gợi ý theo công sức khi cần chọn việc trong nhóm "làm được ngay" (mục 1-3, 6): những gap có sẵn
 atom ở `design-system` nhưng chưa wiring vào `platform-ui` rẻ hơn những gap chưa có atom nào ở
 tầng nào cả (column resize/reorder, saved views, command palette, realtime). **Đã làm 2026-09-04**:
-`Toast` (notification, xem mục "Nhóm ưu tiên tiếp theo") và `Refresh` (không cần atom mới, chỉ lộ
-`refetch()` có sẵn ra UI). Còn lại trong nhóm này: `Checkbox` cho row selection (cần quyết định
-select-all nghĩa là gì khi list dùng infinite scroll + virtualization — chỉ chọn record đã load
-hay cả trang chưa fetch — và tự nó chưa có ý nghĩa nếu không có bulk action đi kèm, nên gộp 2 việc
-này lại khi làm), `FileUpload` cho field kind file (cần thêm `FieldKind` mới ở backend
-`metap-metadata` trước — không phải việc chỉ ở `platform-ui`), `Tabs` cho Detail field groups (cần
-khái niệm "group" mới trong `entityLayout.ts`, hiện chỉ có `span: 1|2` per-field, là quyết định
-thiết kế chứ không chỉ wiring).
+`Toast` (notification), `Refresh` (không cần atom mới, chỉ lộ `refetch()` có sẵn ra UI), và
+`Checkbox` cho row selection + bulk delete (chốt select-all = chỉ các dòng đã tải, không phải
+toàn bộ record khớp filter — quyết định có chủ đích do infinite scroll + virtualization không có
+khái niệm "chọn N bản ghi trên mọi trang" ở tầng server; phụ thuộc `design-system#3` thêm prop
+`aria-label` cho `Checkbox`). Còn lại trong nhóm này: `FileUpload` cho field kind file (cần thêm
+`FieldKind` mới ở backend `metap-metadata` trước — không phải việc chỉ ở `platform-ui`), `Tabs`
+cho Detail field groups (cần khái niệm "group" mới trong `entityLayout.ts`, hiện chỉ có
+`span: 1|2` per-field, là quyết định thiết kế chứ không chỉ wiring).
