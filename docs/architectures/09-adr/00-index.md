@@ -158,7 +158,34 @@ việc đó là thừa.
   `zoneId: String` là đúng, lý do route-leak vẫn đứng vững), chỉ phần "giữ chung DB để không mất
   FK" ở trên là diễn giải sai — không có FK Postgres thật nào để giữ hay mất trong sản phẩm này.
   Xem `docs/roadmap/61-waf-microservices-split.md` cho chi tiết đầy đủ. GraphQL
-  (`metap/crates/graphql-gateway`, tái dùng nguyên trạng — không code mới) là lớp gộp query
-  cross-service cho FE, chỉ dùng cho read, không dùng cho mutation (gateway hiện chỉ decode-only
-  auth, không propagate identity người gọi thật xuống từng upstream). Xem
+  (`metap/crates/graphql-gateway`) là lớp gộp query cross-service cho FE.
+  **Cập nhật 2026-09-04 (Phase 73 + phiên sau đó) — đoạn "tái dùng nguyên trạng/chỉ read/decode-only
+  không propagate identity" ở trên đã lỗi thời, xoá luôn thay vì giữ làm lịch sử** (đúng quy ước của
+  file này): (1) `metap-demo-waf` giờ có **binary GraphQL gateway riêng**
+  (`metap-demo-waf/data-plane/graphql-gateway`, package `waf-graphql-gateway`) bọc thư viện
+  `metap-graphql-gateway` qua `schema_builder::build_with_extensions`, thêm 7 mutation nghiệp vụ
+  riêng (`verifyZoneDns`, `testZoneOrigin`, ...) — không còn "không code mới"; (2) **dùng được cho
+  cả mutation**, không chỉ read (đã verify sống 2026-09-02, forward đúng `updated_by`/bị 403 đúng
+  khi thiếu quyền); (3) gateway **có propagate identity người gọi thật** xuống từng upstream
+  (`RequestContext::forwarded_bearer_token`, forward nguyên vẹn khi hợp lệ, fallback về
+  service-account qua `ServiceTokenSource` khi không có) — không còn chỉ decode-only vô danh. Xem
+  `docs/roadmap/73-waf-graphql-protocol.md` cho quyết định đầy đủ. Xem
   `../metap-demo-waf/data-plane/README.md` cho bảng service/port cụ thể.
+- **JWKS (Ed25519, multi-service trust root) thay cho 1 file RSA keypair chia sẻ — opt-in, không
+  bắt buộc.** (2026-09-04.) `metap-demo-waf`'s 3 service + `waf-graphql-gateway` trước đó mint/verify
+  session bằng cách copy **1 file private key RSA** (`dev-jwt-private.pem`) vào cả 4 container —
+  không có đường rotate an toàn (đổi key phải cutover cứng đồng thời cả 4 nơi), và bất kỳ container
+  nào rò rỉ volume đó cũng lộ signing key cho toàn sản phẩm. `metap-jwks`/`metap-jwks-http`
+  (crate có sẵn từ trước, chưa ai dùng thật) cung cấp `JwksKeyStore` (rotation 3 bước: add → promote
+  → retire) + `JwksClient` (verify qua `GET /.well-known/jwks.json`, cache theo TTL). Thêm
+  `metap-http::AppState.token_verifier`/`token_signer` và `graphql-gateway`'s `JWKS_URL` config —
+  cả hai **field mới, mặc định `None`/tắt** — RSA tĩnh (`jwt_decoding_key`/`AUTH_JWT_PUBLIC_KEY_PATH`)
+  vẫn là fallback mặc định cho mọi deployment chưa opt-in, không ai bị ảnh hưởng (verify: build sạch
+  không đổi gì ở `metap-demo-crm`/`metap-demo-jira`). **Chưa đi hết đường "giảm blast radius"**:
+  `metap-demo-waf` chọn cả 3 service vẫn cùng giữ 1 EdDSA key (khớp mô hình cũ, chỉ đổi thuật toán +
+  có rotation an toàn) thay vì mô hình 1-issuer-duy-nhất JWKS vốn hướng tới — quyết định phạm vi có
+  chủ đích, không phải giới hạn kỹ thuật, để dành nếu cần siết blast radius thật sự sau này.
+  `TokenVerifier`/`TokenSigner` (dispatch Static-RS256 vs JWKS-EdDSA) đặt ở `metap-jwks` (không phải
+  `metap-runtime`) để tránh cycle (`metap-jwks` đã phụ thuộc `metap-runtime`); phần thuần CSRF/cookie
+  constant dùng chung giữa `metap-http` và `graphql-gateway` tách riêng vào
+  `metap_runtime::cookie_auth`. Xem `metap-demo-waf/CLAUDE.md`'s mục JWKS cho chi tiết vận hành.

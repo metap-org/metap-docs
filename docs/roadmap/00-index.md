@@ -37,7 +37,7 @@ lại thông tin sai ở trang index này.
 
 ---
 
-### ✅ Done (55)
+### ✅ Done (59)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -97,6 +97,10 @@ lại thông tin sai ở trang index này.
 | [71. WAF Customer Portal thật + endpoint "phải tự code"](71-waf-admin-portal.md) | portal 10 module theo IA zone-centric + verify-dns/test-origin/sync-config-state/delete-guard/correlate/alert/scan; build/test verify xong 2026-09-04 (48 lỗi tsc thật đã sửa) |
 | [72. `control-plane` + `edge-plane`](72-control-edge-planes.md) | phần chặn request thật lần đầu có code: config distributor (subscribe + resync + ingest) và mitigation engine (hyper trần, không `metap`); build/clippy/test verify xong 2026-09-04, chưa chạy qua Postgres/Redis/RabbitMQ thật |
 | [73. `metap-demo-waf`'s FE→BE giao thức chuẩn hoá về GraphQL](73-waf-graphql-protocol.md) | `data-plane/web` từ 100% REST sang gọi `waf-graphql-gateway`'s `/graphql` — CRUD generic + 8 field custom (verify DNS/scan/alert/`aggregate`), trừ `/auth/*`/`/preferences/*`/`/metadata/*`; extension point mới ở `metap` core (`build_schema_parts`) cho phép downstream thêm field ngoài CRUD; `tsc/oxlint/prettier/vite build` sạch, chưa browser-test |
+| [74. JWKS (Ed25519) — trust root nhiều service](74-jwks-multi-service-trust-root.md) | `metap-demo-waf` chuyển từ share 1 file RSA keypair sang share 1 EdDSA key qua `metap-jwks`, rotation 3 bước; `metap-http`/`graphql-gateway` opt-in additive (RSA tĩnh vẫn fallback mặc định); cookie-auth opt-in cho `graphql-gateway` (bỏ round-trip `/auth/token`) |
+| [75. `aggregate` lên thành capability generic của `RecordBackend`](75-aggregate-generic-record-backend.md) | Phase 70 chỉ REST — thêm `RecordBackend::aggregate` cho gRPC + GraphQL đơn-service, RPC `Aggregate` mới trong proto, `metap_query::AggregateSpec` gom parse logic dùng chung 3 transport |
+| [76. `metap-demo-waf` — loạt bug thật lộ ra khi chạy portal sống lần đầu](76-waf-portal-live-bugfixes.md) | Bug nặng nhất: docker-compose chạy nhầm binary `graphql-gateway` generic thay vì `waf-graphql-gateway`; cộng race login/logout, render-storm Dashboard, `/metadata/entities` rỗng, zone-delete-guard thiếu env var, `AppShellLayout` mount lại mỗi navigation; thêm "Visualize workflow" SVG vào Zone/Incident detail |
+| [77. `metap-demo-waf` — gộp GraphQL request, workflow diagram tương tác, bản dịch tiếng Việt](77-graphql-batching-workflow-diagram-i18n.md) | `graphql-gateway` chuyển sang `GraphQLBatchRequest` (backward-compatible), client gộp query cùng tick thành 1 request; `WorkflowDiagram` thêm zoom/pan/kéo-node/highlight hover; WAF thêm i18n en/vi đầy đủ + `LocaleSwitcher` mount vào `AppShellLayout` cho mọi app |
 
 ### 🟡 Done-partial / in-progress (8)
 
