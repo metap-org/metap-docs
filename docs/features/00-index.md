@@ -76,7 +76,7 @@ file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết �
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
-| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng phần lớn 4 gap gốc (pagination/PolicyCondition hoá ra đã xong từ trước; tìm + sửa thêm 2 bug thật ở `GeneratedList` chưa ai từng thấy) — còn cron `targetConfig` raw-JSON + bộ chuyển tenant (chưa rõ còn cần) |
+| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng cả 4 gap gốc, kể cả cron `targetConfig` (structured form theo `targetType`, 2026-09-06) — chỉ còn bộ chuyển tenant (chưa rõ còn cần, không tự quyết) |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
 
