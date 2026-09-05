@@ -40,11 +40,12 @@ nữa — brief của nó thuộc về repo của chính nó.
 5. Khi xong, đổi `Trạng thái: done` và để nguyên file lại — đây là lịch sử, không xoá.
 6. Nếu quyết định không làm nữa, đổi `Trạng thái: rejected` kèm lý do ngắn, không xoá file.
 
-## Danh sách theo trạng thái (2026-09-04)
+## Danh sách theo trạng thái (2026-09-05)
 
-Cùng 18 feature, nhóm lại theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu
-hẳn 18 — đã bổ sung ở đợt soát này) đổi thành 4 nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng
-link trực tiếp từng file nếu cần đọc theo `NN`.
+Cùng 25 feature (18 gốc + 19-25 thêm 2026-09-05, xem nhóm 🟢 mới bên dưới), nhóm lại theo trạng
+thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi
+thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc
+theo `NN`.
 
 ### ✅ Done
 
@@ -65,6 +66,25 @@ link trực tiếp từng file nếu cần đọc theo `NN`.
 | [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | chỉ 1/4 gap đã xong |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
+
+### 🟢 Proposed (có trigger thật, chờ duyệt)
+
+Khác nhóm ⚪ bên dưới — 7 feature này **đã có trigger** (rà soát `docs/frontend-checklist.md`
+2026-09-04 + yêu cầu audit trực tiếp), chỉ chưa chuyển `approved` để bắt đầu code. 19-24 là các gap
+"làm được ngay" tách ra từ 6 nhóm của `docs/frontend-checklist.md` (nhóm Admin/Developer-Platform-
+UI/Dashboard builder của checklist đó **cố tình không có brief nào ở đây** — checklist tự nói rõ
+cần feature brief riêng nêu trigger cụ thể trước, chưa có trigger nào cho các nhóm đó tính đến
+2026-09-05); 25 là 1 audit độc lập, không thuộc nhóm nào trong checklist.
+
+| Tính năng | Track | Ghi chú |
+|---|---|---|
+| [19. `GeneratedForm` — dirty state, unsaved-changes guard, partial update thật, optimistic update](19-generated-form-mutation-ergonomics.md) | Frontend Platform | nhóm 2 checklist, thuần platform-ui, không đụng backend |
+| [20. `RecordDetail` — audit trail (`workflow_events`) + `Tabs`](20-record-detail-audit-trail-and-tabs.md) | Frontend Platform | nhóm 2 checklist, dữ liệu backend đã có sẵn (Phase 5), cần xác nhận response shape route có sẵn trước khi code |
+| [21. Workflow guard — condition builder có cấu trúc (tái dùng `ConditionBuilder`)](21-workflow-condition-builder.md) | Frontend Platform | nhóm 3 checklist, gần như thuần wiring — component Phase 48 đã tổng quát sẵn |
+| [22. `GeneratedList` — Export (CSV/JSON) cho dữ liệu đã tải](22-generated-list-export.md) | Frontend Platform | nhóm 1 checklist, thuần client-side, không đụng backend |
+| [23. UX Infrastructure nền tảng — URL state, global loading/error, local storage, responsive](23-ux-infrastructure-core.md) | Frontend Platform | nhóm 6 checklist, phần rủi ro thấp/rõ việc |
+| [24. Command palette, keyboard shortcuts, state persistence](24-command-palette-and-state-persistence.md) | Frontend Platform | nhóm 6 checklist, **chưa chốt phạm vi** — cần cả atom mới ở design-system (chưa có primitive kiểu Command/Combobox-palette) |
+| [25. Audit `metap-demo-waf` — component đặt đúng chỗ design-system/platform-ui chưa](25-audit-waf-demo-component-placement.md) | Frontend Platform | độc lập với 19-24; sản phẩm là 1 file audit ở `platform-ui/docs/audits/`, không sửa code |
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
