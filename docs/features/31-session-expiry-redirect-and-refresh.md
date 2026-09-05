@@ -1,6 +1,6 @@
 # Phiên đăng nhập hết hạn — chưa tự đăng xuất ra `/login`, chưa có cơ chế tự refresh
 
-- **Trạng thái:** done (phần A, 2026-09-05) / proposed (phần B, chờ chọn hướng)
+- **Trạng thái:** done (2026-09-05, cả 2 phần)
 - **Người đề xuất:** phát hiện từ báo cáo người dùng 2026-09-05 (`metap-demo-waf` — nhưng gốc rễ nằm ở `platform-ui`/`metap` core, không riêng WAF)
 - **Track sở hữu:** Frontend Platform (phần A) + Backend Core (phần B, đụng `metap-http`/`metap-peripherals`)
 - **Phase roadmap liên quan:** không thuộc phase nào
@@ -42,4 +42,19 @@ Báo cáo: "login hết sessions nhưng k bay ra ngoài, và chưa có cơ chế
 
 ## Ghi chú (phần A, done 2026-09-05)
 
-`platform-ui`: `api/sessionEvents.ts` mới (event bus thuần, không phụ thuộc React) — `onSessionExpired`/`notifySessionExpired`. `api/client.ts`'s `apiFetch` và `api/graphqlClient.ts`'s `flush` gọi `notifySessionExpired()` khi nhận 401 (trừ `/auth/login`/`/auth/me`/`/auth/logout` ở REST, và trừ mọi call có `token` riêng ở GraphQL — xem giải thích trong code). `auth/AuthContext.tsx` subscribe sự kiện này, ép `refetchQueries(["currentUser"])` ngay khi nhận — `status` chuyển "anonymous" ngay lập tức thay vì chờ window refocus, `RequireAuth` (đã có sẵn ở `metap-demo-waf`) tự nhảy về `/login`. Không cần sửa gì ở `metap-demo-waf` hay bất kỳ app nào khác dùng `platform-ui` — fix nằm hoàn toàn ở tầng chia sẻ. Verify: `pnpm typecheck`/`pnpm lint` sạch (0 lỗi, 6 warning đều pre-existing không liên quan), dev server (`metap-demo-waf-data-plane-dev-web-1`) hot-reload các file đổi không lỗi, `curl` root trả 200. Chưa commit/push — chờ xác nhận. Phần B (tự refresh) vẫn `proposed`, chờ chọn hướng trước khi code (đụng ngữ nghĩa bảo mật ở `metap` core).
+`platform-ui`: `api/sessionEvents.ts` mới (event bus thuần, không phụ thuộc React) — `onSessionExpired`/`notifySessionExpired`. `api/client.ts`'s `apiFetch` và `api/graphqlClient.ts`'s `flush` gọi `notifySessionExpired()` khi nhận 401 (trừ `/auth/login`/`/auth/me`/`/auth/logout` ở REST, và trừ mọi call có `token` riêng ở GraphQL — xem giải thích trong code). `auth/AuthContext.tsx` subscribe sự kiện này, ép `refetchQueries(["currentUser"])` ngay khi nhận — `status` chuyển "anonymous" ngay lập tức thay vì chờ window refocus, `RequireAuth` (đã có sẵn ở `metap-demo-waf`) tự nhảy về `/login`. Không cần sửa gì ở `metap-demo-waf` hay bất kỳ app nào khác dùng `platform-ui` — fix nằm hoàn toàn ở tầng chia sẻ. Verify: `pnpm typecheck`/`pnpm lint` sạch (0 lỗi, 6 warning đều pre-existing không liên quan), dev server (`metap-demo-waf-data-plane-dev-web-1`) hot-reload các file đổi không lỗi, `curl` root trả 200. Đã commit + push, PR `platform-ui#5` + `metap-docs#5`.
+
+## Ghi chú (phần B, done 2026-09-05)
+
+Chốt số theo đề xuất đã thống nhất: TTL mỗi lần gia hạn = `auth.sessionTtlSeconds` hiện có của tenant (không đổi, mặc định 1h), FE poll `GET /auth/me` mỗi 20 phút khi tab active, trần tuyệt đối 24h qua key mới `auth.sessionAbsoluteMaxSeconds` (`PlatformGlobal`-tier, không cho tenant tự nới — đây là trần an toàn của platform).
+
+`metap` core:
+- `metap-config/src/keys.rs` — key mới `AUTH_SESSION_ABSOLUTE_MAX_SECONDS`, `PlatformGlobal`, default 86400, bound [3600, 2_592_000] (trùng ceiling với `AUTH_SESSION_TTL_SECONDS`, lý do giống nhau: chưa có token revocation).
+- `crates/metap-http/src/cookies.rs` — cookie thứ 3, `metap_session_started_at` (`HttpOnly`, giá trị epoch giây), set 1 lần lúc login/OIDC callback, **không bao giờ ghi đè lại** — `Max-Age` của chính nó bằng đúng trần tuyệt đối tại thời điểm set, nên browser tự rụng cookie này khi hết trần, không cần server tự tính toán "đã bắt đầu từ bao lâu" ở đâu khác. `clear_session_cookies` giờ trả về 3 cookie (thêm cookie này) để logout xoá sạch.
+- `crates/metap-http/src/routes/auth.rs` — `login`/`oidc_callback` set thêm cookie này. `me()` giờ có thêm bước `try_refresh_session`: nếu request có đủ 3 cookie (`session`/`csrf`/`started_at`) và chưa vượt trần tuyệt đối, mint token mới với TTL đầy đủ, set lại session+csrf cookie (tái dùng đúng giá trị CSRF cũ, không rotate). Không có 3 cookie này (Bearer/Basic/CLI caller) hoặc đã vượt trần → không làm gì, `me()` vẫn trả identity như cũ.
+- `attach_cookies` đổi từ nhận đúng 1 cặp cookie sang nhận `impl IntoIterator` để dùng chung cho cả trường hợp 2 và 3 cookie.
+
+`platform-ui`:
+- `auth/AuthContext.tsx` — `useQuery` của `["currentUser"]` thêm `refetchInterval: 20 * 60 * 1000` (`refetchIntervalInBackground` mặc định `false`, tự dừng khi tab ẩn).
+
+Verify: `cargo build`/`cargo clippy --all-targets -- -D warnings`/`cargo test` cho `metap-http`+`metap-config` sạch (18+12 unit test pass, e2e cần Postgres/RabbitMQ nên không chạy trong lượt này — chưa verify sống qua e2e/browser thật). `platform-ui`'s `tsc`/`oxlint` sạch. Container `zones-service` (đang chạy live qua `cargo watch`, path-depend vào `../metap`) tự rebuild lại theo đúng code mới, không panic, tiếp tục phục vụ `/auth/login`/`/auth/me` bình thường (log thật quan sát được, không phải giả lập). Chưa verify sống bằng cách thật sự để 1 session hết hạn rồi chờ tự gia hạn/tự văng ra — để người dùng tự kiểm tra qua trình duyệt.
