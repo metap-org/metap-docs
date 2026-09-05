@@ -1,6 +1,12 @@
 # `useAsyncAction` hook ở `@metap/platform-ui` — dọn 18 chỗ lặp busy+try/catch/toast
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05), phạm vi rút gọn — `platform-ui` commit `ebca327`
+  (`useAsyncAction`), `metap-demo-waf` commit `ba9533c` (16/18 chỗ, 8 file). Cố tình **không**
+  áp dụng cho `ZoneDetailPage.tsx`'s `act`/`recheckDns` và `IncidentDetailPage.tsx`'s `advance`
+  (dùng `pendingAction: string | null` — theo dõi hành động cụ thể nào đang chạy, không phải
+  boolean đơn giản hook này hỗ trợ) và `OnboardingPage.tsx`'s `guard()` (dùng `error` state
+  thay vì toast) — 3 chỗ này có hình dạng khác đủ để ép vào hook chung sẽ đổi hành vi, không
+  đúng tiêu chí "giữ nguyên hành vi UI".
 - **Người đề xuất:** `platform-ui/docs/audits/03-waf-demo-component-placement-audit.md` (2026-09-05),
   finding #6.
 - **Track sở hữu:** Frontend Platform (đọc/sửa chéo sang `metap-demo-waf`)

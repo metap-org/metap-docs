@@ -42,10 +42,11 @@ nữa — brief của nó thuộc về repo của chính nó.
 
 ## Danh sách theo trạng thái (2026-09-05)
 
-Cùng 25 feature (18 gốc + 19-25 thêm 2026-09-05, xem nhóm 🟢 mới bên dưới), nhóm lại theo trạng
-thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi
-thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc
-theo `NN`.
+Cùng 29 feature (18 gốc + 19-29 thêm 2026-09-05), nhóm lại theo trạng thái để quét nhanh — bảng
+gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc
+theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28 đều đã **done**
+cùng ngày viết brief (rà soát checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit
+hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi code (xem nhóm ⚪ bên dưới).
 
 ### ✅ Done
 
@@ -65,6 +66,9 @@ theo `NN`.
 | [23. UX Infrastructure nền tảng](23-ux-infrastructure-core.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` |
 | [24. Command palette](24-command-palette-and-state-persistence.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 v1 rút gọn (chỉ điều hướng nav), `design-system` `2c0c139` + `platform-ui` `078e967` — state persistence chưa làm |
 | [25. Audit `metap-demo-waf` — component đặt đúng chỗ design-system/platform-ui chưa](25-audit-waf-demo-component-placement.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 — audit tại `../../platform-ui/docs/audits/03-waf-demo-component-placement-audit.md`, quét 23/23 file, 8 finding thật (5 nhóm 1, 2 nhóm 2, 1 nhóm 3), 0 finding nhóm 4; chưa sửa code |
+| [26. Chuyển 5 primitive + 2 date-util sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `design-system` `d9f5f32` + `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
+| [27. `useAsyncAction` hook](27-use-async-action-hook.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, phạm vi 16/18 chỗ (3 chỗ khác hình dạng cố tình bỏ qua) — `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
+| [28. `WorkflowVisualizeDialog`](28-workflow-visualize-dialog.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 
 ### 🟡 Done-partial
 
@@ -73,23 +77,6 @@ theo `NN`.
 | [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | chỉ 1/4 gap đã xong |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
-
-### 🟢 Proposed (có trigger thật, chờ duyệt)
-
-Khác nhóm ⚪ bên dưới — các feature này **đã có trigger** (audit 03,
-`platform-ui/docs/audits/03-waf-demo-component-placement-audit.md`, 2026-09-05), chỉ chưa chuyển
-`approved` để bắt đầu code. 19-25 (đợt rà soát checklist 2026-09-04 trước đó) đã **done** — xem
-nhóm ✅ ở trên, không còn ở đây.
-
-| Tính năng | Track | Ghi chú |
-|---|---|---|
-| [26. Chuyển 5 primitive domain-free + 2 date-util từ `metap-demo-waf` sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | audit 03 finding #1-5 + phụ, rủi ro thấp — build trên `Card`/`CardContent`/`Skeleton`/`BarChart` đã có |
-| [27. `useAsyncAction` hook — dọn 18 chỗ lặp busy+try/catch/toast](27-use-async-action-hook.md) | Frontend Platform | audit 03 finding #6, chạm 9 file `metap-demo-waf` |
-| [28. `WorkflowVisualizeDialog` — dọn 2 chỗ lặp Dialog+`WorkflowDiagram`](28-workflow-visualize-dialog.md) | Frontend Platform | audit 03 finding #7, mức ưu tiên thấp hơn #26/#27 nhưng gộp cùng đợt |
-
-Feature 29 (gap `FieldValue`'s enum-tone rendering, audit 03 finding #8) **không nằm ở nhóm này** —
-xem nhóm ⚪ ngay dưới, vì chưa chốt phạm vi (có thể đụng cả Backend Core nếu đi hướng
-metadata-driven), khác 26-28 vốn thuần di chuyển/dọn code, không đổi contract gì.
 
 ### ⚪ Pending (proposed, chưa có trigger)
 

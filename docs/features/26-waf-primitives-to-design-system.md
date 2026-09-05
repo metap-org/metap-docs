@@ -1,6 +1,8 @@
 # Chuyển 5 primitive domain-free + 2 date-util từ `metap-demo-waf` sang `@metap/ui`/`@metap/platform-ui`
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — `design-system` commit `d9f5f32` (5 atom mới),
+  `platform-ui` commit `ebca327` (`shortDate`/`dayLabel`), `metap-demo-waf` commit `ba9533c`
+  (15 file cập nhật import + `primitives.tsx` chỉ còn `StatusBadge`/`TONES`).
 - **Người đề xuất:** `platform-ui/docs/audits/03-waf-demo-component-placement-audit.md` (2026-09-05),
   finding #1-5 + finding phụ (`shortDate`/`dayLabel`).
 - **Track sở hữu:** Frontend Platform (đọc/sửa chéo sang `metap-demo-waf`)

@@ -1,6 +1,7 @@
 # `WorkflowVisualizeDialog` ở `@metap/platform-ui` — dọn 2 chỗ lặp Dialog+`WorkflowDiagram`
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — `platform-ui` commit `ebca327` (`WorkflowVisualizeDialog`),
+  `metap-demo-waf` commit `ba9533c` (2 call site).
 - **Người đề xuất:** `platform-ui/docs/audits/03-waf-demo-component-placement-audit.md` (2026-09-05),
   finding #7.
 - **Track sở hữu:** Frontend Platform (đọc/sửa chéo sang `metap-demo-waf`)
