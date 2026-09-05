@@ -70,13 +70,13 @@ file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết �
 | [26. Chuyển 5 primitive + 2 date-util sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `design-system` `d9f5f32` + `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [27. `useAsyncAction` hook](27-use-async-action-hook.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, phạm vi 16/18 chỗ (3 chỗ khác hình dạng cố tình bỏ qua) — `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [28. `WorkflowVisualizeDialog`](28-workflow-visualize-dialog.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
-| [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-05, `platform-ui` (phần A đã lên PR#5) + `metap` core (`metap-config`/`metap-http`, phần B — chưa commit) |
+| [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-05, cả 2 phần đã merge (`metap#12`, `platform-ui#5`) |
 
 ### 🟡 Done-partial
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
-| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | chỉ 1/4 gap đã xong |
+| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng phần lớn 4 gap gốc (pagination/PolicyCondition hoá ra đã xong từ trước; tìm + sửa thêm 2 bug thật ở `GeneratedList` chưa ai từng thấy) — còn cron `targetConfig` raw-JSON + bộ chuyển tenant (chưa rõ còn cần) |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
 

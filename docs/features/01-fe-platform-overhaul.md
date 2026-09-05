@@ -1,6 +1,8 @@
 # Nâng cấp Frontend Platform — vượt khỏi demo API
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done-partial — vòng dogfood thật đầu tiên (2026-09-05/06, xem "Scoping thật, lần
+  đầu" bên dưới) đã đóng phần lớn 4 gap gốc; 1 gap thật còn lại (cron `targetConfig`), 1 gap chưa
+  rõ còn cần không (bộ chuyển tenant)
 - **Người đề xuất:** phản hồi từ việc tự test `apps/crm-fe` sau khi Phase 7 xong (2026-08-10)
 - **Track sở hữu:** Frontend Platform (có thể kéo theo Backend Core)
 - **Phase roadmap liên quan:** chưa gắn — cần scope trước khi gắn vào một phase cụ thể
@@ -42,6 +44,51 @@ biết tính đến 2026-08-10, để vòng scoping đó có điểm bắt đầ
 selection) đã xác nhận cần sửa `crates/metap-query`/`crates/metap-http`, không chỉ
 `packages/platform-react`/`apps/crm-fe`. Nhiều khả năng còn phát sinh thêm khi scoping kỹ hơn
 các gap còn lại — không giả định trước khi thực sự scope.
+
+## Scoping thật, lần đầu (2026-09-05/06)
+
+Brief này đứng yên ở `proposed` từ 2026-08-10 vì đúng như ghi ở trên — "chưa được scope", tức chưa
+ai thực sự chạy `crm-fe` thật trong browser để đối chiếu 4 gap còn lại. Lần này làm thật (chạy
+`crm-server` + `crm-fe` thật, seed `crm.customers`/`sales.orders` — entity `sales.orders` có đủ cả
+3 kind `reference`/`date`/`money` cần soi), kết quả từng gạch đầu dòng ở "Phạm vi":
+
+- **Pagination admin UI kit** — **hoá ra đã có sẵn** (`GeneratedList` dùng `@tanstack/react-virtual`
+  + cursor `nextCursor`), không phải gap thật nữa — chắc đã được thêm ở một feature sau ngày viết
+  brief này (`docs/features/00-index.md`'s 19-28, 2026-09-05) mà chưa ai quay lại đối chiếu.
+- **`PolicyCondition` raw-JSON** — cũng **đã có structured builder** (`ConditionBuilder`,
+  `AdvancedPoliciesPanel.tsx`) — không còn là gap. **Cron `targetConfig` thì vẫn còn raw-JSON
+  `Textarea`** (`CronJobsAdminPage.tsx`) — gap thật duy nhất trong nhóm này còn sống.
+- **Bộ chuyển tenant** — chưa xác nhận còn cần không: model hiện tại 1 JWT gắn với đúng 1 tenant,
+  đổi tenant nghĩa là đăng nhập lại — chưa rõ đây có còn là nhu cầu thật hay là giả định cũ từ lúc
+  viết brief. Để nguyên `proposed`, không tự quyết.
+- **Render `Reference`/`Money`/`Date` trong `GeneratedList`** — **tìm ra 2 bug thật nghiêm trọng
+  chưa ai từng thấy** (chính xác đúng điều brief này lo ngại — "chưa từng nhìn qua browser thật"):
+  1. Dòng virtualized đè lên nhau (`ROW_HEIGHT` ước lượng 40px, dòng thật cao ~52px, không bao giờ
+     đo lại) — sửa bằng `measureElement` của `@tanstack/react-virtual`.
+  2. Cột dữ liệu lệch hẳn khỏi header, dồn hết sang trái — nguyên nhân là giới hạn thật của HTML
+     `<table>`: một `<tr>`/`<td>` bị `position: absolute` (bắt buộc để virtualize) bị trình duyệt
+     "fix up" bằng cách bọc riêng từng ô vào 1 bảng ẩn danh, cắt đứt khỏi lưới cột thật — có đặt
+     `width` tường minh cũng không cứu được. Sửa tận gốc bằng cách chuyển hẳn sang CSS Grid
+     (`role="table"/"row"/"cell"`) thay `<table>` thật.
+
+  Nhân tiện tìm thêm 1 bug không nằm trong danh sách gốc: `WorkflowDiagram` render node đen kịt,
+  không thấy chữ — do `metap-demo-crm/web/tailwind.config.cjs` (và `metap-demo-jira` y hệt) copy
+  path từ `metap-demo-waf` sai độ sâu (`../../../platform-ui`, 3 cấp, trỏ ra ngoài `metap-org`,
+  không tồn tại) nên Tailwind chưa từng quét được source `platform-ui` — class nào chỉ dùng trong
+  đó (như `fill-primary`/`stroke-foreground`) không có CSS. Sửa lại đúng 2 cấp.
+
+- **Điều hướng entity** — xác nhận đúng gap ("chỉ có 1 link 'Entities' quay về trang liệt kê, không
+  có nav trực tiếp"). Sửa: `App.tsx`'s `navItems` build động từ `useEntities()`, mỗi entity 1 mục
+  nav.
+
+Tất cả các fix trên đã lên `platform-ui` (`GeneratedList.tsx`, `NavigationContext.ts`,
+`resources.ts`) + `metap-demo-crm`/`metap-demo-jira` (`App.tsx`, `tailwind.config.cjs`), verify
+`tsc`/`oxlint` sạch + dogfood sống qua browser thật (không phải chỉ đọc code).
+
+**Còn lại thật sự cần làm, nếu muốn đóng hẳn brief này:**
+1. Cron `targetConfig` → structured builder (như `ConditionBuilder` đã làm cho policy) — chưa
+   làm, chưa ước lượng độ lớn.
+2. Bộ chuyển tenant — cần hỏi lại có còn là nhu cầu thật không trước khi làm.
 
 ## Tiêu chí chấp nhận
 
