@@ -42,11 +42,12 @@ nữa — brief của nó thuộc về repo của chính nó.
 
 ## Danh sách theo trạng thái (2026-09-05)
 
-Cùng 29 feature (18 gốc + 19-29 thêm 2026-09-05), nhóm lại theo trạng thái để quét nhanh — bảng
+Cùng 30 feature (18 gốc + 19-30 thêm 2026-09-05), nhóm lại theo trạng thái để quét nhanh — bảng
 gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc
-theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28 đều đã **done**
-cùng ngày viết brief (rà soát checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit
-hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi code (xem nhóm ⚪ bên dưới).
+theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28 và 30 đều đã
+**done** cùng ngày viết brief (rà soát checklist, audit 03, rồi 1 ý kiến trúc từ thảo luận trực
+tiếp — xem từng file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi
+trước khi code (xem nhóm ⚪ bên dưới).
 
 ### ✅ Done
 
@@ -69,6 +70,7 @@ hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi
 | [26. Chuyển 5 primitive + 2 date-util sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `design-system` `d9f5f32` + `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [27. `useAsyncAction` hook](27-use-async-action-hook.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, phạm vi 16/18 chỗ (3 chỗ khác hình dạng cố tình bỏ qua) — `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [28. `WorkflowVisualizeDialog`](28-workflow-visualize-dialog.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
+| [30. Bộ hook CRUD generic qua GraphQL (`graphqlRecords.ts`)](30-graphql-generic-record-hooks.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 — tách từ `metap-demo-waf`'s `api/waf.ts` (đã 100% entity-agnostic sẵn), dogfood ngay: 0/130+ call site phải đổi. Chưa commit/push |
 
 ### 🟡 Done-partial
 
