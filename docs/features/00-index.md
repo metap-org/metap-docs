@@ -42,11 +42,12 @@ nữa — brief của nó thuộc về repo của chính nó.
 
 ## Danh sách theo trạng thái (2026-09-05)
 
-Cùng 29 feature (18 gốc + 19-29 thêm 2026-09-05), nhóm lại theo trạng thái để quét nhanh — bảng
-gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc
-theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28 đều đã **done**
-cùng ngày viết brief (rà soát checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit
-hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi code (xem nhóm ⚪ bên dưới).
+Cùng 31 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày), nhóm lại theo trạng thái để quét
+nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm
+dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28
+và 30 đều đã **done** cùng ngày viết brief (rà soát checklist rồi audit 03 dẫn tới, xem từng file's
+"Ghi chú" cho commit hash); 31 done-partial (phần A xong, phần B chờ quyết định) — chỉ 29 còn
+`proposed` hoàn toàn, chờ quyết định phạm vi trước khi code (xem nhóm ⚪ bên dưới).
 
 ### ✅ Done
 
@@ -77,6 +78,7 @@ hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi
 | [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | chỉ 1/4 gap đã xong |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
+| [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform (phần B kéo Backend Core) | không thuộc phase nào | phần A (điều hướng `/login` ngay khi 401) done 2026-09-05, `platform-ui` chưa commit — phần B (tự gia hạn phiên) còn `proposed`, chờ chọn hướng |
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
