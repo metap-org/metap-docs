@@ -1,6 +1,9 @@
 # GeneratedForm — dirty state, unsaved-changes guard, partial update thật, optimistic update
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — dirty-state/partial-update/optimistic-update/beforeunload
+  guard đã code, `platform-ui` commit `078e967`. In-app navigation blocker (`useBlocker`) xác
+  nhận không dùng được (mọi app dùng `<BrowserRouter>` thường, không phải data router) — bỏ khỏi
+  scope, chỉ còn `beforeunload`, đã ghi rõ trong code.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 2 "Generic CRUD" >
   Update — 4 gap generic cho mọi entity qua `GeneratedForm`, không phải case-by-case, nên gộp
   thành 1 feature thay vì 4 việc rời rạc.

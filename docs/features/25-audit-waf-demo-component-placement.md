@@ -1,6 +1,16 @@
 # Audit `metap-demo-waf` — component đặt đúng chỗ theo rule design-system/platform-ui chưa
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — audit đầy đủ tại
+  `../../../platform-ui/docs/audits/03-waf-demo-component-placement-audit.md`. Quét 23/23 file
+  `.ts`/`.tsx` dưới `data-plane/web/src/`, không sample. Kết quả: **8 finding thật** — 5 nhóm 1
+  (nên chuyển `@metap/ui`: `PageHeader`/`EmptyState`/`SectionCard`/`StatTile`/`TimeSeries`, đều
+  đã lặp lại 3-12 chỗ), 2 nhóm 2 rõ ràng (nên chuyển `@metap/platform-ui`: pattern
+  busy+try/catch/toast lặp 18 lần/9 file, `WorkflowDiagram` dialog wrapper lặp 2 lần) + 1 nhóm 2
+  mức ưu tiên thấp (`shortDate`/`dayLabel`, utility thuần), 1 nhóm 3 có ghi chú 2 chiều
+  (`StatusBadge` giữ nguyên vì data là từ vựng WAF, nhưng lộ ra 1 gap thật ở
+  `platform-ui/src/field/FieldValue.tsx:75-77`'s enum rendering không map tone theo giá trị).
+  **Nhóm 4 (vi phạm import trực tiếp): 0 finding** — xác nhận sạch hoàn toàn. Chưa sửa code nào
+  (đúng phạm vi) — feature nào làm tiếp, theo thứ tự nào, chờ chủ dự án quyết định.
 - **Người đề xuất:** yêu cầu trực tiếp trong phiên làm việc — sau khi lên 6 feature brief từ
   `docs/frontend-checklist.md` (19-24), kiểm tra chéo xem app downstream mới nhất
   (`metap-demo-waf/data-plane/web`) có đang tuân thủ đúng ranh giới kiến trúc "UI → design-system

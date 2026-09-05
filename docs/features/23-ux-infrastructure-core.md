@@ -1,6 +1,8 @@
 # UX Infrastructure nền tảng — URL state, global loading/error, local storage, responsive
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — `platform-ui` commit `078e967`. Cả 5 mục trong phạm vi đã
+  code: URL state qua `useSearchParams`, global loading indicator, `ErrorBoundary` (build từ
+  `Alert`/`Button` có sẵn, không cần atom mới), `useLocalStorage`, nav mobile thu gọn hamburger.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 6 "UX Infrastructure"
   — 10/11 mục đang `[ ]`. Tách 4 mục "hạ tầng, rủi ro thấp, ảnh hưởng rộng" ra khỏi 3 mục còn lại
   cần quyết định phạm vi trước (xem

@@ -1,6 +1,9 @@
 # RecordDetail — audit trail (workflow_events) + Tabs
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — Tabs + History tab đã code, `platform-ui` commit `078e967`.
+  Response shape của `/workflow-events` xác nhận vẫn snake_case (không camelCase hoá) —
+  `metap-demo-jira`'s `SprintReportPage.tsx` đã phụ thuộc shape hiện tại, xem `metap` repo's own
+  commit `44dc3be` cho ghi chú đầy đủ.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 2 "Generic CRUD" >
   Detail — "Audit information" được chính checklist gợi ý là gap thấp công sức nhất trong nhóm
   ưu tiên (dữ liệu backend đã có sẵn từ Phase 5, chỉ thiếu FE consume).

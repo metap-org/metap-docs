@@ -1,6 +1,9 @@
 # Workflow guard — condition builder có cấu trúc (tái dùng `ConditionBuilder`)
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — `platform-ui` commit `078e967`. `ConditionBuilder`/
+  `ConditionNodeEditor`/`AttributePicker`/`ValueEditor`'s `entity` prop nới sang
+  `Pick<EntitySummary, "fields">` để tái dùng được cho draft low-code (không phải `EntitySummary`
+  thật) — tái dùng 100%, không viết UI mới.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 3 "Workflow Builder"
   > Condition builder.
 - **Track sở hữu:** Frontend Platform

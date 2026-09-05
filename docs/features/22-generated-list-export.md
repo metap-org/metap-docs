@@ -1,6 +1,7 @@
 # GeneratedList — Export (CSV/JSON) cho dữ liệu đã tải
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05) — `platform-ui` commit `078e967`, CSV/JSON export qua
+  `DropdownMenu` cạnh Refresh, có hint rõ "chỉ dòng đã tải" trong UI.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 1 "Dynamic Table" >
   Export.
 - **Track sở hữu:** Frontend Platform

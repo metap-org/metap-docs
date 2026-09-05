@@ -58,6 +58,13 @@ theo `NN`.
 | [10. Workflow visualize / BPM nhẹ](10-workflow-visualize.md) | Frontend Platform | chưa gắn phase | done 2026-09-02 |
 | [13. Computed/derived field](13-computed-derived-field.md) | Backend Core | chưa gắn phase | done 2026-09-02 |
 | [18. Config trong DB, phân tầng operator/platform-global/per-tenant](18-config-tiers-db-backed.md) | Backend Core | Phase 66/67/68 | done 2026-09-03, cả 3 lát — còn nợ verify sống (e2e + webhook thật) + FE chưa đọc `/public/config` |
+| [19. `GeneratedForm` — dirty state, partial update, optimistic update](19-generated-form-mutation-ergonomics.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` — in-app nav blocker bỏ khỏi scope (không data router) |
+| [20. `RecordDetail` — audit trail + `Tabs`](20-record-detail-audit-trail-and-tabs.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` |
+| [21. Workflow guard — condition builder có cấu trúc](21-workflow-condition-builder.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` |
+| [22. `GeneratedList` — Export CSV/JSON](22-generated-list-export.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` |
+| [23. UX Infrastructure nền tảng](23-ux-infrastructure-core.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `078e967` |
+| [24. Command palette](24-command-palette-and-state-persistence.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 v1 rút gọn (chỉ điều hướng nav), `design-system` `2c0c139` + `platform-ui` `078e967` — state persistence chưa làm |
+| [25. Audit `metap-demo-waf` — component đặt đúng chỗ design-system/platform-ui chưa](25-audit-waf-demo-component-placement.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 — audit tại `../../platform-ui/docs/audits/03-waf-demo-component-placement-audit.md`, quét 23/23 file, 8 finding thật (5 nhóm 1, 2 nhóm 2, 1 nhóm 3), 0 finding nhóm 4; chưa sửa code |
 
 ### 🟡 Done-partial
 
@@ -69,22 +76,20 @@ theo `NN`.
 
 ### 🟢 Proposed (có trigger thật, chờ duyệt)
 
-Khác nhóm ⚪ bên dưới — 7 feature này **đã có trigger** (rà soát `docs/frontend-checklist.md`
-2026-09-04 + yêu cầu audit trực tiếp), chỉ chưa chuyển `approved` để bắt đầu code. 19-24 là các gap
-"làm được ngay" tách ra từ 6 nhóm của `docs/frontend-checklist.md` (nhóm Admin/Developer-Platform-
-UI/Dashboard builder của checklist đó **cố tình không có brief nào ở đây** — checklist tự nói rõ
-cần feature brief riêng nêu trigger cụ thể trước, chưa có trigger nào cho các nhóm đó tính đến
-2026-09-05); 25 là 1 audit độc lập, không thuộc nhóm nào trong checklist.
+Khác nhóm ⚪ bên dưới — các feature này **đã có trigger** (audit 03,
+`platform-ui/docs/audits/03-waf-demo-component-placement-audit.md`, 2026-09-05), chỉ chưa chuyển
+`approved` để bắt đầu code. 19-25 (đợt rà soát checklist 2026-09-04 trước đó) đã **done** — xem
+nhóm ✅ ở trên, không còn ở đây.
 
 | Tính năng | Track | Ghi chú |
 |---|---|---|
-| [19. `GeneratedForm` — dirty state, unsaved-changes guard, partial update thật, optimistic update](19-generated-form-mutation-ergonomics.md) | Frontend Platform | nhóm 2 checklist, thuần platform-ui, không đụng backend |
-| [20. `RecordDetail` — audit trail (`workflow_events`) + `Tabs`](20-record-detail-audit-trail-and-tabs.md) | Frontend Platform | nhóm 2 checklist, dữ liệu backend đã có sẵn (Phase 5), cần xác nhận response shape route có sẵn trước khi code |
-| [21. Workflow guard — condition builder có cấu trúc (tái dùng `ConditionBuilder`)](21-workflow-condition-builder.md) | Frontend Platform | nhóm 3 checklist, gần như thuần wiring — component Phase 48 đã tổng quát sẵn |
-| [22. `GeneratedList` — Export (CSV/JSON) cho dữ liệu đã tải](22-generated-list-export.md) | Frontend Platform | nhóm 1 checklist, thuần client-side, không đụng backend |
-| [23. UX Infrastructure nền tảng — URL state, global loading/error, local storage, responsive](23-ux-infrastructure-core.md) | Frontend Platform | nhóm 6 checklist, phần rủi ro thấp/rõ việc |
-| [24. Command palette, keyboard shortcuts, state persistence](24-command-palette-and-state-persistence.md) | Frontend Platform | nhóm 6 checklist, **chưa chốt phạm vi** — cần cả atom mới ở design-system (chưa có primitive kiểu Command/Combobox-palette) |
-| [25. Audit `metap-demo-waf` — component đặt đúng chỗ design-system/platform-ui chưa](25-audit-waf-demo-component-placement.md) | Frontend Platform | độc lập với 19-24; sản phẩm là 1 file audit ở `platform-ui/docs/audits/`, không sửa code |
+| [26. Chuyển 5 primitive domain-free + 2 date-util từ `metap-demo-waf` sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | audit 03 finding #1-5 + phụ, rủi ro thấp — build trên `Card`/`CardContent`/`Skeleton`/`BarChart` đã có |
+| [27. `useAsyncAction` hook — dọn 18 chỗ lặp busy+try/catch/toast](27-use-async-action-hook.md) | Frontend Platform | audit 03 finding #6, chạm 9 file `metap-demo-waf` |
+| [28. `WorkflowVisualizeDialog` — dọn 2 chỗ lặp Dialog+`WorkflowDiagram`](28-workflow-visualize-dialog.md) | Frontend Platform | audit 03 finding #7, mức ưu tiên thấp hơn #26/#27 nhưng gộp cùng đợt |
+
+Feature 29 (gap `FieldValue`'s enum-tone rendering, audit 03 finding #8) **không nằm ở nhóm này** —
+xem nhóm ⚪ ngay dưới, vì chưa chốt phạm vi (có thể đụng cả Backend Core nếu đi hướng
+metadata-driven), khác 26-28 vốn thuần di chuyển/dọn code, không đổi contract gì.
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
@@ -97,6 +102,7 @@ cần feature brief riêng nêu trigger cụ thể trước, chưa có trigger n
 | [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
 | [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
 | [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md` |
+| [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform (có thể kéo Backend Core) | audit 03 finding #8 — cần chọn hướng metadata-driven (đụng `metap-metadata`) hay app-local prop trước khi code |
 
 6/7 dòng trên (09/11/12/14/15/16) là đúng 6 ý trong `docs/roadmap/00-index.md`'s bảng "Cần quyết
 định kiến trúc quan trọng" — 2 file này mô tả cùng 1 tập quyết định chưa chốt, chỉ khác góc nhìn

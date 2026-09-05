@@ -1,6 +1,12 @@
 # Command palette, keyboard shortcuts, state persistence — cần 1 vòng scoping trước khi code
 
-- **Trạng thái:** proposed
+- **Trạng thái:** done (2026-09-05), phạm vi v1 rút gọn — tự chốt luôn phương án tối thiểu đã đề
+  xuất trong brief thay vì chờ vòng scoping riêng (`Cmd/Ctrl+K` mở palette, chỉ điều hướng nav
+  item theo role, không entity/record search, không state persistence). `design-system` commit
+  `2c0c139` (atom `CommandPalette` mới — xác nhận lúc code là chưa có primitive
+  Command/Combobox-palette nào), `platform-ui` commit `078e967` (`AppCommandPalette`, mount trong
+  `AppShellLayout`). State persistence (mục còn lại của tên brief) **chưa làm** — vẫn cần quyết
+  định "persist cái gì" như brief đã nêu, để ngỏ cho lần sau nếu có nhu cầu thật.
 - **Người đề xuất:** rà soát `docs/frontend-checklist.md` (2026-09-04), mục 6 "UX Infrastructure"
   — 3 mục còn lại sau khi tách phần hạ tầng rõ việc sang
   [23. UX Infrastructure nền tảng](23-ux-infrastructure-core.md).
