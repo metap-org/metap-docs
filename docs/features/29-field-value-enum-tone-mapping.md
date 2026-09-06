@@ -83,6 +83,15 @@ không cần ADR mới — cùng tiền lệ `resolveVia` đã có, chỉ mở r
 ## Rủi ro / phụ thuộc
 
 Không phụ thuộc feature khác. Chưa browser-test (đúng frontend verification policy — viết code +
-`tsc`/`lint`/`format`, để user tự kiểm bằng mắt). Chưa có entity thật nào khai `enumTones` — cơ chế
-sẵn sàng nhưng chưa có consumer thật đến khi một entity cụ thể (vd `waf.zones`'s status nếu WAF
-sau này muốn chuyển từ `TONES` cục bộ sang metadata-driven) khai báo nó.
+`tsc`/`lint`/`format`, để user tự kiểm bằng mắt).
+
+**Cập nhật 2026-09-06 — có consumer thật đầu tiên:** `metap-demo-waf`'s `zone_entity.rs`
+(`zones-service`) khai `FieldDisplayHint.enumTones` cho `waf.zones`'s `status`, mirror đúng
+`primitives.tsx`'s `TONES` zone-status mapping (`active→default`, `pending→secondary`,
+`paused→outline`, `suspended→destructive`) — không phải để thay `StatusBadge`/`TONES` (vẫn giữ
+nguyên tại app, đúng kết luận audit 03), mà để màn hình generic `/records/waf.zones` (escape-hatch
+CRUD qua `GeneratedList`) không còn hiện `status` toàn màu xám mặc định, khác màu với chính
+`ZonesPage`'s `StatusBadge` đang hiện. Verify sống qua `GET /metadata/entities` (token thật,
+`zones-service` chạy trong `docker-compose.dev.yml`'s `cargo watch`) — `fieldDisplayHints` trả
+đúng `enumTones` như khai. Không entity nào khác trong repo dùng `enumTones` — vẫn còn hầu hết là
+cơ chế sẵn sàng, chưa phải phổ biến.
