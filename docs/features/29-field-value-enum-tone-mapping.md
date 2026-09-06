@@ -1,9 +1,10 @@
 # `FieldValue`'s enum rendering — tone theo giá trị thay vì luôn `variant="secondary"`
 
-- **Trạng thái:** proposed — **chưa scope xong, không code trong đợt này**
+- **Trạng thái:** done, 2026-09-06 — chọn hướng metadata-driven (`FieldDisplayHint.enumTones`)
 - **Người đề xuất:** `platform-ui/docs/audits/03-waf-demo-component-placement-audit.md` (2026-09-05),
   finding #8 (phần "gap 2 chiều").
-- **Track sở hữu:** Frontend Platform (có thể kéo theo Backend Core — xem "Rủi ro")
+- **Track sở hữu:** Frontend Platform + Backend Core (contract `FieldDisplayHint` đụng cả hai, tự
+  duyệt — team một người, theo `docs/team-charter.md`)
 - **Phase roadmap liên quan:** không thuộc phase nào
 
 ## Vấn đề / động lực
@@ -25,35 +26,63 @@ có đáng làm hay không"*.
 
 ## Phạm vi
 
-**Chưa chốt — cần quyết định trước khi code:**
-- Khai báo tone-mapping ở đâu? Ứng viên: 1 `FieldDisplayHint` mới kiểu
-  `{ field, enumTones: Record<string, BadgeVariant> }` (metadata do backend/low-code khai báo) —
-  nhưng đây là thay đổi contract `EntitySummary`/`metap-metadata`, **đụng cả Backend Core**
-  (`crates/metap-metadata/src/entity.rs`, `openapi.rs`'s hand-written JSON Schema), không chỉ FE.
-  Cần sign-off track chéo theo `docs/team-charter.md` nếu đi hướng này.
-- Hướng thay thế nhẹ hơn: 1 prop tuỳ chọn trên `FieldValue`/`GeneratedList` cho phép caller (app)
-  tự truyền `enumTones` mà không cần đổi backend/metadata — giữ contract hiện tại nguyên vẹn, đổi
-  ít hơn, nhưng "khai báo được từ metadata" (đúng triết lý platform metadata-driven của dự án) yếu
-  hơn.
-- Convention đặt tên giá trị→tone dùng chung nào (nếu có) giữa các app khác nhau, hay mỗi app tự
-  định nghĩa hoàn toàn độc lập như `TONES` của WAF hiện tại?
+**Đã chốt (2026-09-06): hướng metadata-driven** — `FieldDisplayHint` (đã tồn tại sẵn cho
+`resolveVia: "users"`, `crates/metap-metadata/src/entity.rs`) có thêm field thứ hai, độc lập với
+`resolveVia`: `enumTones: Option<HashMap<String, String>>` (camelCase `enumTones` trên wire),
+key là giá trị enum, value là tên `Badge` variant. Cả `resolveVia` lẫn `enumTones` giờ optional
+trên struct — một hint chỉ cần khai đúng cái nó dùng, không bắt buộc cả hai như `resolveVia`
+từng là required field duy nhất.
 
-**Ngoài phạm vi (chắc chắn):**
-- Di chuyển `StatusBadge`/`TONES` của WAF sang `platform-ui` — audit đã kết luận rõ KHÔNG, data là
-  của WAF.
+**Lý do chọn hướng 1 thay vì prop-based**: `FieldDisplayHint` đã là đúng cơ chế "backend/low-code
+khai báo, generic renderer tự đọc" cho `resolveVia` — thêm `enumTones` vào cùng struct là tái
+dùng một cơ chế đã có, không phải xây mới; tách riêng thành 2 khái niệm (1 hint metadata-driven
+cho id-resolution, 1 prop-based cho tone) sẽ tạo 2 cách khai báo "display hint" khác nhau trên
+cùng 1 field cho 2 nhu cầu tương tự.
+
+**Giá trị variant là `String` thô, không phải enum Rust** — cùng lý do `resolve_via` luôn là
+`String`: một giá trị lạ là vấn đề của FE tự fallback an toàn (`FieldValue.tsx`'s `asBadgeVariant`,
+fallback về `"secondary"` — đúng hành vi cũ khi không có hint), không phải lý do fail
+`MetadataRegistry::register_all_submitted` hay bắt recompile `metap-metadata` mỗi khi
+`@metap/ui`'s `Badge` thêm variant mới.
+
+**Ngoài phạm vi (chắc chắn, không đổi)**:
+- `StatusBadge`/`TONES` của WAF (`data-plane/web/src/components/primitives.tsx`) **giữ nguyên tại
+  app** — audit đã kết luận đúng, đây là từ vựng enum của WAF, WAF không migrate sang cơ chế này
+  trong đợt này (không ai yêu cầu, ngoài scope brief).
+- Convention đặt tên tone dùng chung giữa nhiều app — vẫn để mỗi app tự quyết như trước, cơ chế
+  chỉ cho phép khai báo, không áp đặt vocabulary.
 
 ## Tiêu chí chấp nhận
 
-Chưa có — sẽ điền khi chuyển `proposed` → `approved`, sau khi chốt hướng ở "Phạm vi".
+- `FieldDisplayHint.enum_tones: Option<HashMap<String, String>>` thêm vào `entity.rs`, serde
+  `rename_all = "camelCase"` → `enumTones`, `skip_serializing_if = "Option::is_none"`.
+  `resolve_via` đổi từ `String` bắt buộc sang `Option<String>` (thay đổi tương thích ngược trên
+  wire — response cũ có `resolveVia` vẫn đọc được, response mới thiếu nó vẫn hợp lệ).
+- `openapi.rs`'s `field_display_hint_json_schema()` cập nhật: `enumTones` là
+  `{"type": "object", "additionalProperties": {"type": "string"}}`, `required` chỉ còn `["field"]`.
+  Verify sống: `GET /metadata/openapi.json` từ `crm-server` đang chạy phản ánh đúng schema mới
+  (đọc trực tiếp qua `curl`, không chỉ đọc code).
+- `platform-ui`'s `generated-types.ts` regenerate qua `pnpm generate:types` (chạy thật, không tay
+  sửa — đúng quy tắc "never hand-edit generated-types.ts" của `../metap/CLAUDE.md`).
+- `FieldValue.tsx`'s nhánh `field.kind === "enum"` đọc `displayHint.enumTones?.[String(value)]`,
+  fallback `"secondary"` nếu hint vắng mặt hoặc giá trị không khớp tên variant nào của `@metap/ui`.
+- 2 call site cũ dựng `FieldDisplayHint` bằng struct literal (`metap-metadata/src/registry.rs`'s
+  test, `metap-demo-waf`'s `incident_entity.rs`) cập nhật theo field mới — cả hai vẫn chỉ dùng
+  `resolveVia`, không migrate sang `enumTones` (ngoài scope, xem "Ngoài phạm vi").
+- `cargo test -p metap-metadata` (61 test, gồm 2 test mới cho `enum_tones` round-trip + hint chỉ
+  có `field`), `cargo build --workspace` ở cả `metap` và `metap-demo-waf/data-plane` xanh;
+  `tsc --noEmit`/`prettier --check` sạch trên `platform-ui`.
 
 ## Ranh giới kiến trúc bị đụng tới
 
-Tối thiểu `platform-ui/src/field/FieldValue.tsx`. Nếu chọn hướng metadata-driven (`FieldDisplayHint`
-mới), lan sang `crates/metap-metadata` (Backend Core) + `platform-ui/src/metadata/generated-types.ts`
-(cần regenerate) — cần ADR nếu đổi contract `EntitySummary` ra ngoài.
+`crates/metap-metadata/src/entity.rs` + `openapi.rs` (Backend Core), `platform-ui/src/field/FieldValue.tsx`
++ `src/metadata/generated-types.ts` (Frontend Platform), 2 call site có sẵn ở `metap`/`metap-demo-waf`
+cập nhật theo struct mới (không đổi hành vi của chúng). Không đổi `EntitySummary`'s field khác,
+không cần ADR mới — cùng tiền lệ `resolveVia` đã có, chỉ mở rộng struct đã tồn tại.
 
 ## Rủi ro / phụ thuộc
 
-Rủi ro chính: đây là quyết định thiết kế thật (không phải wiring), không nên tự chọn hướng và code
-luôn trong 1 lượt xử lý nhanh — khác hẳn #26/#27/#28 (thuần di chuyển/dọn code, không đổi contract
-nào). Không phụ thuộc feature khác, nhưng nên chờ quyết định trước khi bắt đầu.
+Không phụ thuộc feature khác. Chưa browser-test (đúng frontend verification policy — viết code +
+`tsc`/`lint`/`format`, để user tự kiểm bằng mắt). Chưa có entity thật nào khai `enumTones` — cơ chế
+sẵn sàng nhưng chưa có consumer thật đến khi một entity cụ thể (vd `waf.zones`'s status nếu WAF
+sau này muốn chuyển từ `TONES` cục bộ sang metadata-driven) khai báo nó.

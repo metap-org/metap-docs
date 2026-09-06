@@ -40,14 +40,14 @@ nữa — brief của nó thuộc về repo của chính nó.
 5. Khi xong, đổi `Trạng thái: done` và để nguyên file lại — đây là lịch sử, không xoá.
 6. Nếu quyết định không làm nữa, đổi `Trạng thái: rejected` kèm lý do ngắn, không xoá file.
 
-## Danh sách theo trạng thái (2026-09-05)
+## Danh sách theo trạng thái (2026-09-06)
 
-Cùng 31 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày), nhóm lại theo trạng thái để quét
-nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm
-dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28,
-30 và 31 đều đã **done** cùng ngày viết brief (rà soát checklist rồi audit 03 dẫn tới, xem từng
-file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi trước khi code
-(xem nhóm ⚪ bên dưới).
+Cùng 32 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày + 32 thêm 2026-09-06), nhóm lại
+theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung
+2026-09-04) đổi thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng
+file nếu cần đọc theo `NN`. 19-28, 30 và 31 đều đã **done** cùng ngày viết brief (rà soát checklist
+rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 và 32 chốt hướng và **done**
+2026-09-06 (xem "Done" bên dưới).
 
 ### ✅ Done
 
@@ -71,6 +71,8 @@ file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết �
 | [27. `useAsyncAction` hook](27-use-async-action-hook.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, phạm vi 16/18 chỗ (3 chỗ khác hình dạng cố tình bỏ qua) — `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [28. `WorkflowVisualizeDialog`](28-workflow-visualize-dialog.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-05, cả 2 phần đã merge (`metap#12`, `platform-ui#5`) |
+| [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, hướng metadata-driven (`FieldDisplayHint.enumTones`) — chưa có entity thật nào khai dùng nó |
+| [32. `GeneratedList` — chọn cột hiển thị, cột bắt buộc khai ở entity](32-generated-list-column-visibility.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, `EntityListView.requiredFields` mới + toggle `localStorage`-only — chưa entity nào khai `requiredFields` khác rỗng |
 
 ### 🟡 Done-partial
 
@@ -91,7 +93,6 @@ file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết �
 | [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
 | [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
 | [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md` |
-| [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform (có thể kéo Backend Core) | audit 03 finding #8 — cần chọn hướng metadata-driven (đụng `metap-metadata`) hay app-local prop trước khi code |
 
 6/7 dòng trên (09/11/12/14/15/16) là đúng 6 ý trong `docs/roadmap/00-index.md`'s bảng "Cần quyết
 định kiến trúc quan trọng" — 2 file này mô tả cùng 1 tập quyết định chưa chốt, chỉ khác góc nhìn
