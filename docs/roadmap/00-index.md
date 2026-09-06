@@ -28,8 +28,10 @@ Khác với 3 bảng bên dưới (theo dõi *phase đã hoặc đang code*), m�
 
 **2 ý đã chốt, chuyển ra khỏi bảng này (2026-09-06)**: Migration path generic-table → bảng riêng
 (downtime-acceptable, xem ADR — [09. Architecture Decisions](../architectures/09-adr/00-index.md))
-và Metadata low-code theo từng Tenant (trigger + storage chốt, còn 2 câu hỏi kỹ thuật mở) — cả 2
-giờ ở nhóm "🟢 Approved" trong `../features/00-index.md`, không còn là "chưa quyết định" nữa.
+và Metadata low-code theo từng Tenant (trigger + storage chốt, còn 2 câu hỏi kỹ thuật mở) — không
+còn là "chưa quyết định" nữa. Migration path đã đi tiếp thành in-progress cùng ngày (cơ chế cốt lõi
+code + verify sống xong, còn nợ 1 lần chạy thật trên `../metap-demo-crm`) nên giờ nằm ở nhóm
+"🟡 Done-partial" trong `../features/00-index.md`; Metadata low-code theo Tenant vẫn ở "🟢 Approved".
 
 **Lưu ý stale đã phát hiện khi soát lại (2026-09-04, cập nhật 2026-09-06)**: `../roadmap.md`'s
 đoạn "Định hướng chưa lên phase" liệt kê **7** ý ban đầu bao gồm cả "computed/derived field" —
