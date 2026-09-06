@@ -83,6 +83,13 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
 
+### 🟢 Approved (trigger có, đang scoping/thiết kế, chưa code)
+
+| Tính năng | Track | Ghi chú |
+|---|---|---|
+| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | Trigger + cơ chế (downtime-acceptable) chốt 2026-09-06 — xem ADR cập nhật, `docs/architectures/09-adr/00-index.md` |
+| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06 — còn 2 câu hỏi mở (registry resolution, FE codegen) trước khi code |
+
 ### ⚪ Pending (proposed, chưa có trigger)
 
 | Tính năng | Track | Ghi chú |
@@ -90,15 +97,15 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 | [06. Pattern xác minh bất đồng bộ + gap logic tùy biến cho low-code](06-async-verification-pattern-and-lowcode-custom-logic.md) | Backend Core | ghi chú thảo luận, chỉ Option B là đề xuất code — cần chọn option trước |
 | [09. Workflow hai chế độ (in-process + cross-module)](09-workflow-two-modes.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md`'s mục "Cần quyết định kiến trúc quan trọng" |
 | [11. Tiny deployment profile](11-tiny-deployment-profile.md) | Backend Ops-Infra | 🔴 quyết định sản phẩm — xem `docs/roadmap/00-index.md` |
-| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md` |
+| [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` — đang cân nhắc thêm (2026-09-06), chưa chốt |
+| [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md`. Gợi ý 2026-09-06: ưu tiên N entity riêng + list view gộp trước khi xây polymorphic thật |
 
-6/7 dòng trên (09/11/12/14/15/16) là đúng 6 ý trong `docs/roadmap/00-index.md`'s bảng "Cần quyết
+4/6 dòng trên (09/11/14/16) là 4 trong 6 ý gốc của `docs/roadmap/00-index.md`'s bảng "Cần quyết
 định kiến trúc quan trọng" — 2 file này mô tả cùng 1 tập quyết định chưa chốt, chỉ khác góc nhìn
-(feature brief chi tiết vs. roadmap-level liệt kê nhanh). Riêng 06 không nằm trong danh sách 7 ý
-gốc của `docs/roadmap.md` — là 1 đề xuất tách biệt.
+(feature brief chi tiết vs. roadmap-level liệt kê nhanh). 12 và 15 đã chuyển lên "Approved" (trigger
+chốt 2026-09-06), không còn nằm trong 6 ý gốc đó nữa — `docs/roadmap/00-index.md`'s bảng cũng cần
+cập nhật tương ứng. Riêng 06 không nằm trong danh sách 6 ý gốc của `docs/roadmap.md` — là 1 đề xuất
+tách biệt.
 
 ### 🔵 Vision (chưa phải spec sẵn sàng)
 

@@ -11,9 +11,14 @@ Metap bắt đầu với một bảng `records` tổng quát:
 - các index theo tenant/entity/status
 - cột version cho optimistic locking
 
-Điều này giữ được tốc độ phát triển theo hướng metadata-driven. Theo thời gian, các module có khối lượng lớn hoặc quan trọng về mặt kế toán có thể được cấp bảng typed riêng trong khi vẫn dùng chung metadata facade.
+Điều này giữ được tốc độ phát triển theo hướng metadata-driven. `records` vẫn là điểm khởi đầu mặc
+định lúc entity mới đăng ký (chưa tốn công tách bảng ngay), nhưng **không còn là đích lâu dài** —
+xem ADR ([09. Architecture Decisions](../09-adr/00-index.md)) 2026-09-06: table-per-entity là
+hướng mặc định đóng khoảng hở hiệu năng chủ động, không chờ tín hiệu scale thật (@ ~10M row) mới
+làm, vì metap còn ở giai đoạn dev/thiết kế nên chấp nhận downtime lúc migrate thay vì trả giá
+zero-downtime phức tạp — quyết định này đảo lại khi có dữ liệu sản xuất thật.
 
-Lộ trình phát triển đề xuất:
+Lộ trình phát triển:
 
 ```txt
 Step 1: generic records + JSONB (done)
@@ -22,11 +27,16 @@ Step 2: metadata-driven indexes for hot fields (done — see Query Planner,
         by IndexReconciler, not physical generated columns — a shared
         `records` table can't grow one column per possible field name
         across every entity without its column count growing unboundedly)
-Step 3: dedicated tables for accounting/inventory critical paths
+Step 3: dedicated tables — not limited to accounting/inventory critical paths anymore
+        (2026-09-06 ADR update); a migration path for any entity already living on
+        `records`, downtime-acceptable given the current dev/pre-production phase.
+        See docs/features/12-migration-generic-to-dedicated-table.md.
 Step 4: report/materialized views for heavy analytics
 ```
 
-Step 3-4 chưa được xây dựng và chưa có trigger nào kích hoạt — xem [11. Risks and Technical Debt](../11-risks/00-index.md).
+Step 3 có trigger từ 2026-09-06 (xem ADR trên), chưa code — theo dõi ở
+`docs/features/12-migration-generic-to-dedicated-table.md`. Step 4 chưa có trigger nào kích hoạt —
+xem [11. Risks and Technical Debt](../11-risks/00-index.md).
 
 ## Database Design (ER diagram)
 

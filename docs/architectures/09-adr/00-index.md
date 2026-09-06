@@ -46,12 +46,22 @@ việc đó là thừa.
   CLI, gate bởi `PlatformAdminContext` (một tenant sentinel `PLATFORM_TENANT_ID` + role
   `"platform_admin"`, không phải bảng/claim mới) chứ không phải `AdminContext` (tenant-scoped).
   Chi tiết: `docs/roadmap.md` Phase 16 Giai đoạn 3.
-- **Bảng `records` JSONB dùng chung sẽ được thay bằng table-per-entity khi có tín hiệu scale
-  (@ ~10M row/entity), không phải ngay bây giờ.** Giữ nguyên chiến lược hiện tại
-  (xem Data Model Strategy, [05. Building Block View](../05-building-blocks/00-index.md)) cho tới khi trigger
-  đó xảy ra; khi xảy ra, dùng một reconciler DDL level-triggered (`reconcile = diff(desired,
-  actual) → plan → execute`, tự lành sau crash, không cần rollback vì DDL online không rollback
-  được) thay vì migration một-lần. Chi tiết: `docs/multi-tenant-platform-design.md` §3-§5.
+- **Bảng `records` JSONB dùng chung không còn là đích lâu dài cho entity mới — table-per-entity
+  là hướng mặc định, đóng luôn khoảng hở hiệu năng thay vì chờ tín hiệu scale thật (@ ~10M
+  row/entity) mới làm.** (Chốt 2026-09-06, chủ dự án: "không được để lỗ hổng hiệu năng ở đây".)
+  Thay cho quyết định cũ ("giữ `records` tới khi có trigger, xử lý bằng reconciler DDL
+  level-triggered không cần downtime") — lý do đổi: **metap còn ở giai đoạn dev/thiết kế, chưa có
+  dữ liệu sản xuất thật** ("metap mới phase dev"), nên rủi ro downtime của cơ chế migrate không
+  đáng để trả giá phức tạp của dual-write/shadow-read chỉ để né downtime. Cơ chế migrate 1 entity
+  từ `records` sang bảng riêng: **downtime chấp nhận được, tắt hẳn service trong lúc migrate**
+  (không phải zero-downtime dual-write) — `metap-reconciler`'s `reconcile()` tạo bảng đích
+  (mechanism đã có, không đổi), 1 vòng batch-copy dữ liệu từ `records` sang bảng mới (mới, xem
+  `docs/features/12-migration-generic-to-dedicated-table.md`), rồi đổi
+  `EntityDefinition.table_name` và khởi động lại. Quyết định này có thể đảo ngược khi metap có
+  khách hàng/dữ liệu sản xuất thật — lúc đó downtime-based migration không còn chấp nhận được và
+  cần quay lại thiết kế zero-downtime. Chi tiết: `docs/multi-tenant-platform-design.md` §3-§5
+  (mechanism `reconcile()`), `docs/features/12-migration-generic-to-dedicated-table.md` (migration
+  path).
 - **Không tách microservice cho hướng SaaS multi-tenant.** Modular monolith + Dispatch contract
   sạch (`CrudService`) đã "distributed-ready" mà chưa trả giá phân tán (mất ACID xuyên
   audit/outbox/lock). Tách một mảnh cụ thể khi có tín hiệu cụ thể — cùng tinh thần trigger-based

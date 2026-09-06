@@ -23,17 +23,21 @@ Khác với 3 bảng bên dưới (theo dõi *phase đã hoặc đang code*), m�
 | **Phase 9 — Multi-Service Evolution** (khi nào tách 1 module thành service/DB riêng) | Đã rà soát lại 2026-08-17, xác nhận chưa trigger nào xảy ra — nhưng đây là quyết định lớn (tách DB, chọn protocol service-to-service) cần chốt hướng trước khi bất kỳ module nào thực sự tách | [09-multi-service-evolution.md](09-multi-service-evolution.md), [04. Solution Strategy](../architectures/04-strategy/00-index.md) |
 | Workflow 2 chế độ (in-process + cross-module) | Ảnh hưởng trực tiếp tới `metap-workflow`'s public API — đổi sau khi đã có consumer sẽ là breaking change | `docs/team-charter.md`'s "Định hướng đang ghi nhận, chưa có trigger" |
 | Tiny deployment profile (single binary, không RabbitMQ) | Quyết định sản phẩm (có bán/hỗ trợ deployment mode này không) trước khi đụng `metap-infra`/`EventBus` | như trên |
-| Migration path generic-table → bảng riêng (Data Model Strategy Step 3) | Ảnh hưởng schema + `QueryPlanner`/`CrudService` của mọi entity đã có | như trên, [05. Building Block View — Data Model](../architectures/05-building-blocks/04-data-model.md#data-model) |
 | Schema versioning cho entity | Ảnh hưởng `MetadataCompiler`/hash-drift-check hiện có | như trên |
 | Entity variant kiểu polymorphic/discriminated-union | Tự đánh giá là **rủi ro cao nhất trong backlog** (`docs/features/16-entity-variant-polymorphic.md`) | như trên |
-| Metadata low-code theo từng Tenant | Hướng dài hạn cho "quy tắc cô lập schema cấp Tenant" (Phase 11C, 2026-08-22) — chưa chốt mô hình isolation | như trên |
 
-**Lưu ý stale đã phát hiện khi soát lại (2026-09-04)**: `../roadmap.md`'s đoạn "Định hướng chưa
-lên phase" liệt kê **7** ý ở trên bao gồm cả "computed/derived field" — nhưng
-`docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** theo chính
-`docs/features/00-index.md`. Mục đó đã bỏ khỏi bảng trên (còn 6, không phải 7) — `../roadmap.md`
-chưa được cập nhật lại đoạn đó, để nguyên (không sửa nội dung lịch sử của nó ở đây), chỉ không lặp
-lại thông tin sai ở trang index này.
+**2 ý đã chốt, chuyển ra khỏi bảng này (2026-09-06)**: Migration path generic-table → bảng riêng
+(downtime-acceptable, xem ADR — [09. Architecture Decisions](../architectures/09-adr/00-index.md))
+và Metadata low-code theo từng Tenant (trigger + storage chốt, còn 2 câu hỏi kỹ thuật mở) — cả 2
+giờ ở nhóm "🟢 Approved" trong `../features/00-index.md`, không còn là "chưa quyết định" nữa.
+
+**Lưu ý stale đã phát hiện khi soát lại (2026-09-04, cập nhật 2026-09-06)**: `../roadmap.md`'s
+đoạn "Định hướng chưa lên phase" liệt kê **7** ý ban đầu bao gồm cả "computed/derived field" —
+nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** theo chính
+`docs/features/00-index.md`. Bảng trên giờ còn **5** dòng (không phải 6, không phải 7) sau khi
+2 ý nữa (migration path, metadata low-code theo tenant) chốt hướng và chuyển sang "Approved"
+2026-09-06 (xem ghi chú ngay trên). `../roadmap.md` chưa được cập nhật lại đoạn gốc đó, để nguyên
+(không sửa nội dung lịch sử của nó ở đây), chỉ không lặp lại thông tin cũ ở trang index này.
 
 ---
 
