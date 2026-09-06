@@ -1,8 +1,16 @@
 # Nâng cấp Frontend Platform — vượt khỏi demo API
 
-- **Trạng thái:** done-partial — vòng dogfood thật đầu tiên (2026-09-05/06, xem "Scoping thật, lần
-  đầu" bên dưới) đã đóng cả 4 gap gốc, kể cả cron `targetConfig` (2026-09-06); chỉ còn 1 gap chưa
-  rõ có còn cần không (bộ chuyển tenant), không tự quyết
+- **Trạng thái:** done — vòng dogfood thật đầu tiên (2026-09-05/06, xem "Scoping thật, lần đầu"
+  bên dưới) đã đóng cả 4 gap gốc, kể cả cron `targetConfig` (2026-09-06). Gap còn lại (bộ chuyển
+  tenant) **đã có câu trả lời và đã build xong 2026-09-06** — không phải giả định cũ nữa: chủ dự
+  án xác nhận đây là nhu cầu thật (platform admin cần xem/hỗ trợ 1 tenant cụ thể mà không cần biết
+  mật khẩu của tenant đó — khác hẳn "user tự đổi tenant của chính mình", điều model 1-JWT-1-tenant
+  đúng là không hỗ trợ và không cần hỗ trợ). Xây dựng ở `../metap-lowcode`, không phải `metap`
+  core (chủ dự án chốt: "phần tenant này là dùng riêng cho lowcode saas, k phải kiến trúc của
+  metap") — chi tiết đầy đủ ở
+  `../metap-lowcode/docs/features/01-platform-admin-tenant-switcher.md`, gồm cả phần FE
+  (`@metap/platform-ui`'s dropdown "View as tenant" trong `AppShellLayout.tsx` +
+  `src/admin/impersonation.ts`, dogfood qua browser thật trên `metap-demo-waf/data-plane/web`).
 - **Người đề xuất:** phản hồi từ việc tự test `apps/crm-fe` sau khi Phase 7 xong (2026-08-10)
 - **Track sở hữu:** Frontend Platform (có thể kéo theo Backend Core)
 - **Phase roadmap liên quan:** chưa gắn — cần scope trước khi gắn vào một phase cụ thể
@@ -73,9 +81,13 @@ ai thực sự chạy `crm-fe` thật trong browser để đối chiếu 4 gap c
   lớn hơn hẳn, cố tình để lại làm sau, không chặn 4 shape còn lại. Verify: `tsc`/`oxlint` sạch,
   cả 4 shape structured (workflow_transition/bulk_query_action/webhook/email) đã tạo job thật qua
   `POST /admin/cron-jobs` trên `crm-server` đang chạy (`201` cả 4 lần, dọn lại sau khi test).
-- **Bộ chuyển tenant** — chưa xác nhận còn cần không: model hiện tại 1 JWT gắn với đúng 1 tenant,
-  đổi tenant nghĩa là đăng nhập lại — chưa rõ đây có còn là nhu cầu thật hay là giả định cũ từ lúc
-  viết brief. Để nguyên `proposed`, không tự quyết.
+- **Bộ chuyển tenant** — **done 2026-09-06**, không còn là giả định cũ. Đã xác nhận đây là nhu cầu
+  thật, nhưng khác góc nhìn ban đầu của brief này: không phải "user tự đổi tenant của chính mình"
+  (model 1-JWT-1-tenant đúng là không đổi, và không cần đổi cho case đó), mà là "platform admin
+  xem/hỗ trợ tạm thời 1 tenant khác mà không cần mật khẩu tenant đó" — một cơ chế impersonation
+  thật (mint JWT mới scoped đúng tenant, có audit/expiry/revoke), không phải chuyển tenant tại
+  chỗ trên cùng 1 token. Xây ở `../metap-lowcode` (SaaS control-plane, không phải `metap` core) —
+  xem `../metap-lowcode/docs/features/01-platform-admin-tenant-switcher.md`.
 - **Render `Reference`/`Money`/`Date` trong `GeneratedList`** — **tìm ra 2 bug thật nghiêm trọng
   chưa ai từng thấy** (chính xác đúng điều brief này lo ngại — "chưa từng nhìn qua browser thật"):
   1. Dòng virtualized đè lên nhau (`ROW_HEIGHT` ước lượng 40px, dòng thật cao ~52px, không bao giờ
@@ -100,15 +112,16 @@ Tất cả các fix trên đã lên `platform-ui` (`GeneratedList.tsx`, `Navigat
 `resources.ts`) + `metap-demo-crm`/`metap-demo-jira` (`App.tsx`, `tailwind.config.cjs`), verify
 `tsc`/`oxlint` sạch + dogfood sống qua browser thật (không phải chỉ đọc code).
 
-**Còn lại thật sự cần làm, nếu muốn đóng hẳn brief này:**
-1. Bộ chuyển tenant — cần hỏi lại có còn là nhu cầu thật không trước khi làm.
-2. (Không chặn brief này) `steps` chưa có UI structured — chuỗi step lồng nhau, việc lớn hơn hẳn,
-   để riêng nếu có trigger thật.
+**Còn lại (không chặn brief này, brief coi như đóng):**
+1. `steps` chưa có UI structured — chuỗi step lồng nhau, việc lớn hơn hẳn, để riêng nếu có trigger
+   thật.
 
 ## Tiêu chí chấp nhận
 
-Chưa có — sẽ điền khi feature này chuyển `proposed` → `approved`, sau một vòng scoping riêng
-(xem "Phạm vi" ở trên).
+Đã đạt theo từng gap, ghi tại chỗ trong "Phạm vi" ở trên — không có 1 tiêu chí gộp chung được điền
+sẵn trước khi code (feature này đi qua dogfood thật để lộ gap, không qua vòng scoping/approve hình
+thức) — mỗi gap chốt bằng chính `tsc`/`oxlint` sạch + verify sống (browser thật cho FE, HTTP thật
+cho phần backend của bộ chuyển tenant) như liệt kê ở đó.
 
 ## Ranh giới kiến trúc bị đụng tới
 

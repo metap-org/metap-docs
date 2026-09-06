@@ -47,12 +47,14 @@ theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-1
 2026-09-04) đổi thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng
 file nếu cần đọc theo `NN`. 19-28, 30 và 31 đều đã **done** cùng ngày viết brief (rà soát checklist
 rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 và 32 chốt hướng và **done**
-2026-09-06 (xem "Done" bên dưới).
+2026-09-06 (xem "Done" bên dưới); 01's gap cuối cùng (bộ chuyển tenant) cũng chốt hướng và **done**
+2026-09-06, chuyển từ done-partial sang done.
 
 ### ✅ Done
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
+| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng cả 4 gap gốc, kể cả cron `targetConfig` (2026-09-06); gap cuối (bộ chuyển tenant) done 2026-09-06 — xây ở `../metap-lowcode`, xem file này's "Bộ chuyển tenant" |
 | [02. Metadata-driven Workflow Engine](02-workflow-engine.md) | Backend Core | Phase 17 | Increment 1+2+3 (2026-08-21 → 2026-08-28) |
 | [04. Table-per-entity — readiness brief](04-table-per-entity.md) | Backend Core | Phase 21 | wire vào boot sequence thật từ Phase 21 (2026-08-23) |
 | [07. Tách phần SaaS low-code control-plane ra khỏi core](07-split-lowcode-saas-crates.md) | Backend Core | Phase 52 | |
@@ -78,7 +80,6 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
-| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng cả 4 gap gốc, kể cả cron `targetConfig` (structured form theo `targetType`, 2026-09-06) — chỉ còn bộ chuyển tenant (chưa rõ còn cần, không tự quyết) |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
 
