@@ -40,15 +40,16 @@ nữa — brief của nó thuộc về repo của chính nó.
 5. Khi xong, đổi `Trạng thái: done` và để nguyên file lại — đây là lịch sử, không xoá.
 6. Nếu quyết định không làm nữa, đổi `Trạng thái: rejected` kèm lý do ngắn, không xoá file.
 
-## Danh sách theo trạng thái (2026-09-06)
+## Danh sách theo trạng thái (2026-09-07)
 
-Cùng 32 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày + 32 thêm 2026-09-06), nhóm lại
-theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung
-2026-09-04) đổi thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng
-file nếu cần đọc theo `NN`. 19-28, 30 và 31 đều đã **done** cùng ngày viết brief (rà soát checklist
-rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 và 32 chốt hướng và **done**
-2026-09-06 (xem "Done" bên dưới); 01's gap cuối cùng (bộ chuyển tenant) cũng chốt hướng và **done**
-2026-09-06, chuyển từ done-partial sang done.
+Cùng 33 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày + 32 thêm 2026-09-06 + 33 thêm
+2026-09-07), nhóm lại theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18
+— đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực
+tiếp từng file nếu cần đọc theo `NN`. 19-28, 30 và 31 đều đã **done** cùng ngày viết brief (rà soát
+checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 và 32 chốt hướng và
+**done** 2026-09-06 (xem "Done" bên dưới); 01's gap cuối cùng (bộ chuyển tenant) cũng chốt hướng và
+**done** 2026-09-06, chuyển từ done-partial sang done; 33 viết brief + code + verify xong cùng ngày
+2026-09-07.
 
 ### ✅ Done
 
@@ -75,6 +76,7 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 | [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-05, cả 2 phần đã merge (`metap#12`, `platform-ui#5`) |
 | [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, hướng metadata-driven (`FieldDisplayHint.enumTones`) — chưa có entity thật nào khai dùng nó |
 | [32. `GeneratedList` — chọn cột hiển thị, cột bắt buộc khai ở entity](32-generated-list-column-visibility.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, `EntityListView.requiredFields` mới + toggle `localStorage`-only — chưa entity nào khai `requiredFields` khác rỗng |
+| [33. Bootstrap app qua YAML (entity + `graphql-gateway`) kèm custom handler](33-declarative-yaml-app-bootstrap.md) | Backend Core + Backend Ops-Infra | không thuộc phase nào | done 2026-09-07 — `metap-app::entities_yaml` (nạp `EntityDefinition` từ YAML) + `metap-graphql-gateway`'s `UPSTREAM_CONFIG_FILE`; custom handler dùng nguyên `HandlerRegistry` đã có, không thêm cơ chế mới; chưa có binary nào migrate sang dùng thật |
 
 ### 🟡 Done-partial
 
