@@ -40,19 +40,22 @@ nữa — brief của nó thuộc về repo của chính nó.
 5. Khi xong, đổi `Trạng thái: done` và để nguyên file lại — đây là lịch sử, không xoá.
 6. Nếu quyết định không làm nữa, đổi `Trạng thái: rejected` kèm lý do ngắn, không xoá file.
 
-## Danh sách theo trạng thái (2026-09-05)
+## Danh sách theo trạng thái (2026-09-07)
 
-Cùng 30 feature (18 gốc + 19-30 thêm 2026-09-05), nhóm lại theo trạng thái để quét nhanh — bảng
-gốc theo thứ tự số (01-17, thiếu hẳn 18 — đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc
-theo thứ tự số cũ đã bỏ, dùng link trực tiếp từng file nếu cần đọc theo `NN`. 19-28 và 30 đều đã
-**done** cùng ngày viết brief (rà soát checklist, audit 03, rồi 1 ý kiến trúc từ thảo luận trực
-tiếp — xem từng file's "Ghi chú" cho commit hash) — chỉ 29 còn `proposed`, chờ quyết định phạm vi
-trước khi code (xem nhóm ⚪ bên dưới).
+Cùng 33 feature (18 gốc + 19-30 thêm 2026-09-05 + 31 cùng ngày + 32 thêm 2026-09-06 + 33 thêm
+2026-09-07), nhóm lại theo trạng thái để quét nhanh — bảng gốc theo thứ tự số (01-17, thiếu hẳn 18
+— đã bổ sung 2026-09-04) đổi thành các nhóm dưới. Bảng gốc theo thứ tự số cũ đã bỏ, dùng link trực
+tiếp từng file nếu cần đọc theo `NN`. 19-28, 30 và 31 đều đã **done** cùng ngày viết brief (rà soát
+checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 và 32 chốt hướng và
+**done** 2026-09-06 (xem "Done" bên dưới); 01's gap cuối cùng (bộ chuyển tenant) cũng chốt hướng và
+**done** 2026-09-06, chuyển từ done-partial sang done; 33 viết brief + code + verify xong cùng ngày
+2026-09-07.
 
 ### ✅ Done
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
+| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | dogfood thật 2026-09-05/06 đóng cả 4 gap gốc, kể cả cron `targetConfig` (2026-09-06); gap cuối (bộ chuyển tenant) done 2026-09-06 — xây ở `../metap-lowcode`, xem file này's "Bộ chuyển tenant" |
 | [02. Metadata-driven Workflow Engine](02-workflow-engine.md) | Backend Core | Phase 17 | Increment 1+2+3 (2026-08-21 → 2026-08-28) |
 | [04. Table-per-entity — readiness brief](04-table-per-entity.md) | Backend Core | Phase 21 | wire vào boot sequence thật từ Phase 21 (2026-08-23) |
 | [07. Tách phần SaaS low-code control-plane ra khỏi core](07-split-lowcode-saas-crates.md) | Backend Core | Phase 52 | |
@@ -70,15 +73,25 @@ trước khi code (xem nhóm ⚪ bên dưới).
 | [26. Chuyển 5 primitive + 2 date-util sang `@metap/ui`/`@metap/platform-ui`](26-waf-primitives-to-design-system.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `design-system` `d9f5f32` + `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [27. `useAsyncAction` hook](27-use-async-action-hook.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, phạm vi 16/18 chỗ (3 chỗ khác hình dạng cố tình bỏ qua) — `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
 | [28. `WorkflowVisualizeDialog`](28-workflow-visualize-dialog.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05, `platform-ui` `ebca327` + `metap-demo-waf` `ba9533c` |
-| [30. Bộ hook CRUD generic qua GraphQL (`graphqlRecords.ts`)](30-graphql-generic-record-hooks.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 — tách từ `metap-demo-waf`'s `api/waf.ts` (đã 100% entity-agnostic sẵn), dogfood ngay: 0/130+ call site phải đổi. Chưa commit/push |
+| [30. Bộ hook CRUD generic qua GraphQL (`graphqlRecords.ts`)](30-graphql-generic-record-hooks.md) | Frontend Platform | không thuộc phase nào | done 2026-09-05 — tách từ `metap-demo-waf`'s `api/waf.ts` (đã 100% entity-agnostic sẵn), dogfood ngay: 0/130+ call site phải đổi. Companion code PRs: `platform-ui#4`, `metap-demo-waf#3` |
+| [31. Session hết hạn — tự văng ra `/login` + tự refresh](31-session-expiry-redirect-and-refresh.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-05, cả 2 phần đã merge (`metap#12`, `platform-ui#5`) |
+| [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, hướng metadata-driven (`FieldDisplayHint.enumTones`) — chưa có entity thật nào khai dùng nó |
+| [32. `GeneratedList` — chọn cột hiển thị, cột bắt buộc khai ở entity](32-generated-list-column-visibility.md) | Frontend Platform + Backend Core | không thuộc phase nào | done 2026-09-06, `EntityListView.requiredFields` mới + toggle `localStorage`-only — chưa entity nào khai `requiredFields` khác rỗng |
+| [33. Bootstrap app qua YAML (entity + `graphql-gateway`) kèm custom handler](33-declarative-yaml-app-bootstrap.md) | Backend Core + Backend Ops-Infra | không thuộc phase nào | done 2026-09-07 — `metap-app::entities_yaml` (nạp `EntityDefinition` từ YAML) + `metap-graphql-gateway`'s `UPSTREAM_CONFIG_FILE`; custom handler dùng nguyên `HandlerRegistry` đã có, không thêm cơ chế mới; chưa có binary nào migrate sang dùng thật |
 
 ### 🟡 Done-partial
 
 | Tính năng | Track | Phase liên quan | Ghi chú |
 |---|---|---|---|
-| [01. Nâng cấp Frontend Platform](01-fe-platform-overhaul.md) | Frontend Platform | chưa gắn | chỉ 1/4 gap đã xong |
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
+| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | không thuộc phase nào | in-progress 2026-09-06 — `metap-reconciler::migrate` + `dev-tools migrate-to-dedicated-table` code xong, verify sống bằng e2e test + chạy CLI thật trên Postgres local với entity tổng hợp; còn nợ 1 lần chạy thật trên `../metap-demo-crm`'s `crm.customers` (tiêu chí chấp nhận gốc) |
+
+### 🟢 Approved (trigger có, đang scoping/thiết kế, chưa code)
+
+| Tính năng | Track | Ghi chú |
+|---|---|---|
+| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06; thiết kế registry resolution + FE codegen chốt 2026-09-07 (ADR viết xong) — sẵn sàng code, chưa code |
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
@@ -87,16 +100,15 @@ trước khi code (xem nhóm ⚪ bên dưới).
 | [06. Pattern xác minh bất đồng bộ + gap logic tùy biến cho low-code](06-async-verification-pattern-and-lowcode-custom-logic.md) | Backend Core | ghi chú thảo luận, chỉ Option B là đề xuất code — cần chọn option trước |
 | [09. Workflow hai chế độ (in-process + cross-module)](09-workflow-two-modes.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md`'s mục "Cần quyết định kiến trúc quan trọng" |
 | [11. Tiny deployment profile](11-tiny-deployment-profile.md) | Backend Ops-Infra | 🔴 quyết định sản phẩm — xem `docs/roadmap/00-index.md` |
-| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` |
-| [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md` |
-| [29. `FieldValue`'s enum rendering — tone theo giá trị](29-field-value-enum-tone-mapping.md) | Frontend Platform (có thể kéo Backend Core) | audit 03 finding #8 — cần chọn hướng metadata-driven (đụng `metap-metadata`) hay app-local prop trước khi code |
+| [14. Schema versioning cho entity](14-entity-schema-versioning.md) | Backend Core | 🔴 xem `docs/roadmap/00-index.md` — đang cân nhắc thêm (2026-09-06), chưa chốt |
+| [16. Entity variant polymorphic/discriminated-union](16-entity-variant-polymorphic.md) | Backend Core | 🔴 **rủi ro cao nhất trong cả backlog** — xem `docs/roadmap/00-index.md`. Gợi ý 2026-09-06: ưu tiên N entity riêng + list view gộp trước khi xây polymorphic thật |
 
-6/7 dòng trên (09/11/12/14/15/16) là đúng 6 ý trong `docs/roadmap/00-index.md`'s bảng "Cần quyết
+4/6 dòng trên (09/11/14/16) là 4 trong 6 ý gốc của `docs/roadmap/00-index.md`'s bảng "Cần quyết
 định kiến trúc quan trọng" — 2 file này mô tả cùng 1 tập quyết định chưa chốt, chỉ khác góc nhìn
-(feature brief chi tiết vs. roadmap-level liệt kê nhanh). Riêng 06 không nằm trong danh sách 7 ý
-gốc của `docs/roadmap.md` — là 1 đề xuất tách biệt.
+(feature brief chi tiết vs. roadmap-level liệt kê nhanh). 12 và 15 đã chuyển lên "Approved" (trigger
+chốt 2026-09-06), không còn nằm trong 6 ý gốc đó nữa — `docs/roadmap/00-index.md`'s bảng cũng cần
+cập nhật tương ứng. Riêng 06 không nằm trong danh sách 6 ý gốc của `docs/roadmap.md` — là 1 đề xuất
+tách biệt.
 
 ### 🔵 Vision (chưa phải spec sẵn sàng)
 

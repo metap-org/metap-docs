@@ -142,7 +142,7 @@ nhanh). Độ khó/effort là ước lượng định tính, không phải estim
 | 1 | Workflow hai chế độ (in-process + cross-module) | [`09`](features/09-workflow-two-modes.md) | 1 module thứ 2 thật cần cross-module workflow | Cao | XL |
 | 2 | Workflow visualize / BPM nhẹ | [`10`](features/10-workflow-visualize.md) — **done 2026-09-02** | (đã có trigger thật, xong) | Thấp-TB | M |
 | 3 | Tiny deployment profile (1 binary, SQLite, không RabbitMQ) | [`11`](features/11-tiny-deployment-profile.md) | Quyết định sản phẩm: có nhắm self-host không | TB-Cao | L-XL |
-| 4 | Migration path generic-table → bảng riêng | [`12`](features/12-migration-generic-to-dedicated-table.md) | 1 entity đo được nghẽn hiệu năng thật | TB | M |
+| 4 | Migration path generic-table → bảng riêng | [`12`](features/12-migration-generic-to-dedicated-table.md) — **kích hoạt 2026-09-06, in-progress** | (chủ động kích hoạt, không chờ trigger đo được) | TB | M |
 | 5 | Computed/derived field | [`13`](features/13-computed-derived-field.md) — **approved, đang implement 2026-09-02** | (chủ động implement, không chờ trigger) | TB | M |
 | 6 | Schema versioning cho entity | [`14`](features/14-entity-schema-versioning.md) | 1 entity cần đổi field shape không muốn migrate hết record cũ | Cao | L-XL |
 | 7 | Organization & Identity P1/P2 (positions/locations, manager self-ref, org chart) | [`03`](features/03-organization-identity.md) — **P1 done 2026-09-02**, P2 chưa có trigger | Chưa có, P0 đã xong | Thấp (P1) / TB (P2) | S-M (P1) |
@@ -155,8 +155,12 @@ nhanh). Độ khó/effort là ước lượng định tính, không phải estim
 **#5, #7 (P1) và #2 đã `done` 2026-09-02** — #5/#7 implement chủ động (thiết kế khó đã giải sẵn
 trong doc, rủi ro thấp); #2 có trigger thật (chủ dự án xác nhận nhu cầu luôn tồn tại + cho spec cụ
 thể), verify qua `pnpm typecheck`/`lint`/`format:check` sạch (frontend verification policy — chưa
-tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn lại vẫn giữ nguyên "chưa nên bắt
-đầu" cho tới khi có trigger thật.
+tự test browser, chờ chủ dự án xem trên browser thật). **#4 kích hoạt chủ động 2026-09-06** (chủ dự
+án chốt đóng khoảng hở hiệu năng này ngay, không chờ trigger đo được — xem
+[`12`](features/12-migration-generic-to-dedicated-table.md)'s "Người đề xuất"), cơ chế cốt lõi
+(`metap-reconciler::migrate` + `dev-tools migrate-to-dedicated-table`) đã code và verify sống bằng
+e2e test + chạy CLI thật trên Postgres local, còn nợ 1 lần chạy thật trên `../metap-demo-crm`. 8 ý
+còn lại vẫn giữ nguyên "chưa nên bắt đầu" cho tới khi có trigger thật.
 
 - **Workflow hai chế độ** (in-process trong một module, cross-module qua command/event) mà
   cùng một logical model chạy được ở cả hai, không rewrite khi deployment đổi. Đối lập trực
@@ -172,10 +176,12 @@ tự test browser, chờ chủ dự án xem trên browser thật). 9 ý còn l�
   Tiny nghĩa là sửa `docs/architectures/02-constraints/00-index.md`'s ràng buộc Postgres/RabbitMQ-duy-
   nhất và kiểm toán dialect Postgres-specific của `QueryPlanner` — một quyết định sản phẩm
   (có nhắm khách self-host không?), không phải gap kỹ thuật.
-- **Migration path từ generic `records` table sang bảng riêng cho một entity** — chưa viết ở
-  đâu. Chỉ nên viết thành spec khi Data Model Strategy Step 3
-  (`docs/architectures/05-building-blocks/00-index.md`) thực sự được kích hoạt bởi một nhu cầu hiệu năng
-  đo được của một entity cụ thể, không phải chuẩn bị sẵn trước.
+- **Migration path từ generic `records` table sang bảng riêng cho một entity** — **kích hoạt
+  2026-09-06** (chủ dự án chốt chủ động, không chờ trigger đo được — xem
+  [`12`](features/12-migration-generic-to-dedicated-table.md)). Cơ chế downtime-acceptable
+  (batch-copy checkpoint qua `metap-reconciler::migrate` + `dev-tools migrate-to-dedicated-table`)
+  đã code và verify sống trong `metap`; còn nợ chạy thật trên `../metap-demo-crm`'s `crm.customers`
+  trước khi đóng brief thành `done`.
 - **Computed/derived field** (field tính từ field khác *cùng một record*, ví dụ
   `display_name = first_name + " " + last_name`) — mở rộng tự nhiên từ `searchable`/`sortable`
   đã có sẵn trên `EntityField` (`crates/metap-metadata/src/entity.rs`): rule đề xuất là field
