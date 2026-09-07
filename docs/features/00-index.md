@@ -82,13 +82,13 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 |---|---|---|---|
 | [03. Organization & Identity Layer](03-organization-identity.md) | Backend Core | Phase 18 | P0 + P1 done (P1: 2026-09-02); P2 chưa có trigger |
 | [05. Cross-entity relations trong list view (3 mode)](05-cross-entity-relations.md) | Backend Core | không thuộc phase nào | chỉ Mode 2/3 done |
+| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | không thuộc phase nào | in-progress 2026-09-06 — `metap-reconciler::migrate` + `dev-tools migrate-to-dedicated-table` code xong, verify sống bằng e2e test + chạy CLI thật trên Postgres local với entity tổng hợp; còn nợ 1 lần chạy thật trên `../metap-demo-crm`'s `crm.customers` (tiêu chí chấp nhận gốc) |
 
 ### 🟢 Approved (trigger có, đang scoping/thiết kế, chưa code)
 
 | Tính năng | Track | Ghi chú |
 |---|---|---|
-| [12. Migration path generic → bảng riêng](12-migration-generic-to-dedicated-table.md) | Backend Core | Trigger + cơ chế (downtime-acceptable) chốt 2026-09-06 — xem ADR cập nhật, `docs/architectures/09-adr/00-index.md` |
-| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06 — còn 2 câu hỏi mở (registry resolution, FE codegen) trước khi code |
+| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06; thiết kế registry resolution + FE codegen chốt 2026-09-07 (ADR viết xong) — sẵn sàng code, chưa code |
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
