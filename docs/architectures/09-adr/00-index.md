@@ -199,3 +199,35 @@ việc đó là thừa.
   `metap-runtime`) để tránh cycle (`metap-jwks` đã phụ thuộc `metap-runtime`); phần thuần CSRF/cookie
   constant dùng chung giữa `metap-http` và `graphql-gateway` tách riêng vào
   `metap_runtime::cookie_auth`. Xem `metap-demo-waf/CLAUDE.md`'s mục JWKS cho chi tiết vận hành.
+- **Metadata registry resolution trở thành pluggable-theo-tenant, không còn giả định "1
+  `ArcSwap<MetadataRegistry>` toàn cục là nguồn sự thật duy nhất".** (Chốt 2026-09-07, cho
+  `docs/features/15-tenant-scoped-lowcode-metadata.md`'s phần khó nhất — registry resolution.)
+  `metap-metadata` thêm trait `MetadataResolver` (`async fn resolve(tenant_id) -> Arc<MetadataRegistry>`
+  + `async fn invalidate(tenant_id)`) — đặt ở đây, không phải `metap-http`, để `metap` core chỉ biết
+  "có thứ gì đó resolve registry theo tenant", không biết khái niệm "tenant tự định nghĩa entity"
+  (cùng lý do `EventBus`/`SecretStore`/`ObjectStore` là trait ở crate sở hữu type chúng thao tác,
+  không phải crate gọi chúng). `AppState.metadata`/`metadata_base` (2 field `ArcSwap`/`Arc` hiện có)
+  **giữ nguyên, không đổi type** — thêm field mới `metadata_resolver: Option<Arc<dyn MetadataResolver>>`
+  và method `metadata_for(tenant_id) -> Arc<MetadataRegistry>`: `None` (mặc định, mọi app chưa
+  opt-in — `../metap-demo-crm`/`../metap-demo-jira`) trả thẳng `state.metadata.load_full()`, hệt
+  hôm nay, chi phí bằng 0; `Some` thì đi qua resolver. Toàn bộ call site đang gọi
+  `state.metadata.load()`/`load_full()` (4 chỗ trong `metap-crud`, 3 chỗ trong `metap-graphql-http`,
+  2 route protected trong `metap-http/routes/metadata.rs`) đổi cơ học sang
+  `state.metadata_for(tenant_id).await` — không đổi gì về mặt observable cho app không opt-in.
+  `metap-lowcode` implement `MetadataResolver`: `moka::future::Cache<Uuid, Arc<MetadataRegistry>>`,
+  build lúc miss bằng `metadata_base.merge_with(list_enabled_published_for_tenant(pool, tenant_id))`
+  (cùng phép merge `publish`/`rollback` đã làm hôm nay, giờ theo tenant) — nhưng **invalidate-on-write
+  là chính, TTL chỉ backstop** (khác `RegistryCache`'s TTL-only): `publish`/`rollback`/`set_enabled`
+  gọi thẳng `resolver.warm(tenant_id, registry)` bằng chính `PublishOutcome::registry` đã merge sẵn
+  (tái dùng, không rebuild lần 2 — giữ đúng tinh thần tối ưu đã có ở `apply_registry`), không phải
+  chỉ `invalidate` rồi chờ request sau rebuild. TTL (backstop, không phải cơ chế chính) vẫn theo
+  quy ước 30s như `RegistryCache`/`ContextAttributesCache` — biết trước hạn chế multi-instance giống
+  hệt 2 cache đó: 1 instance khác chỉ thấy thay đổi sau khi TTL của chính nó hết, không có invalidate
+  xuyên instance. **`GET /metadata/openapi.json` (public, không auth, không có tenant context) mãi
+  mãi chỉ phản ánh `metadata_base`** — quyết định chủ động (chốt cùng ngày), không phải giới hạn kỹ
+  thuật: pipeline codegen FE (`platform-ui generate:types`) chỉ đọc schema `EntitySummary` chung,
+  chưa bao giờ đọc danh sách entity/paths cụ thể của một tenant; app cần schema đầy đủ (kể cả entity
+  low-code theo tenant) dùng `GET /metadata/entities` (đã có `AuthContext`, đổi sang gọi
+  `metadata_for(context.tenant_id())` thay vì `state.metadata.load()`). `metap-graphql-http`'s
+  `SchemaHolder` (đã có sẵn cơ chế "so `Arc::ptr_eq`, rebuild lazy khi khác" cho registry toàn cục)
+  mở rộng theo cùng nguyên tắc — key hoá theo `tenant_id`, không phải thiết kế mới.

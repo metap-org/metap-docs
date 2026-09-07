@@ -88,7 +88,7 @@ rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit hash); 29 v�
 
 | Tính năng | Track | Ghi chú |
 |---|---|---|
-| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06 — còn 2 câu hỏi mở (registry resolution, FE codegen) trước khi code |
+| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06; thiết kế registry resolution + FE codegen chốt 2026-09-07 (ADR viết xong) — sẵn sàng code, chưa code |
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
