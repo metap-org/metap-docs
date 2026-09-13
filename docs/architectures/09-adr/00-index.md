@@ -231,3 +231,25 @@ việc đó là thừa.
   `metadata_for(context.tenant_id())` thay vì `state.metadata.load()`). `metap-graphql-http`'s
   `SchemaHolder` (đã có sẵn cơ chế "so `Arc::ptr_eq`, rebuild lazy khi khác" cho registry toàn cục)
   mở rộng theo cùng nguyên tắc — key hoá theo `tenant_id`, không phải thiết kế mới.
+- **Audit trail nghiệp vụ chung (`metap-audit`) là một trait pluggable, ghi *sau* khi transaction
+  nghiệp vụ đã commit, không chia sẻ transaction với `CrudService`.** (Chốt 2026-09-13, audit
+  finding 05 — `docs/audits/05-crud-audit-trail-gap.md`.) `create`/`update`/`delete` trước đó không
+  ghi lại gì cả, và `workflow_events` (audit log riêng của `metap-workflow`) chỉ ghi transition giữa
+  các state, không phải audit nghiệp vụ chung — chủ dự án yêu cầu rõ: cả 4 write phải có audit trail
+  (ai đổi, đổi gì, khi nào, vì sao), per-entity opt-in, backend lưu trữ phải pluggable (Postgres mặc
+  định, cho phép DB/storage khác hoàn toàn). `AuditTrailStore` là một trait `Send + Sync` object-safe
+  (`Arc<dyn AuditTrailStore>`), cùng hình dạng thiết kế với `EventBus`/`SecretStore`/`ObjectStore`
+  đã có — `PostgresAuditTrailStore` sở hữu `PgPool` riêng của nó thay vì nhận `sqlx::PgExecutor`
+  mượn từ caller, vì một implementation trỏ một database hoàn toàn khác (yêu cầu rõ của chủ dự án)
+  không thể chia sẻ transaction đang mở của caller — hệ quả trực tiếp: `CrudService` chỉ gọi
+  `AuditTrailStore::record` *sau khi* `tx.commit()` của chính nó, không phải cùng transaction như
+  `metap-infra::outbox::enqueue`. Đây là đánh đổi best-effort có chủ đích cho v1 — một crash đúng
+  vào khoảng hẹp giữa commit và ghi audit sẽ mất đúng 1 dòng audit (không mất dữ liệu nghiệp vụ) —
+  chủ dự án chấp nhận đánh đổi này thay vì xây hardening outbox-relay ngay; nếu cần at-least-once
+  thật sau này, hướng nâng cấp đã ghi sẵn là route qua `outbox_events` (outbox pattern có sẵn) thay
+  vì gọi thẳng `AuditTrailStore`. `EntityDefinition.audit: Option<EntityAuditConfig>` chỉ mang đúng
+  1 cờ `enabled: bool` — cố ý không cho chọn backend riêng theo từng entity (đó là quyết định ở
+  tầng deployment, wire một lần lúc boot), tránh over-engineering cho nhu cầu chưa ai yêu cầu. Tham
+  số `reason: Option<&str>` được thêm tường minh trên cả 4 method (`CrudService` lẫn trait
+  `RecordBackend`) thay vì nhét vào `data`/`payload` nghiệp vụ — nhất quán với việc `workflow_events`
+  cũng không dùng `payload` cho mục đích này.

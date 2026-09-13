@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (59)
+### ✅ Done (60)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -107,8 +107,9 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [75. `aggregate` lên thành capability generic của `RecordBackend`](75-aggregate-generic-record-backend.md) | Phase 70 chỉ REST — thêm `RecordBackend::aggregate` cho gRPC + GraphQL đơn-service, RPC `Aggregate` mới trong proto, `metap_query::AggregateSpec` gom parse logic dùng chung 3 transport |
 | [76. `metap-demo-waf` — loạt bug thật lộ ra khi chạy portal sống lần đầu](76-waf-portal-live-bugfixes.md) | Bug nặng nhất: docker-compose chạy nhầm binary `graphql-gateway` generic thay vì `waf-graphql-gateway`; cộng race login/logout, render-storm Dashboard, `/metadata/entities` rỗng, zone-delete-guard thiếu env var, `AppShellLayout` mount lại mỗi navigation; thêm "Visualize workflow" SVG vào Zone/Incident detail |
 | [77. `metap-demo-waf` — gộp GraphQL request, workflow diagram tương tác, bản dịch tiếng Việt](77-graphql-batching-workflow-diagram-i18n.md) | `graphql-gateway` chuyển sang `GraphQLBatchRequest` (backward-compatible), client gộp query cùng tick thành 1 request; `WorkflowDiagram` thêm zoom/pan/kéo-node/highlight hover; WAF thêm i18n en/vi đầy đủ + `LocaleSwitcher` mount vào `AppShellLayout` cho mọi app |
+| [85. Đóng backlog audit 04 — gateway hot-swap thật (B1), credential rotation (B7), cookie cross-origin, 8 finding còn lại](85-audit-04-backlog-closure.md) | `metap-graphql-gateway` TTL-cached/fault-tolerant (`UpstreamCache`/`GatewaySchemaCache`, `moka`) thay boot-time-only fail-closed — 1 upstream chết không còn chặn boot/upstream khác, tự phục hồi trong 1 TTL không restart, verify sống trên `metap-demo-waf`; `SecretStore`-based credential rotation cho gateway (B7); `metap-lowcode`'s `control-plane-graphql` fix cookie `Domain` cross-origin cho `impersonateTenant`; 8 finding audit-04 còn lại đóng cùng đợt (5 fix thật, 4 xác nhận cố ý qua ADR); 16/17 finding audit 04 đã đóng |
 
-### 🟡 Done-partial / in-progress (8)
+### 🟡 Done-partial / in-progress (9)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -120,6 +121,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [20. Backend test kit (regression/performance/security)](20-backend-test-kit.md) | security (`cargo audit`+CI, tenant-isolation/JWT/RBAC-ABAC test, CodeQL+Semgrep) và performance (k6 qua Docker + Grafana) xong; 2026-08-24… |
 | [53. Đổi tên `metap-lowcode-platform`→`metap-lowcode`, thêm crate `metap-runtime`, mono-repo microservices cho `metap-lowcode`](53-metap-contrib-and-lowcode-microservices-plan.md) | đổi tên repo xong (đúng tên chủ dự án chọn), verify build sạch cả `metap-lowcode`+`metap-demo-crm`. `metap-runtime`… |
 | [61. `metap-demo-waf/data-plane` — tách 3 microservice theo pillar + GraphQL gateway](61-waf-microservices-split.md) | trigger: chủ dự án chốt hướng "metap-waf thiết kế microservice, GraphQL gọi xuyên nhiều service". `EnterPlanMode` trước khi code, 2 vòng… |
+| [84. `metap-reconciler` sync-trigger ledger drift — tìm sống trên `metap-demo-waf`, fix tận gốc](84-reconciler-sync-trigger-ledger-drift-fix.md) | `introspect()` giờ verify trigger/function thật qua `pg_catalog` thay vì tin `reconciler_backfill_progress.completed` mù quáng (8th, đã fix + regression test); backfill tenant-scoping cho bảng shared multi-tenant (9th) còn treo, cần chốt hướng |
 
 ### ⚪ Pending (trigger-based, chưa có trigger) (1)
 

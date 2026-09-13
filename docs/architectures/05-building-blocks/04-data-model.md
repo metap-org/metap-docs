@@ -80,6 +80,19 @@ erDiagram
     uuid actor
     timestamptz created_at
   }
+  AUDIT_TRAIL_ENTRIES {
+    uuid id PK
+    uuid tenant_id
+    varchar entity
+    uuid record_id
+    varchar action
+    varchar transition_action
+    uuid actor_user_id
+    text reason
+    jsonb diff
+    integer version_after
+    timestamptz occurred_at
+  }
   USER_ROLES {
     uuid id PK
     uuid tenant_id
@@ -183,6 +196,7 @@ erDiagram
 
   RECORDS ||--o{ OUTBOX_EVENTS : "aggregate_id (app-enforced)"
   RECORDS ||--o{ WORKFLOW_EVENTS : "record_id (app-enforced)"
+  RECORDS ||--o{ AUDIT_TRAIL_ENTRIES : "record_id (app-enforced, opt-in per entity)"
   RECORDS }o--|| METADATA_VERSIONS : "entity (app-enforced)"
   POLICIES }o--|| METADATA_VERSIONS : "entity (app-enforced)"
   USER_ROLES }o--o{ POLICIES : "roles (JSONB array, matched at query time)"
@@ -196,7 +210,13 @@ erDiagram
 Ghi chú:
 
 - `records.data` là payload dẫn xuất từ metadata; `code`/`status` là các cột top-level denormalized phản chiếu hai field bên trong `data` (`code` luôn luôn, `status` phản chiếu giá trị của `entity.workflow.stateField`) chỉ nhằm mục đích để chúng có thể được index/query như các cột thật.
-- `outbox_events`/`workflow_events` tham chiếu tới các row của `records` theo id (`aggregate_id`/`record_id`) nhưng trên *toàn bộ* bảng tổng quát, không phải theo từng bảng riêng cho mỗi entity — một bảng outbox duy nhất phục vụ mọi entity.
+- `outbox_events`/`workflow_events`/`audit_trail_entries` tham chiếu tới các row của `records` theo id (`aggregate_id`/`record_id`) nhưng trên *toàn bộ* bảng tổng quát, không phải theo từng bảng riêng cho mỗi entity — một bảng chung duy nhất phục vụ mọi entity cho mỗi cơ chế.
+- `audit_trail_entries` (`metadata` schema, `metap-audit`) chỉ có row cho entity nào bật
+  `EntityDefinition.audit.enabled` — khác `workflow_events` (ghi cho mọi transition, không opt-in)
+  và khác về mục đích: `workflow_events` là ledger *transition giữa các state* của riêng
+  `metap-workflow`, `audit_trail_entries` là audit trail nghiệp vụ chung cho cả 4 write
+  (`create`/`update`/`delete`/`transition`) — hai bảng độc lập, không dùng chung cơ chế. Bảng này
+  tăng vô hạn theo chủ đích (compliance), không áp retention/prune.
 - `policies.roles` là một mảng JSONB được đối chiếu với role của caller tại thời điểm đánh giá (`role_gate_passed`), không phải một relational join tới `user_roles`. `policies.effect` (`"allow"`/`"deny"`, thêm 2026-08-21) quyết định deny-overrides-allow — xem "Permission Service" ở trên.
 - `users` (Phase 15, local login) chỉ giữ danh tính (email + `password_hash` argon2id) — **không** giữ role. Role luôn nằm ở `user_roles`, tra mới cho mỗi request, không bao giờ cache trên JWT (xem sequence diagram "Tạo user, đăng nhập, kiểm tra quyền" ở [06. Runtime View](../06-runtime/00-index.md)).
 - `control.tenants` sống ở schema Postgres riêng (`control`, không phải `public`) — cố ý tách khỏi mọi bảng nghiệp vụ/platform khác ở trên, vì nó phải đọc được *trước khi* biết tenant nào đang gọi (chính nó là nơi tra `strategy`/`status` để `Router` quyết định route đi đâu). Không có FK từ bảng nào khác tới nó.
