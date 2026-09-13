@@ -39,6 +39,7 @@ Trách nhiệm:
 - lưu trữ record
 - enqueue outbox event
 - gọi các workflow function khi cần
+- ghi audit trail (opt-in per-entity, best-effort sau khi transaction đã commit) — xem "Audit Trail" bên dưới
 
 ## Permission Service
 
@@ -85,6 +86,37 @@ Workflow là metadata-driven (`metap-workflow`, các free function thay vì stru
 - actions
 
 Transitions là các thao tác atomic có optimistic locking (một write bị lệch version sẽ làm request thất bại, chứ không phải làm sai state), được bảo vệ bởi một `PolicyCondition` — cùng hình dạng khai báo mà policy đã dùng (`metap-permission::PolicyCondition`), không phải một function, vì Rust không có khái niệm tương đương server-side-predicate-function để port từ thiết kế TS gốc (xem doc comment của `metap-metadata::entity::WorkflowTransition` để biết lý do). Mọi transition đều được ghi vào bảng audit append-only `workflow_events` và phát ra một outbox event `<entity>.workflow.transitioned` sau khi commit — side effect chỉ luôn đi qua outbox, không bao giờ publish trực tiếp.
+
+## Audit Trail
+
+Audit trail tổng quát cho nghiệp vụ enterprise (`metap-audit`, audit finding 05 —
+[`../../audits/05-crud-audit-trail-gap.md`](../../audits/05-crud-audit-trail-gap.md)): trước đây
+`create`/`update`/`delete` không ghi lại gì cả, và `workflow_events` (audit log của riêng
+`metap-workflow`, xem "Workflow Functions" ở trên) chỉ ghi *transition giữa các state*, không phải
+một audit trail nghiệp vụ chung — hai khái niệm này tách biệt, không dùng chung cơ chế.
+
+- **`AuditTrailStore`** — một trait pluggable (`Arc<dyn AuditTrailStore>`), cùng hình dạng với
+  `EventBus`/`SecretStore`/`ObjectStore`/`Cache`: `PostgresAuditTrailStore` là implementation mặc
+  định (sở hữu `PgPool` riêng của nó, có thể trỏ vào một database hoàn toàn khác với database
+  nghiệp vụ, không chỉ Postgres của cùng tenant) — thay backend khác (một storage khác, hoặc DB
+  khác) là viết một struct mới impl cùng trait, không đụng `CrudService`.
+- **Per-entity opt-in** — `EntityDefinition.audit: Option<EntityAuditConfig>` (chỉ một cờ
+  `enabled: bool`, không chọn backend riêng theo entity — backend là quyết định ở tầng deployment,
+  wire một lần lúc boot qua `CrudService::with_audit(...)`, constructor thứ hai cộng thêm bên cạnh
+  `CrudService::new` cũ, không đổi hành vi của caller hiện có).
+- **Cả 4 write đều ghi** — `create`/`update`/`delete`/`transition`, mỗi write một dòng trong
+  `metadata.audit_trail_entries`: entity, record, action, diff field-level (`{field: {before,
+  after}}`, tính bằng cách so `data` cũ/mới — `delete` không diff, vì record sau khi xoá không còn
+  "sau" để so, chỉ mang `action: Delete`), actor, `reason` (tường minh, tham số riêng, không nhét
+  vào payload nghiệp vụ), thời điểm.
+- **Ghi *sau* khi transaction nghiệp vụ đã commit, không cùng transaction** — khác với outbox
+  (dưới đây), vì một `AuditTrailStore` object-safe có thể trỏ một database khác về cấu trúc không
+  thể share transaction của caller. Đây là đánh đổi best-effort đã chấp nhận cho v1 (một crash đúng
+  vào khoảng hẹp giữa commit và ghi audit sẽ mất đúng 1 dòng) — hướng nâng cấp nếu cần
+  at-least-once thật: route qua `outbox_events` (outbox pattern đã có sẵn) thay vì gọi thẳng.
+- **Không bao giờ prune/xoá theo chủ đích** — khác với retention thông thường, bảng này tăng vô
+  hạn vì compliance yêu cầu giữ lại mọi thay đổi, không phải một "history table" cần dọn để tiết
+  kiệm ổ cứng.
 
 ## Outbox and EventBus
 
