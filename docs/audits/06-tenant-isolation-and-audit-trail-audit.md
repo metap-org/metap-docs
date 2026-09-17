@@ -33,7 +33,7 @@ provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema
 | 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
 | 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
 | 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 5 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị); vòng 4 siết over-mask bằng suy luận Allow/Deny đúng luật; vòng 5 thêm redact ở **đường ghi** (`audit.redactedFields`) |
-| 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
+| 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Đã fix** 2026-09-17 ([Phase 89](../roadmap/89-backfill-tenant-scoping-fix.md)) — `BackfillScope::AllTenants` |
 | 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
 ---
@@ -201,6 +201,14 @@ lại trong lần audit này là **vẫn còn nguyên**: `crates/metap-reconcile
 `WHERE t.tenant_id = $2`, và cả 3 service của `metap-demo-waf` vẫn reconcile lúc boot bằng
 `PLATFORM_TENANT_ID` (`Uuid::nil()`). Đưa vào đây để audit index có một chỗ theo dõi trạng thái
 thống nhất, không phải phát hiện mới.
+
+**Đóng root-cause 2026-09-17** ([Phase 89](../roadmap/89-backfill-tenant-scoping-fix.md)):
+`BackfillScope::AllTenants` bỏ hẳn filter `tenant_id` cho caller đã biết trước bảng dùng chung, thay
+vì loop theo tập tenant thật resolve được — `reconcile()`/`execute()` cũ giữ nguyên chữ ký (mặc định
+`BackfillScope::SingleTenant`), hàm mới `reconcile_with_scope`/`execute_with_scope` mới nhận tham
+số này. Phát hiện thêm khi sửa: `metap-app::MetapApp::with_entities` (builder dùng chung, không
+riêng WAF) cũng luôn dính đúng bug này cho mọi entity nó đăng ký — không phải điểm riêng của
+`metap-demo-waf`.
 
 ## 5. LOW — Doc drift chịu lực
 
