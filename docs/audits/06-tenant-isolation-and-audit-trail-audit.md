@@ -32,7 +32,7 @@ provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema
 |---|---|---|---|
 | 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
 | 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
-| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 4 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị); vòng 4 siết over-mask bằng suy luận Allow/Deny đúng luật |
+| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 4 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị); vòng 4 siết over-mask bằng suy luận Allow/Deny đúng luật; vòng 5 thêm redact ở **đường ghi** (`audit.redactedFields`) |
 | 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
 | 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
@@ -308,9 +308,41 @@ dùng `PolicySubject::Context` nên điều kiện không bao giờ được đ�
 ở cả hai bước vì lý do hoàn toàn khác. Test chính thức vì vậy mang thêm một **control assertion**
 khẳng định policy thật sự cấp `amount` trên đường đọc thường sau khi unlock.
 
-Còn treo, không đổi: có nên mask ở **đường ghi** hay không vẫn là câu hỏi cho chủ dự án (mask khi ghi
-thì mất giá trị compliance của audit; không mask thì bảng — vốn cố ý không bao giờ prune — giữ
-secret vĩnh viễn). Lỗ phân quyền thì đã đóng bằng đường đọc.
+### Vòng 5 — mask ở đường ghi (chủ dự án chốt: "fix nốt")
+
+Đây là thứ **đường đọc không bao giờ cứu được**: `metadata.audit_trail_entries` cố ý không bao giờ
+prune (yêu cầu compliance), nên credential đã ghi vào là nằm vĩnh viễn — operator lúc nào cũng nới
+được policy, còn platform admin thì bypass thẳng field masking.
+
+`EntityAuditConfig.redacted_fields`: field được khai báo sẽ bị thay giá trị bằng
+`{"redacted": true}` **trước khi** entry tới store, nên plaintext không hề vào bảng. Entry vẫn ghi
+nhận *field đó đã đổi*, nên câu hỏi mà audit trail sinh ra để trả lời — ai đổi record nào, lúc nào —
+còn nguyên. Giải được đúng cái đánh đổi đã nêu ở vòng 1: **không phải chọn giữa compliance và giữ
+secret**, vì thứ compliance cần là *sự kiện*, không phải *giá trị*.
+
+Vài lựa chọn thiết kế đáng ghi:
+
+- Đặt ở `EntityAuditConfig`, **không** phải cờ trên `EntityField`. Vừa đúng về ngữ nghĩa (đây là
+  quyết định của cấu hình audit), vừa tránh cascade: `EntityField` có **~146** chỗ khởi tạo struct
+  literal trên workspace này và các repo downstream, so với **12** của `EntityAuditConfig` — đúng
+  loại cascade mà `unique_constraints` đã gây một lần. Bỏ `Copy` khỏi nó tốn đúng 1 call site.
+- Áp tại `record_audit` — **choke point duy nhất** cả 4 đường ghi đi qua — nên không đường ghi nào
+  (kể cả đường thêm sau này) lách được bằng cách quên gọi.
+- Chỉ ghi đè key **đã có** trong diff, không bao giờ thêm key mới: field mà lần ghi đó không đụng
+  tới thì phải vắng mặt — đúng nguyên tắc `AuditEntry` đã tự đặt cho `delete` ("never fabricate a
+  synthetic key"). Nhờ vậy marker mang thông tin thật, thay vì xuất hiện ở mọi entry.
+- `redactedFields` trỏ vào field không tồn tại là **lỗi validate**, không im lặng bỏ qua: nó fail
+  **open** (field vẫn được ghi đầy đủ), mà trong một bảng không bao giờ prune thì đó không phải sai
+  sót ai đó còn cơ hội phát hiện rồi sửa.
+
+**Test**: e2e assert thẳng vào **row thô trong DB**, không qua `list_audit_events` — đọc qua service
+thì vẫn pass y nguyên kể cả khi giá trị còn nằm trong bảng và chỉ bị lọc lúc trả về, mà đó đúng là
+thứ test này sinh ra để loại trừ. Đã xác nhận fail nếu bỏ fix. Kèm 3 unit test cho phép redact và 3
+cho validate.
+
+**Giới hạn phải nói rõ**: đây là opt-in theo từng entity, và **không hồi tố** — row đã ghi trước khi
+khai báo vẫn giữ nguyên giá trị. Muốn dọn lịch sử cũ thì cần một pass scrub riêng, có chủ đích; tôi
+không tự viết migration xoá dữ liệu.
 
 ### Vòng 3 — mức record (chủ dự án chốt: "fix luôn")
 
