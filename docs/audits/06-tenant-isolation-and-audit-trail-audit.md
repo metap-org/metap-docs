@@ -32,7 +32,7 @@ provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema
 |---|---|---|---|
 | 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
 | 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
-| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 3 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị) |
+| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 4 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị); vòng 4 siết over-mask bằng suy luận Allow/Deny đúng luật |
 | 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
 | 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
@@ -343,9 +343,36 @@ all-or-nothing trước, rồi mới tới tập field như cũ. Tiện thể si
 object giờ bị thay hẳn thay vì cho đi qua — "không có key nào để mask" không phải lý do để phục vụ
 một shape lạ cho caller vốn không được xem giá trị nào.
 
-Vẫn giữ over-mask có chủ đích: caller có thêm một grant vô điều kiện vẫn bị tính là phụ thuộc trạng
-thái. Siết cho đúng sẽ phải suy luận thứ tự Allow/Deny tách riêng giữa nhóm có điều kiện và nhóm
-không — thêm logic dễ sai trong một phép kiểm tra bảo mật, đổi lấy lợi ích hẹp.
+### Vòng 4 — siết over-mask (chủ dự án chốt: "siết luôn")
+
+Ở vòng 3 tôi còn giữ over-mask có chủ đích: chỉ cần **tồn tại** policy có điều kiện là coi như phụ
+thuộc trạng thái. Nó che nhầm theo **hai** kiểu:
+
+1. Caller có thêm một **grant vô điều kiện** vẫn bị che, dù grant đó đã chốt quyền truy cập trong
+   *mọi* trạng thái record — che mà không đổi lấy được gì về bảo mật.
+2. Điều kiện đặt trên **context của chính caller** bị coi là "lật được", dù record không hề được
+   tham chiếu — đây đúng là cái bẫy đã làm bản probe đầu tiên pass sai ở vòng 2.
+
+Ngoài ra phát hiện thêm: nhánh **field-level** còn **thiếu hẳn role gate** — policy có điều kiện
+nhắm vào role mà caller không có vẫn che được field, dù nó không bao giờ khớp với caller đó.
+
+`verdict_is_record_dependent` giờ **bám đúng luật phân giải của `evaluate_policies`** thay vì xấp
+xỉ. Mỗi policy được phân loại theo cách nó hành xử qua **mọi** trạng thái record — `Always`,
+`Never` (trượt role gate, hoặc điều kiện context mà request này đã trượt sẵn), `RecordDependent` —
+rồi verdict được coi là **ghim** khi:
+
+- có `Deny` vô điều kiện → luôn từ chối, record nói gì cũng không lật được;
+- hoặc có `Allow` vô điều kiện **và** không có `Deny` lật được → luôn cho phép.
+
+Tập rỗng cũng ghim, nên **allow-by-default mức record rơi ra từ chính công thức**, không cần nhánh
+riêng. Ngược lại, `Deny` có điều kiện **không** bao giờ là dư thừa: `evaluate_policies` cho một
+`Deny` khớp thắng mọi `Allow`, nên record vẫn kéo verdict xuống được — case này giữ nguyên là phụ
+thuộc trạng thái.
+
+**Test**: 7 unit test phủ thẳng phần phân loại (logic thuần, không đáng để chỉ dựa vào e2e) — đã xác
+nhận **3 test fail dưới logic cũ** và **4 test còn lại không đổi**, tức chúng nhắm đúng phần được
+siết chứ không phải phủ bừa. Thêm 1 e2e chứng minh trên đường audit thật, cũng đã xác nhận fail nếu
+bỏ fix.
 
 ### Verify
 
