@@ -13,6 +13,11 @@
 > chốt trước đó** thay vì tự quyết câu hỏi sản phẩm còn treo (xem từng mục). #4 (backfill tenant
 > scoping) vẫn treo — nó thuộc kế hoạch fix 3 phần đã ghi ở `metap-demo-waf/CLAUDE.md`, không
 > thuộc đợt này.
+>
+> **Vòng 2 (cùng ngày):** chủ dự án phản hồi *"có mask, tuy nhiên giải mã được mask"* — đúng. Fix
+> đầu của #3 xét readable theo **trạng thái hiện tại** của record, mà trạng thái đó **caller tự sửa
+> được**, nên mask lật ngược lại được và để lộ cả giá trị quá khứ. Đã dựng lại sống, sửa tận gốc,
+> và bản probe đầu tiên của chính tôi cũng đã **pass sai** trước khi phát hiện — xem mục #3.
 
 ## Tóm tắt
 
@@ -27,7 +32,7 @@ provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema
 |---|---|---|---|
 | 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
 | 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
-| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix** — mask qua chính `filter_readable_fields` |
+| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 2 vòng** — mask qua chính `filter_readable_fields`; vòng 2 sau khi chủ dự án chỉ ra mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện |
 | 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
 | 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
@@ -270,13 +275,50 @@ trôi lệch nhau. Hai chi tiết dễ sai đã xử lý: probe dựng từ reco
 điều kiện theo giá trị record, nên probe rỗng sẽ cho kết quả khác), và bù `null` cho mọi field đã
 khai báo nhưng đang vắng trong record (nếu không, field readable mà đang null sẽ bị mask oan).
 
-Quyết định ngữ nghĩa: readable xét theo **trạng thái hiện tại** của record, không theo từng entry
-lịch sử. Xét theo từng entry sẽ để lọt một field từng readable ở trạng thái quá khứ, sau khi nó đã
-thôi readable.
+Quyết định ngữ nghĩa ban đầu — readable xét theo **trạng thái hiện tại** của record — **đã sai và
+đã được sửa cùng ngày**, sau khi chủ dự án chỉ ra: *"có mask, tuy nhiên giải mã được mask"*. Tôi chỉ
+cân nhắc chiều ngược lại (xét theo từng entry sẽ lọt field từng readable trong quá khứ) mà bỏ sót
+điều quan trọng hơn: **chủ thể của phép kiểm tra là thứ caller tự dịch chuyển được**.
+
+Kịch bản đã dựng lại sống, không phải suy đoán: policy cho `amount` readable **chỉ khi**
+`resolution == "unlocked"`. Caller bị mask khỏi `amount`, nhưng `resolution` lại là field họ **có
+quyền ghi hợp lệ**. Sửa `resolution` một phát là toàn bộ lịch sử `amount` mở lại:
+
+```
+resolution="locked"    → 0 dòng audit mang `amount`
+caller tự sửa resolution="unlocked"
+resolution="unlocked"  → 2 dòng lộ: {before:4242, after:9999} và {before:null, after:4242}
+```
+
+Nghiêm trọng ở chỗ nó trả lại **giá trị quá khứ** (`4242`) — thứ đường đọc thường không bao giờ trả
+(đường đó chỉ phục vụ giá trị hiện tại `9999`). Tức là đúng nghĩa "giải mã được mask".
+
+**Cách sửa, và vì sao không chọn cách chính xác hơn**: xét từng entry theo đúng trạng thái lịch sử
+của nó mới là câu trả lời chính xác, nhưng **không khả thi** — `metadata.audit_trail_entries` chỉ
+lưu `diff` từng entry, không hề lưu snapshot trạng thái đầy đủ; mà dựng lại trạng thái bằng cách
+replay ngược các diff sẽ sai đúng vào lúc trail bị khuyết — điều mà thiết kế **cho phép** (ghi audit
+là best-effort có chủ đích). Nên: field nào có read policy **phụ thuộc giá trị record**
+(`record_state_dependent_read_fields`) thì bị loại khỏi lịch sử audit hoàn toàn, không đánh giá nữa.
+
+Chấp nhận **over-mask có chủ đích**: field vừa có grant vô điều kiện vừa có grant có điều kiện cũng
+bị loại luôn. Che nhầm lịch sử là chiều an toàn; để lọt mới là bug. Admin giữ nguyên quyền bypass.
+
+Một bài học về chính cách tôi test: bản probe đầu tiên **pass mà không chứng minh được gì** — nó
+dùng `PolicySubject::Context` nên điều kiện không bao giờ được đánh giá trên record, `amount` bị che
+ở cả hai bước vì lý do hoàn toàn khác. Test chính thức vì vậy mang thêm một **control assertion**
+khẳng định policy thật sự cấp `amount` trên đường đọc thường sau khi unlock.
 
 Còn treo, không đổi: có nên mask ở **đường ghi** hay không vẫn là câu hỏi cho chủ dự án (mask khi ghi
 thì mất giá trị compliance của audit; không mask thì bảng — vốn cố ý không bao giờ prune — giữ
 secret vĩnh viễn). Lỗ phân quyền thì đã đóng bằng đường đọc.
+
+**Một tồn dư cùng loại, đã cân nhắc và cố ý không tự sửa**: quyền đọc **mức record**
+(`check_record_permission`) cũng xét theo trạng thái hiện tại, nên một record policy có điều kiện
+cũng lật được y hệt. Tôi không áp cùng cách sửa ở đây vì nó khác về bản chất: lật được điều kiện mức
+record nghĩa là caller **thật sự có quyền đọc record đó**, và chặn audit cho mọi record nằm dưới một
+record policy có điều kiện sẽ vô hiệu hoá tính năng với hầu hết cấu hình ABAC thông thường ("đọc
+record thuộc phòng ban mình"). Đây là câu hỏi sản phẩm, không phải chỗ tôi tự quyết — nêu ra để chủ
+dự án chốt.
 
 ### Verify
 
