@@ -6,7 +6,13 @@
 > (audit 05, ship 2026-09-13). Chọn 2 vùng này vì audit 02/03/04 đều chạy *trước* khi cả hai tồn
 > tại, còn audit 05 không phải sweep. Có rà thêm bề mặt sinh SQL (`metap-query`'s `aggregate`/`jql`)
 > và tàn dư sau Phase 86 — cả hai **sạch**, ghi lại ở mục "Đã kiểm tra, không có vấn đề".
-> **Chưa code gì cả** — đúng shape của `04-*.md`/`05-*.md`.
+>
+> **Cập nhật cùng ngày: cả 3 finding HIGH đã fix** (`metap` PR `claude/audit-06-fixes`), sau khi
+> chủ dự án yêu cầu "fix hết". Mỗi fix có regression test **đã xác nhận fail trên code trước khi
+> sửa** rồi mới pass — không chỉ pass suông. Với #1/#2 cố ý chọn hướng **bảo toàn hành vi đã được
+> chốt trước đó** thay vì tự quyết câu hỏi sản phẩm còn treo (xem từng mục). #4 (backfill tenant
+> scoping) vẫn treo — nó thuộc kế hoạch fix 3 phần đã ghi ở `metap-demo-waf/CLAUDE.md`, không
+> thuộc đợt này.
 
 ## Tóm tắt
 
@@ -17,13 +23,13 @@ một lập luận bảo mật/thiết kế được ghi thành doc**. Cả 2 đ
 provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema_name="public"`, xác nhận sống
 2026-09-08) — chúng sẽ nổ ở **lần gọi `provision_schema_tenant` tiếp theo**.
 
-| # | Mức độ | Vấn đề |
-|---|---|---|
-| 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** |
-| 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào |
-| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường |
-| 4 | MEDIUM | (Nhắc lại, chưa fix) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` |
-| 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix |
+| # | Mức độ | Vấn đề | Trạng thái |
+|---|---|---|---|
+| 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
+| 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
+| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix** — mask qua chính `filter_readable_fields` |
+| 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
+| 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
 ---
 
@@ -77,15 +83,16 @@ các query vẫn còn filter `tenant_id` ở tầng cột. Nhưng toàn bộ lý
 isolation ở tầng schema — bị vô hiệu im lặng trên các đường đó, và việc dữ liệu tách đôi là lỗi
 đúng nghĩa.
 
-**Hướng fix đề xuất** (chưa làm, chờ chốt): `pool_for` không thể set `SET LOCAL` (không có
-transaction) và cũng không nên `SET` ở mức session trên pool dùng chung (đúng cái Bẫy #1 mà
-`begin()` cảnh báo). Hai hướng thật sự khả dĩ, cần chủ dự án chọn:
+**Hướng fix**: `pool_for` không thể set `SET LOCAL` (không có transaction) và cũng không nên `SET`
+ở mức session trên pool dùng chung (đúng cái Bẫy #1 mà `begin()` cảnh báo). Hai hướng khả dĩ:
 1. Trả `PoolConnection` đã `SET search_path` thay vì `PgPool` — đổi chữ ký, ép mọi caller giữ
    connection, nhưng đóng hẳn lỗ.
 2. Giữ pool riêng theo schema (cùng pattern `dedicated_pools`, `moka` theo `schema_name`), mỗi pool
-   có `options().after_connect()` set `search_path` — không đổi chữ ký caller.
+   có `after_connect()` set `search_path` — không đổi chữ ký caller.
 
-Hướng 2 hợp với call site hiện tại hơn (caller đang cần `PgPool` thật để chạy DDL). Không tự chọn.
+→ **Đã chọn hướng 2 và đã làm** (hợp với call site hiện tại hơn: caller đang cần `PgPool` thật để
+chạy DDL, và hướng 1 còn kéo theo vấn đề connection trả về pool vẫn mang search_path cũ). Chi tiết
+ở mục "Đã fix" cuối file.
 
 ---
 
@@ -130,8 +137,12 @@ mình. Tính toàn cục mà A#2 dựa vào không còn.
 2026-09-13 — tức lúc xác nhận thì tiền đề đã bị phá 2 ngày trước rồi, không ai để ý. Đây đúng là
 loại tương tác chéo giữa 2 feature mà audit sinh ra để bắt.
 
-**Hướng fix**: phụ thuộc câu hỏi sản phẩm chưa chốt — login đa tenant định danh người dùng bằng gì.
-Không tự chọn. Tối thiểu, cần chốt trước khi có tenant thật nào được provision lại.
+**Hướng fix**: câu hỏi sản phẩm "login đa tenant định danh người dùng bằng gì" vẫn **chưa chốt và
+không tự chọn**. Nhưng không cần chốt nó mới đóng được lỗi này: fix đã làm chỉ **khôi phục đúng
+model đã được chốt trước đó** (identity toàn cục, audit 04 A#2) bằng cách loại `users`/`user_roles`
+khỏi clone — không mở rộng cũng không thu hẹp thiết kế. Nếu sau này chủ dự án quyết đổi sang model
+identity per-tenant thật, đó là một thay đổi riêng, có chủ đích, không phải hệ quả phụ của
+feature 35. Chi tiết ở mục "Đã fix" cuối file.
 
 ---
 
@@ -172,9 +183,9 @@ Cộng thêm ràng buộc "bảng audit cố ý không bao giờ prune", một g
 vĩnh viễn.
 
 **Hướng fix**: mask ở đường đọc là bắt buộc và đủ để đóng lỗ phân quyền (áp
-`filter_readable_fields` lên từng `diff` theo snapshot của caller). Mask ở đường ghi là câu hỏi riêng
-(mask khi ghi thì mất luôn giá trị compliance của audit; không mask thì bảng vĩnh viễn giữ secret) —
-cần chủ dự án chốt, không tự quyết.
+`filter_readable_fields` lên từng `diff` theo snapshot của caller) — **đã làm**. Mask ở đường ghi là
+câu hỏi riêng (mask khi ghi thì mất luôn giá trị compliance của audit; không mask thì bảng vĩnh viễn
+giữ secret) — **vẫn cần chủ dự án chốt, không tự quyết**. Chi tiết ở mục "Đã fix" cuối file.
 
 ---
 
@@ -219,3 +230,65 @@ Ghi lại để lần audit sau không tốn công rà lại:
 - **`validate_schema_name`**: whitelist `^t_[a-z0-9]+$` + `public` là chặt, và `create_tenant_schema`
   gọi lại nó trước khi nội suy vào DDL. Riêng việc `pool_for` gọi rồi bỏ kết quả là finding #1, không
   phải lỗi của hàm này.
+
+---
+
+## Đã fix (cùng ngày, `metap` PR `claude/audit-06-fixes`)
+
+Ghi lại **hướng đã chọn và vì sao**, vì với #1/#2 tôi cố ý không tự quyết câu hỏi sản phẩm còn
+treo — chỉ khôi phục lại đúng hành vi đã được chốt từ trước mà feature 35 vô tình phá.
+
+**#1 — `Router::schema_pool` mới.** `pool_for` với strategy `Schema` giờ đi qua một pool cache theo
+schema (`moka`, cùng shape/TTL với `dedicated_pools` sẵn có), dựng từ chính `connect_options()` của
+pool dùng chung nên `Router::new` không phải nhận thêm tham số DSN. Mỗi connection của pool đó mang
+`SET search_path` **mức session**. Mức session ở đây là đúng, dù `begin()` cảnh báo Bẫy #1 về đúng
+việc này: khác biệt nằm ở chỗ mọi connection trong pool ấy chỉ phục vụ **một** schema duy nhất, nên
+không có "request tiếp theo" nào để rò sang. `"public"` vẫn short-circuit trả thẳng pool dùng chung
+— **không tenant nào đang tồn tại bị đổi hành vi, và không tốn thêm connection nào**.
+
+Hai hướng đã cân nhắc và loại: (a) trả `PoolConnection` đã set search_path — đóng lỗ triệt để nhưng
+đổi chữ ký của mọi caller xuyên 2 repo, và connection trả về pool vẫn mang search_path cũ nếu không
+có `after_release`; (b) bắt caller tự qualify tên bảng — không khả thi vì caller là handler tổng
+quát, không biết trước bảng nào.
+
+**#2 — loại `users`/`user_roles` khỏi `TENANT_SCOPED_TABLES`.** Đây là lựa chọn bảo toàn: identity
+của nền tảng này **cố ý toàn cục** (đó chính là lý do `users_email_unique` là global chứ không phải
+`(tenant_id, email)` — audit 04 A#2 đã xác nhận cố ý). Không clone 2 bảng đó thì không mất gì về mặt
+chức năng, vì `Router::begin` đã luôn đặt `metadata` trong `search_path` của mọi transaction tenant,
+nên truy vấn không qualify vẫn resolve về bảng chung đúng như trước khi có schema riêng, vẫn lọc
+theo cột `tenant_id` từng dòng.
+
+Nhân tiện sửa luôn header sai của chính module `tenant_schema.rs`: nó khẳng định không clone thì
+tenant non-`public` "không resolve được gì cả", coi việc clone là điều kiện cần để chạy. Sai —
+`metadata` luôn nằm trong search_path. Việc clone mua **isolation vật lý** (đáng có), chứ không phải
+thứ làm cho tenant chạy được.
+
+**#3 — mask ở đường đọc.** `list_audit_events` lọc từng `diff` qua đúng
+`PermissionSnapshot::filter_readable_fields` mà đường đọc thường (`row_to_dto_masked`) vẫn dùng —
+cố ý **không** tự viết lại logic đánh giá field policy, vì viết lại lần hai đúng là cách hai đường
+trôi lệch nhau. Hai chi tiết dễ sai đã xử lý: probe dựng từ record **hiện tại** (field policy có thể
+điều kiện theo giá trị record, nên probe rỗng sẽ cho kết quả khác), và bù `null` cho mọi field đã
+khai báo nhưng đang vắng trong record (nếu không, field readable mà đang null sẽ bị mask oan).
+
+Quyết định ngữ nghĩa: readable xét theo **trạng thái hiện tại** của record, không theo từng entry
+lịch sử. Xét theo từng entry sẽ để lọt một field từng readable ở trạng thái quá khứ, sau khi nó đã
+thôi readable.
+
+Còn treo, không đổi: có nên mask ở **đường ghi** hay không vẫn là câu hỏi cho chủ dự án (mask khi ghi
+thì mất giá trị compliance của audit; không mask thì bảng — vốn cố ý không bao giờ prune — giữ
+secret vĩnh viễn). Lỗ phân quyền thì đã đóng bằng đường đọc.
+
+### Verify
+
+- `cargo build --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt`,
+  `cargo test --workspace` (unit, 100/100 suite `ok`) — sạch.
+- E2E **sống** trên Postgres 16 thật: `provisioning_postgres` 8/8, `router_postgres` 8/8,
+  `crud_service_postgres` 18/20 (2 fail là 2 benchmark thủ công cần seed ngoài, đã biết từ Phase 87,
+  không liên quan). Các crate còn lại (`metap-http`/`graphql`/`graphql-http`/`grpc`/`workflow`/
+  `query`/`permission`) đều `ok`.
+- **Mỗi fix có regression test đã xác nhận fail trước khi sửa**: test của #3 in ra đúng giá trị bị
+  lọt (`amount: {before: 4242, after: 9999}`), test của #1 báo `pool_for` vẫn trả pool dùng chung.
+- 2 nhóm test fail vì môi trường, **đã kiểm chứng là có sẵn chứ không phải do đợt sửa này** (chạy
+  lại trên code đã stash cho kết quả y hệt): `vault_store.rs` và
+  `metap-http/tests/tenant_secret_postgres.rs` — cả hai cần dev Vault qua Docker, mà Docker bị chặn
+  trong môi trường này.
