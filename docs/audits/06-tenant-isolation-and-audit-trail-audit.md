@@ -190,7 +190,9 @@ vĩnh viễn.
 **Hướng fix**: mask ở đường đọc là bắt buộc và đủ để đóng lỗ phân quyền (áp
 `filter_readable_fields` lên từng `diff` theo snapshot của caller) — **đã làm**. Mask ở đường ghi là
 câu hỏi riêng (mask khi ghi thì mất luôn giá trị compliance của audit; không mask thì bảng vĩnh viễn
-giữ secret) — **vẫn cần chủ dự án chốt, không tự quyết**. Chi tiết ở mục "Đã fix" cuối file.
+giữ secret) — ban đầu ghi "vẫn cần chủ dự án chốt, không tự quyết"; **đã chốt và đóng cùng ngày**
+(vòng 5, chủ dự án yêu cầu "fix nốt") — đánh đổi hoá ra tránh được, không phải chọn 1 trong 2: xem
+mục "Vòng 5" ở phần "Đã fix" cuối file.
 
 ---
 
