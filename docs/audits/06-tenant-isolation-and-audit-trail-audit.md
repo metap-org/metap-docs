@@ -32,7 +32,7 @@ provision lại sau 2026-09-11 (mọi tenant `Schema` hiện tại vẫn `schema
 |---|---|---|---|
 | 1 | **HIGH** | `Router::pool_for` trả pool dùng chung, không set `search_path` — mọi tenant có schema riêng bị phục vụ sai schema. Không chỉ 3 call site `dev-tools` như doc khẳng định: `metap-lowcode` có 5 call site nữa, 1 trong đó nằm trên **mọi HTTP handler** | **Đã fix** — `Router::schema_pool` mới |
 | 2 | **HIGH** | `POST /auth/login` không kèm `tenantId` tra `metadata.users`, nhưng `provision_schema_tenant` ghi admin mới vào `t_<uuid>.users` → **tenant vừa provision không đăng nhập được**. Đồng thời `users_email_unique` (audit 04 A#2 xác nhận là "đang chịu lực") bị clone thành unique *per-schema*, phá luôn tính toàn cục mà chính lập luận đó dựa vào | **Đã fix** — loại `users`/`user_roles` khỏi clone |
-| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 2 vòng** — mask qua chính `filter_readable_fields`; vòng 2 sau khi chủ dự án chỉ ra mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện |
+| 3 | **HIGH** | `GET /api/{entity}/{id}/audit-events` trả nguyên `diff` không mask field → **bypass field-level permission**: ai đọc được record thì đọc được giá trị mọi field trong toàn bộ lịch sử, kể cả field bị mask ở đường đọc thường | **Đã fix, 3 vòng** — mask qua chính `filter_readable_fields`; vòng 2 vì mask **lật được** bằng cách sửa field mà policy lấy làm điều kiện; vòng 3 đóng nốt mức **record** (giữ entry, chỉ giấu giá trị) |
 | 4 | MEDIUM | (Nhắc lại) Finding thứ 9 của `metap-demo-waf` — `backfill::run_batched_update` scope theo `tenant_id` sentinel → backfill boot-time chạm 0 dòng rồi vẫn `mark_completed` | **Vẫn treo** — thuộc kế hoạch fix riêng ở repo đó |
 | 5 | LOW | Doc drift chịu lực: cả `CLAUDE.md` lẫn doc comment của `pool_for` khẳng định sai về hiện trạng, và chính khẳng định sai đó là lý do finding #1 chưa được fix | **Đã fix** |
 
@@ -312,13 +312,40 @@ Còn treo, không đổi: có nên mask ở **đường ghi** hay không vẫn l
 thì mất giá trị compliance của audit; không mask thì bảng — vốn cố ý không bao giờ prune — giữ
 secret vĩnh viễn). Lỗ phân quyền thì đã đóng bằng đường đọc.
 
-**Một tồn dư cùng loại, đã cân nhắc và cố ý không tự sửa**: quyền đọc **mức record**
-(`check_record_permission`) cũng xét theo trạng thái hiện tại, nên một record policy có điều kiện
-cũng lật được y hệt. Tôi không áp cùng cách sửa ở đây vì nó khác về bản chất: lật được điều kiện mức
-record nghĩa là caller **thật sự có quyền đọc record đó**, và chặn audit cho mọi record nằm dưới một
-record policy có điều kiện sẽ vô hiệu hoá tính năng với hầu hết cấu hình ABAC thông thường ("đọc
-record thuộc phòng ban mình"). Đây là câu hỏi sản phẩm, không phải chỗ tôi tự quyết — nêu ra để chủ
-dự án chốt.
+### Vòng 3 — mức record (chủ dự án chốt: "fix luôn")
+
+Tồn dư cùng loại ở **mức record**: `check_record_permission` cũng xét theo trạng thái hiện tại, nên
+record policy có điều kiện cũng lật được y hệt — và nó gác **toàn bộ** trail chứ không phải một
+field.
+
+Dựng lại sống, trước khi sửa: viewer bị **403** trên chính record đó, sửa `resolution` (được phép),
+rồi đọc lại audit — nhận về **toàn bộ giá trị record từng có**, ghi trong lúc họ **không hề đọc được
+record**:
+
+```
+PREFIX-LEAK update -> {"resolution":{"before":"locked","after":"unlocked"}}
+PREFIX-LEAK update -> {"amount":{"before":4242,"after":9999}}
+PREFIX-LEAK create -> {"amount":{"before":null,"after":4242}, "name":…, "status":…}
+```
+
+Mức này còn **cắn cả khi không ai cố tình sửa gì**: một record đổi chủ sở hữu/phòng ban theo thời
+gian sẽ mang theo giá trị của chủ cũ trong lịch sử, và chủ mới đọc được hết.
+
+**Cố ý không chọn cách chặn thô.** Cấm hẳn endpoint mỗi khi tồn tại record policy có điều kiện sẽ
+vô hiệu hoá tính năng với hầu hết cấu hình ABAC thông thường ("đọc record thuộc phòng ban mình") —
+đây chính là lý do ở vòng 2 tôi nêu ra để chủ dự án chốt thay vì tự quyết. Cách đã làm: **vẫn trả
+các entry** (action, actor, thời điểm, version, reason), chỉ **giữ lại phần giá trị** before/after.
+Câu hỏi mà một audit trail sinh ra để trả lời — *ai đổi record nào, lúc nào* — còn nguyên; chỉ giá
+trị lịch sử là không phục vụ cho caller có quyền truy cập phụ thuộc trạng thái.
+
+Mask giờ là **kế hoạch 2 mức** (`DiffVisibility`) giải từ **một** lần load snapshot: mức record
+all-or-nothing trước, rồi mới tới tập field như cũ. Tiện thể siết một chỗ nhỏ: `diff` không phải
+object giờ bị thay hẳn thay vì cho đi qua — "không có key nào để mask" không phải lý do để phục vụ
+một shape lạ cho caller vốn không được xem giá trị nào.
+
+Vẫn giữ over-mask có chủ đích: caller có thêm một grant vô điều kiện vẫn bị tính là phụ thuộc trạng
+thái. Siết cho đúng sẽ phải suy luận thứ tự Allow/Deny tách riêng giữa nhóm có điều kiện và nhóm
+không — thêm logic dễ sai trong một phép kiểm tra bảo mật, đổi lấy lợi ích hẹp.
 
 ### Verify
 
