@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (61)
+### ✅ Done (64)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -109,6 +109,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [77. `metap-demo-waf` — gộp GraphQL request, workflow diagram tương tác, bản dịch tiếng Việt](77-graphql-batching-workflow-diagram-i18n.md) | `graphql-gateway` chuyển sang `GraphQLBatchRequest` (backward-compatible), client gộp query cùng tick thành 1 request; `WorkflowDiagram` thêm zoom/pan/kéo-node/highlight hover; WAF thêm i18n en/vi đầy đủ + `LocaleSwitcher` mount vào `AppShellLayout` cho mọi app |
 | [85. Đóng backlog audit 04 — gateway hot-swap thật (B1), credential rotation (B7), cookie cross-origin, 8 finding còn lại](85-audit-04-backlog-closure.md) | `metap-graphql-gateway` TTL-cached/fault-tolerant (`UpstreamCache`/`GatewaySchemaCache`, `moka`) thay boot-time-only fail-closed — 1 upstream chết không còn chặn boot/upstream khác, tự phục hồi trong 1 TTL không restart, verify sống trên `metap-demo-waf`; `SecretStore`-based credential rotation cho gateway (B7); `metap-lowcode`'s `control-plane-graphql` fix cookie `Domain` cross-origin cho `impersonateTenant`; 8 finding audit-04 còn lại đóng cùng đợt (5 fix thật, 4 xác nhận cố ý qua ADR); 16/17 finding audit 04 đã đóng |
 | [87. Sửa e2e fixture còn trỏ `records` sau Phase 86, phát hiện thêm 2 bug thật](87-e2e-fixture-fix-and-two-real-bugs-it-exposed.md) | Đóng nốt Known gap Phase 86 để lại — trỏ lại fixture `--ignored` của 7 crate vào bảng dedicated, xoá mảng test shared-table không còn xảy ra được; verify sống lần đầu từ Phase 86 lộ 2 bug thật: `AUTH_CONTEXT_ENTITY` hỏng hoàn toàn (vẫn query bảng `records` đã xoá) và fixture `Reference` field thiếu sync trigger khiến delete guard không chặn gì; port luôn fix rustls RUSTSEC-2026-0285 (lỗi có sẵn trên `master`, không do PR này) |
+| [88. OAuth2 cho core — login provider + Authorization Server thật](88-oauth2-authorization-server.md) | `AuthProviderKind::OAuth2` (login qua userinfo endpoint, không id_token) + crate mới `metap-oauth-server` (authorization_code+PKCE, refresh token xoay vòng/reuse-detection; `client_credentials` cố ý chưa làm). Access token vẫn là JWT trust root sẵn có, thêm claim `scope`/`clientId` additive; enforce scope vào RBAC/ABAC chưa làm, chỉ hiện diện qua `context_attributes` |
 | [89. `BackfillScope` — đóng root-cause item 3 của `metap-demo-waf` finding thứ 9](89-backfill-tenant-scoping-fix.md) | Sentinel `tenant_id` (`PLATFORM_TENANT_ID`) tại boot của service `Schema`-strategy khiến backfill trên bảng dùng chung khớp 0 dòng vĩnh viễn — `BackfillScope::AllTenants` (hàm mới `reconcile_with_scope`/`execute_with_scope`, hàm cũ giữ nguyên chữ ký) bỏ hẳn filter `tenant_id` thay vì loop theo tenant thật. Phát hiện thêm: `metap-app::MetapApp::with_entities` (builder dùng chung) cũng dính bug này cho mọi entity, không riêng WAF |
 
 ### 🟡 Done-partial / in-progress (9)
