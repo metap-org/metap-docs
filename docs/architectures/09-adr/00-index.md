@@ -253,3 +253,24 @@ việc đó là thừa.
   số `reason: Option<&str>` được thêm tường minh trên cả 4 method (`CrudService` lẫn trait
   `RecordBackend`) thay vì nhét vào `data`/`payload` nghiệp vụ — nhất quán với việc `workflow_events`
   cũng không dùng `payload` cho mục đích này.
+- **Entity CRUD ứng dụng: GraphQL-only, REST chỉ giữ cho auth và những gì tự thân là giao thức HTTP
+  (OAuth2/JWKS well-known, health/metrics, upload/download file nhị phân).** (Chốt 2026-09-21, chủ
+  dự án: "bỏ hết giao thức http cho router, chỉ dùng graphql thôi, http dùng cho webhook, để đỡ phức
+  tạp hoá application" — mục tiêu dài hạn là composition cross-service qua một GraphQL federation
+  gateway thật (`metap-graphql-gateway` đã có sẵn) thay vì tự tay fan-out REST sang nhiều service.)
+  `metap-graphql`/`metap-graphql-http` đã có parity CRUD đầy đủ với REST từ Phase 49/50
+  (list/get/create/update/delete/transition, cộng `aggregate` riêng), nên không cần xây gì mới
+  trước khi xoá — REST entity CRUD generic của `metap-http` (`routes::records`, `/api/:entity*`) bị
+  xoá thẳng, không deprecate dần. Việc này chia làm 2 giai đoạn có chủ đích: giai đoạn 1 (Phase 90,
+  xong) chỉ xoá phần entity CRUD generic trong `metap` core, giữ nguyên toàn bộ nhóm "structural"
+  (auth, OAuth2 AS, JWKS/well-known, health/metrics, attachment nhị phân) và toàn bộ nhóm chưa có
+  tương đương GraphQL (`/admin/*`, `/cron/*`, `/dashboards/*`, `/preferences/*`, config, `/users`,
+  workflow-events) — xây GraphQL parity cho nhóm sau rồi mới bỏ REST của chúng là giai đoạn 2, chưa
+  bắt đầu. `metap-cron-scheduler`'s `workflow_transition`/`bulk_query_action` (dependent REST nội bộ
+  duy nhất còn lại trong repo `metap`) chuyển sang gọi qua `metap-grpc::client::GrpcBackend` (đã có
+  sẵn từ Phase 49/50) thay vì HTTP. Khoảng hở lộ ra khi xoá REST (không phải lỗi mới tạo ra):
+  `invalidate_context_cache_if_auth_context_entity` chưa bao giờ tồn tại ngoài
+  `routes::records::update_record` — một update qua GraphQL/gRPC luôn để `ContextAttributesCache`
+  stale tới TTL hoặc invalidate tay; chưa sửa, cần đổi `CrudService`/`RecordBackend::update` (đụng
+  mọi call site downstream), việc lớn hơn phạm vi Phase 90. Chi tiết:
+  `docs/roadmap/90-remove-rest-entity-crud.md`.
