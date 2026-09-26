@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (64)
+### ✅ Done (65)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -116,6 +116,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [92. Đóng gap `AUTH_CONTEXT_ENTITY` cache-invalidation Phase 90 để lại](92-auth-context-entity-cache-invalidation-fix.md) | Sửa tận gốc ở `CrudService::update()` (không phải per-transport) — `with_context_invalidation(entity_name, cache)` chainable, opt-in, đọc `userId` từ payload chưa mask. Đóng cho mọi transport (GraphQL/gRPC) cùng lúc; chưa wire vào `main.rs` app nào. Rà lại nợ #2 (test `migrate_postgres.rs`) phát hiện đã fix từ trước (commit `fb72c80`) |
 | [93. `platform-ui`'s generated UI chuyển sang GraphQL — REST entity CRUD đã hỏng thật](93-platform-ui-graphql-migration.md) | Phát hiện sống: `GeneratedList`/`GeneratedForm`/`RecordDetail`/`WorkflowActionBar` vẫn gọi REST `/api/:entity*` đã bị Phase 90 xoá — WAF portal thật đang gãy CRUD. Chuyển hết sang `graphqlRecords.ts` (đã có sẵn, chưa từng được wire) + mở rộng thêm `capabilities`/`relatedDisplay`/cursor-pagination/`GraphQLError`. Đánh đổi: mất optimistic update ở `GeneratedForm`. Verify sống qua `jira-server` thật; chưa test browser |
 | [94. `metap-demo-jira/web` chuyển sang GraphQL — phát hiện thêm 1 app hỏng + 1 bug backend](94-jira-web-graphql-migration.md) | `web/` (10 file, frontend riêng không dùng `platform-ui`'s generated UI) cũng gãy y hệt WAF. Tìm ra bug backend thật: `jql` argument chưa từng khai báo trên GraphQL `{entity}List` field dù parser đã đọc từ lâu — fix 1 dòng `metap-graphql/src/schema.rs`. Bonus: `/dashboards` thiếu trong Vite proxy, không liên quan Phase 90. Verify sống đầy đủ qua `jira-server` thật |
+| [95. Migrate nốt backlog REST (`admin`/`cron`/`dashboards`/`preferences`/`config`/`users`/oauth-clients) sang GraphQL, xoá REST](95-platform-graphql-fields.md) | Khác Phase 90: không route nào qua `CrudService`, mọi field viết tay ở `metap-graphql-http::platform_fields` (mới). 5 route OAuth2 protocol tách thành exception REST vĩnh viễn. Dò frontend consumer TRƯỚC khi xoá REST (khác Phase 90). Bug thật tìm ra: `set_tenant`'s secret-path chưa từng được wire (credential key chưa bao giờ set được qua HTTP), 2 lỗi `TypeRef` list-argument. Toàn bộ test REST cũ port sang GraphQL thay vì xoá, thêm test mới cho phần chưa cover |
 
 ### 🟡 Done-partial / in-progress (9)
 
