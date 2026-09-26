@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (66)
+### ✅ Done (67)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -118,6 +118,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [94. `metap-demo-jira/web` chuyển sang GraphQL — phát hiện thêm 1 app hỏng + 1 bug backend](94-jira-web-graphql-migration.md) | `web/` (10 file, frontend riêng không dùng `platform-ui`'s generated UI) cũng gãy y hệt WAF. Tìm ra bug backend thật: `jql` argument chưa từng khai báo trên GraphQL `{entity}List` field dù parser đã đọc từ lâu — fix 1 dòng `metap-graphql/src/schema.rs`. Bonus: `/dashboards` thiếu trong Vite proxy, không liên quan Phase 90. Verify sống đầy đủ qua `jira-server` thật |
 | [95. Migrate nốt backlog REST (`admin`/`cron`/`dashboards`/`preferences`/`config`/`users`/oauth-clients) sang GraphQL, xoá REST](95-platform-graphql-fields.md) | Khác Phase 90: không route nào qua `CrudService`, mọi field viết tay ở `metap-graphql-http::platform_fields` (mới). 5 route OAuth2 protocol tách thành exception REST vĩnh viễn. Dò frontend consumer TRƯỚC khi xoá REST (khác Phase 90). Bug thật tìm ra: `set_tenant`'s secret-path chưa từng được wire (credential key chưa bao giờ set được qua HTTP), 2 lỗi `TypeRef` list-argument. Toàn bộ test REST cũ port sang GraphQL thay vì xoá, thêm test mới cho phần chưa cover |
 | [96. `get`/`{entity}List` GraphQL error thiếu `extensions`, tìm sống lúc điều tra 2 test fail](96-get-list-error-extensions-fix.md) | Audit 04 B#2 (2026-09-03) chuyển mọi resolver sang `service_result_to_gql` nhưng bỏ sót `get`/`{entity}List` — vẫn dùng string lỗi phẳng không có `extensions`. 2 test fail của Phase 95 hoá ra là 1 bug (chẩn đoán "bug delete thật" ban đầu sai) — sửa 1 chỗ, cả 2 test tự pass. Thêm test regression riêng cho error shape này |
+| [97. `platform_fields` — mọi output không phải scalar giờ là GraphQL object type thật](97-platform-fields-typed-objects.md) | Đóng nợ Phase 95/96 để lại — `AdminUserSummary`/`Policy`/`CronJob`/`OAuthClient`/`DashboardConfig`/... giờ là `Object` type thật (`JsonHandle`, cùng cơ chế `RecordHandle` của entity), thay `Json` scalar. Field thật sự không có shape cố định (trigger/target config, policy condition, config value) vẫn giữ `Json` có chủ đích. Mọi e2e test liên quan phải thêm selection set thật — tự nó là 1 phép verify việc type hoá có hiệu lực |
 
 ### 🟡 Done-partial / in-progress (9)
 
