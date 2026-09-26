@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (67)
+### ✅ Done (68)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -119,6 +119,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [95. Migrate nốt backlog REST (`admin`/`cron`/`dashboards`/`preferences`/`config`/`users`/oauth-clients) sang GraphQL, xoá REST](95-platform-graphql-fields.md) | Khác Phase 90: không route nào qua `CrudService`, mọi field viết tay ở `metap-graphql-http::platform_fields` (mới). 5 route OAuth2 protocol tách thành exception REST vĩnh viễn. Dò frontend consumer TRƯỚC khi xoá REST (khác Phase 90). Bug thật tìm ra: `set_tenant`'s secret-path chưa từng được wire (credential key chưa bao giờ set được qua HTTP), 2 lỗi `TypeRef` list-argument. Toàn bộ test REST cũ port sang GraphQL thay vì xoá, thêm test mới cho phần chưa cover |
 | [96. `get`/`{entity}List` GraphQL error thiếu `extensions`, tìm sống lúc điều tra 2 test fail](96-get-list-error-extensions-fix.md) | Audit 04 B#2 (2026-09-03) chuyển mọi resolver sang `service_result_to_gql` nhưng bỏ sót `get`/`{entity}List` — vẫn dùng string lỗi phẳng không có `extensions`. 2 test fail của Phase 95 hoá ra là 1 bug (chẩn đoán "bug delete thật" ban đầu sai) — sửa 1 chỗ, cả 2 test tự pass. Thêm test regression riêng cho error shape này |
 | [97. `platform_fields` — mọi output không phải scalar giờ là GraphQL object type thật](97-platform-fields-typed-objects.md) | Đóng nợ Phase 95/96 để lại — `AdminUserSummary`/`Policy`/`CronJob`/`OAuthClient`/`DashboardConfig`/... giờ là `Object` type thật (`JsonHandle`, cùng cơ chế `RecordHandle` của entity), thay `Json` scalar. Field thật sự không có shape cố định (trigger/target config, policy condition, config value) vẫn giữ `Json` có chủ đích. Mọi e2e test liên quan phải thêm selection set thật — tự nó là 1 phép verify việc type hoá có hiệu lực |
+| [98. Chứng minh sống pipeline `control-plane` → `edge-plane`, tìm ra 2 bug thật đang chặn đường](98-control-edge-live-e2e-proof.md) | `metap-demo-waf`'s `control-plane` hoá ra đã hỏng hoàn toàn từ 2026-09-21 (vẫn gọi REST `/api/{entity}` đã bị xoá) — không ai biết vì không có e2e sống nào của riêng nó. Sửa sang GraphQL đúng chuẩn Phase 93/94, phát hiện thêm URL đúng phải là gateway (`:4000`) chứ không phải port riêng từng service, và cả 3 service `data-plane` không build được (`RouteGroups` field `dashboards` đã xoá ở Phase 95, main.rs 3 service chưa cập nhật). Chạy sống đầu tiên trong lịch sử repo: Zone + FirewallRule tạo qua GraphQL → compile → publish Redis → `waf-edge` load → request thật bị block đúng path, telemetry vòng về `alerting-service` đúng |
 
 ### 🟡 Done-partial / in-progress (9)
 
