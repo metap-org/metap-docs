@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (69)
+### ✅ Done (70)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -121,6 +121,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [97. `platform_fields` — mọi output không phải scalar giờ là GraphQL object type thật](97-platform-fields-typed-objects.md) | Đóng nợ Phase 95/96 để lại — `AdminUserSummary`/`Policy`/`CronJob`/`OAuthClient`/`DashboardConfig`/... giờ là `Object` type thật (`JsonHandle`, cùng cơ chế `RecordHandle` của entity), thay `Json` scalar. Field thật sự không có shape cố định (trigger/target config, policy condition, config value) vẫn giữ `Json` có chủ đích. Mọi e2e test liên quan phải thêm selection set thật — tự nó là 1 phép verify việc type hoá có hiệu lực |
 | [98. Chứng minh sống pipeline `control-plane` → `edge-plane`, tìm ra 2 bug thật đang chặn đường](98-control-edge-live-e2e-proof.md) | `metap-demo-waf`'s `control-plane` hoá ra đã hỏng hoàn toàn từ 2026-09-21 (vẫn gọi REST `/api/{entity}` đã bị xoá) — không ai biết vì không có e2e sống nào của riêng nó. Sửa sang GraphQL đúng chuẩn Phase 93/94, phát hiện thêm URL đúng phải là gateway (`:4000`) chứ không phải port riêng từng service, và cả 3 service `data-plane` không build được (`RouteGroups` field `dashboards` đã xoá ở Phase 95, main.rs 3 service chưa cập nhật). Chạy sống đầu tiên trong lịch sử repo: Zone + FirewallRule tạo qua GraphQL → compile → publish Redis → `waf-edge` load → request thật bị block đúng path, telemetry vòng về `alerting-service` đúng |
 | [99. `zones-service`'s create/update/delete guards đã hoàn toàn unreachable — sửa 3/4, chốt gap còn lại](99-zones-service-guard-reachability-fix.md) | Cả 4 guard (`zone_domain_guard`/`firewall_rule_match_condition_guard`/`ip_access_list_value_guard`/`zone_delete_guard`) là axum middleware gắn REST path đã xoá — `zones-service` không tự mount GraphQL nên gRPC là đường mutation duy nhất, chưa từng chạm guard nào. Hậu quả sống: nút "Create Zone" ở Onboarding thật hard-fail `domainId required`. Sửa `metap-grpc` core (`GrpcRecordService`/`OptionalServeConfig` nhận `Arc<dyn RecordBackend>` thay vì `Arc<CrudService>`) + `GuardedZonesBackend` mới port 3/4 guard vào `create`/`update`. `zone_delete_guard`'s cross-service check là gap có chủ đích chưa đóng — cần chốt hướng kết nối 3 service. Verify sống qua gateway thật: tạo Zone không truyền `domainId` (đúng payload portal thật) → thành công |
+| [100. `zone_delete_guard`'s cross-service reference check, đóng gap Phase 99 để lại](100-zone-delete-cross-service-check.md) | Chủ dự án chốt "port hết sang graphql". Không dùng service-account (sai tenant scoping cho bảng `Schema`-strategy chung) — mint token mới cùng tenant/user với request gốc (dùng chung key JWKS/RSA 3 service đã share), gán vào `forwarded_bearer_token`. Kết nối gRPC tới 2 service kia là lười + chỉ cache khi thành công (`CrossServiceLink`) — `zones-service` không phụ thuộc boot-time vào 2 service kia, giữ đúng "3 service độc lập triển khai". Verify sống đầy đủ qua gateway thật: zone không tham chiếu → xoá được; zone có `ScanJob` tham chiếu → chặn `409 record_referenced`; xoá `ScanJob` xong → xoá zone lại được |
 
 ### 🟡 Done-partial / in-progress (9)
 

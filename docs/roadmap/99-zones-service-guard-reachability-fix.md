@@ -101,8 +101,9 @@ guard test ở trên gọi thẳng `RecordBackend` trong process) — vì mục 
 
 ### Còn nợ
 
-- `zone_delete_guard`'s cross-service check — xem mục "Gap có chủ đích" ở trên, cần chủ dự án chốt
-  hướng kết nối 3 service. (3 `http_server.rs` test đã đóng cùng ngày, xem mục "Phát hiện phụ".)
+- ~~`zone_delete_guard`'s cross-service check~~ — **đóng cùng ngày**, xem
+  [Phase 100](100-zone-delete-cross-service-check.md) (chủ dự án chốt hướng: "port hết sang
+  graphql", không dừng ở việc cờ lại).
 - Chưa test sống pillar DDoS/IpAccessList qua cùng cơ chế `GuardedZonesBackend` (chỉ Zone +
   FirewallRule + IpAccessList validate được test trực tiếp; DDoS create không đi qua guard nào cả
   nên không cần, nhưng chưa xác nhận sống qua portal thật).
