@@ -45,8 +45,9 @@ không giới hạn, nên doc comment của hàm nói thẳng điều này.
 - `graphql-gateway` không tự enforce (không có roles, không có policy) — nó forward token và upstream
   gRPC enforce; một upstream cũ chưa có bản vá này vẫn phục vụ token scoped như session đầy đủ.
 - Chưa có UI chọn scope/ánh xạ scope → mô tả cho consent screen (consent đã hiện scope thô).
-- Còn nợ Phase 88: job dọn code/refresh-token hết hạn. (`client_credentials` và consent screen đã
-  có code + test e2e từ trước — dòng "Còn nợ" của Phase 88 ở `roadmap.md` lỗi thời ở 2 mục đó.)
+- Còn nợ Phase 88: chưa binary nào gọi `metap_oauth_server::run_cleanup` (thư viện dọn code/
+  refresh-token hết hạn đã có + e2e từ `fb72c80`; bản đầu của dòng này ghi nhầm là chưa có gì).
+  `client_credentials` và consent screen cũng đã có code + test e2e từ trước.
 
 ### Xác minh
 
@@ -70,5 +71,9 @@ không giới hạn, nên doc comment của hàm nói thẳng điều này.
   `rbac_abac_integration_postgres.rs` cần Redis/DragonflyDB (sandbox không có), 2 doctest
   `metap-grpc/src/serve.rs` không resolve được crate `metap`. Chạy song song (`--test-threads=4`)
   một số suite `metap-http`/`metap-crud` fail do dùng chung state DB — chạy tuần tự thì pass hết.
-- **Chưa kiểm**: chưa chạy `metap-lowcode`/`metap-demo-waf` với bản này (chỉ đảm bảo không đổi chữ
-  ký hàm công khai nào, chỉ thêm); `graphql-gateway` không đổi nên không có test riêng.
+- **Đã kiểm 2026-10-14**: chạy build + clippy + test (gồm e2e trên Postgres thật) của `metap-lowcode`
+  (41/41) và `metap-demo-waf` (`data-plane` 26/26, `control-plane` 28, `edge-plane` 43) với bản này —
+  không lỗi nào do scope. Chạy lộ 3 lỗi có sẵn, không liên quan: fixture `table_name: "records"` trong
+  `metap-lowcode` (+ test migrate legacy làm bẩn DB khi fail giữa chừng) và `result_large_err` của
+  clippy 1.99 ở `scanning-service`; đã sửa ở PR riêng của 2 repo đó. `graphql-gateway` không đổi nên
+  không có test riêng.
