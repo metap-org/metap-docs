@@ -43,7 +43,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 
 ---
 
-### ✅ Done (83)
+### ✅ Done (84)
 
 | Phase | Ghi chú (trích nguyên văn từ `../roadmap.md`) |
 |---|---|
@@ -130,6 +130,7 @@ nhưng `docs/features/13-computed-derived-field.md` đã **done (2026-09-02)** t
 | [99. `zones-service`'s create/update/delete guards đã hoàn toàn unreachable — sửa 3/4, chốt gap còn lại](99-zones-service-guard-reachability-fix.md) | Cả 4 guard (`zone_domain_guard`/`firewall_rule_match_condition_guard`/`ip_access_list_value_guard`/`zone_delete_guard`) là axum middleware gắn REST path đã xoá — `zones-service` không tự mount GraphQL nên gRPC là đường mutation duy nhất, chưa từng chạm guard nào. Hậu quả sống: nút "Create Zone" ở Onboarding thật hard-fail `domainId required`. Sửa `metap-grpc` core (`GrpcRecordService`/`OptionalServeConfig` nhận `Arc<dyn RecordBackend>` thay vì `Arc<CrudService>`) + `GuardedZonesBackend` mới port 3/4 guard vào `create`/`update`. `zone_delete_guard`'s cross-service check là gap có chủ đích chưa đóng — cần chốt hướng kết nối 3 service. Verify sống qua gateway thật: tạo Zone không truyền `domainId` (đúng payload portal thật) → thành công |
 | [100. `zone_delete_guard`'s cross-service reference check, đóng gap Phase 99 để lại](100-zone-delete-cross-service-check.md) | Chủ dự án chốt "port hết sang graphql". Không dùng service-account (sai tenant scoping cho bảng `Schema`-strategy chung) — mint token mới cùng tenant/user với request gốc (dùng chung key JWKS/RSA 3 service đã share), gán vào `forwarded_bearer_token`. Kết nối gRPC tới 2 service kia là lười + chỉ cache khi thành công (`CrossServiceLink`) — `zones-service` không phụ thuộc boot-time vào 2 service kia, giữ đúng "3 service độc lập triển khai". Verify sống đầy đủ qua gateway thật: zone không tham chiếu → xoá được; zone có `ScanJob` tham chiếu → chặn `409 record_referenced`; xoá `ScanJob` xong → xoá zone lại được |
 | [101. Chốt hướng "ledger drift" ở `metap-reconciler` — quyết định không xây thêm code](101-reconciler-ledger-drift-decision.md) | Rà lại 2 gợi ý cũ trước khi chọn: re-derive toàn bộ từ `pg_catalog` bị loại (audit cũ đã xác nhận mọi tín hiệu khác sync trigger đã tự lấy tươi sẵn); cross-check định kỳ trong `reconciler-orchestrator`'s poll loop hoá ra sai chỗ (orchestrator chỉ tick entity low-code, cả 3 sự cố thật đều ở entity code-authored, không nằm trong hàng đợi đó). Quyết định: không xây thêm — `introspect()` tự verify qua `pg_catalog` mỗi lần reconcile (đã xong từ Phase 84) là đủ, rủi ro còn lại là vận hành/hạ tầng, không phải thiết kế |
+| [102. Enforce OAuth2 `scope` vào RBAC/ABAC — token của client được admin duyệt không còn là admin](102-oauth2-scope-enforcement.md) | Gate scope trong `PermissionService::check_action` trước admin bypass (`read|write|delete|transition:<entity-hoặc-*>`, scope rỗng = không cấp gì); bề mặt admin cần scope `admin`; sửa lỗ hổng gRPC bỏ rơi claim `scope` (token scoped là session đầy đủ qua gRPC/`graphql-gateway`) bằng `RequestContext::apply_oauth_grant`. Chưa enforce theo field |
 
 ### 🟡 Done-partial / in-progress (8)
 
