@@ -54,6 +54,9 @@ là mặt HTTP: `GET /oauth/authorize`, `POST /oauth/token`, `POST /oauth/revoke
   cho nhóm lỗi đó — đơn giản hoá có chủ đích, ghi lại trong doc comment của route.
 - Không có job dọn dẹp code/refresh-token hết hạn — khác `metadata.audit_trail_entries` (không
   prune là yêu cầu compliance), đây thuần là gap chưa làm, để lại cho phase sau.
+  **Cập nhật 2026-10-14**: phần thư viện đã có (`metap_oauth_server::cleanup` — `delete_expired` +
+  vòng lặp `run`, e2e `cleanup_postgres.rs`, thêm ở commit `fb72c80`), nhưng chưa binary nào gọi
+  `run_cleanup` nên các bảng vẫn phình trên thực tế. Việc còn lại là wire, không phải viết mới.
 
 **Access token là JWT nền tảng bình thường**, mint qua đúng trust root `mint_jwt`/`metap-jwks` mọi
 session khác dùng — để `AuthContext` verify được ngay, không cần đường decode mới. Thêm 2 claim
@@ -129,7 +132,8 @@ sạch. `cargo test --workspace` (unit): không fail nào phát sinh. E2e sống
 - Màn hình consent thật (frontend) — hiện tại mọi caller đã đăng nhập coi như đồng ý.
 - Enforce `scope` vào RBAC/ABAC một cách hệ thống — hiện chỉ *hiện diện* qua `context_attributes`,
   chưa có route nào tự động gate theo nó; cần chủ dự án chốt hướng.
-- Job dọn code/refresh-token hết hạn (2 bảng này không phải loại "never prune" như audit trail).
+- ~~Job dọn code/refresh-token hết hạn~~ — thư viện xong (xem cập nhật 2026-10-14 ở trên); còn nợ:
+  wire `run_cleanup` vào một binary (2 bảng này không phải loại "never prune" như audit trail).
 - `GET /.well-known/oauth-authorization-server` trả path tương đối, không phải absolute URI như
   RFC 8414 yêu cầu nghiêm ngặt — nền tảng chưa có config base-URL công khai nào để dùng.
 
