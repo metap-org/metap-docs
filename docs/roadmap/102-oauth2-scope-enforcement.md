@@ -45,8 +45,9 @@ không giới hạn, nên doc comment của hàm nói thẳng điều này.
 - `graphql-gateway` không tự enforce (không có roles, không có policy) — nó forward token và upstream
   gRPC enforce; một upstream cũ chưa có bản vá này vẫn phục vụ token scoped như session đầy đủ.
 - Chưa có UI chọn scope/ánh xạ scope → mô tả cho consent screen (consent đã hiện scope thô).
-- Còn nợ Phase 88: chưa binary nào gọi `metap_oauth_server::run_cleanup` (thư viện dọn code/
-  refresh-token hết hạn đã có + e2e từ `fb72c80`; bản đầu của dòng này ghi nhầm là chưa có gì).
+- Còn nợ Phase 88: đã xong 2026-10-15 — `cron-scheduler` giờ gọi `metap_oauth_server::run_cleanup`
+  (thư viện đã có + e2e từ `fb72c80`; bản đầu của dòng này ghi nhầm là chưa có gì, rồi từng chỉ
+  "chưa ai gọi").
   `client_credentials` và consent screen cũng đã có code + test e2e từ trước.
 
 ### Xác minh
