@@ -60,6 +60,16 @@ là mặt HTTP: `GET /oauth/authorize`, `POST /oauth/token`, `POST /oauth/revoke
   (`oauth_cleanup::run`, vòng thứ 4 trong `try_join!`; `OAUTH_CLEANUP_INTERVAL_SECONDS`, mặc định
   3600, `0` tắt; dùng pool `DATABASE_URL` chứ không phải `OUTBOX_DATABASE_URL`; bỏ qua với 1 dòng
   info nếu chưa apply migration 0034). Có e2e `tests/oauth_cleanup_postgres.rs` và đã chạy binary thật.
+  **Xoá theo lô, 2026-10-22** (`metap` PR #36): lượt quét đầu tiên sau khi wire có thể phải xử lý
+  mọi dòng tích luỹ từ Phase 88 đến giờ, mà một `DELETE` không giới hạn trên hàng triệu dòng giữ
+  lock và làm phình WAL suốt cả câu lệnh. `delete_expired` giờ lặp
+  `DELETE ... WHERE id IN (SELECT id ... LIMIT n FOR UPDATE SKIP LOCKED)` với `DELETE_BATCH_SIZE`
+  (5000) đến khi một câu xoá ít hơn `n` dòng, dùng một cutoff duy nhất cho cả lượt quét; `SKIP
+  LOCKED` để nhiều instance `cron-scheduler` chạy cùng lúc chia việc thay vì chặn nhau.
+  `delete_expired_in_batches` nhận batch size tường minh để e2e chứng minh được vòng lặp (6 code =
+  bội số đúng của lô, 7 token = có phần dư, lô cỡ 3) — đã kiểm chứng đây là guard thật: ép vòng lặp
+  dừng sau 1 lô thì test mới fail còn test cũ vẫn pass. 2 test cleanup giờ dùng chung 1 lock vì mỗi
+  test quét cả bảng và lượt quét của test kia xoá mất dòng nó sắp đếm.
 
 **Access token là JWT nền tảng bình thường**, mint qua đúng trust root `mint_jwt`/`metap-jwks` mọi
 session khác dùng — để `AuthContext` verify được ngay, không cần đường decode mới. Thêm 2 claim
