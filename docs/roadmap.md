@@ -154,9 +154,11 @@ ownership/process của team, xem `docs/team-charter.md`, `docs/CONTRIBUTING.md`
 Năm ý còn lại (cập nhật 2026-10-14) từ thảo luận kiến trúc, hợp lý về sản phẩm nhưng chưa có trigger cụ thể nên chưa
 được lên thành phase: workflow hai chế độ (in-process + cross-module), Tiny deployment profile (single binary, không RabbitMQ),
 schema versioning cho entity, entity variant kiểu polymorphic/discriminated-union (tự đánh giá rủi ro cao nhất), và Phase 9
-(Multi-Service Evolution). Hai ý đã ra khỏi danh sách: computed/derived field **xong** (2026-09-02,
+(Multi-Service Evolution). Ba ý đã ra khỏi danh sách: computed/derived field **xong** (2026-09-02,
 `docs/features/13-computed-derived-field.md`); migration path generic-table → bảng riêng **xong** (Phase 86 bỏ hẳn bảng `records`);
-metadata low-code theo từng Tenant đã chốt hướng ("Approved", 2026-09-06). Chi tiết ở `docs/team-charter.md`'s
+metadata low-code theo từng Tenant **xong** (2026-10-26 — `docs/features/15-tenant-scoped-lowcode-metadata.md`,
+`metap` PR #37 + `metap-lowcode` PR #6; xem feature doc's mục "Thực thi" cho các điểm khác thiết kế gốc do repo
+đổi nhiều giữa lúc chốt thiết kế và lúc code). Chi tiết ở `docs/team-charter.md`'s
 "Định hướng đang ghi nhận, chưa có trigger" và `docs/roadmap/00-index.md`. Không bắt đầu việc nào trong số này mà chưa có
 feature brief (`docs/features/`) nêu trigger cụ thể.
 

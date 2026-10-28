@@ -31,7 +31,10 @@ Khác với 3 bảng bên dưới (theo dõi *phase đã hoặc đang code*), m�
 và Metadata low-code theo từng Tenant (trigger + storage chốt, còn 2 câu hỏi kỹ thuật mở) — không
 còn là "chưa quyết định" nữa. Migration path đã đi tiếp thành in-progress cùng ngày (cơ chế cốt lõi
 code + verify sống xong, còn nợ 1 lần chạy thật trên `../metap-demo-crm`) nên giờ nằm ở nhóm
-"🟡 Done-partial" trong `../features/00-index.md`; Metadata low-code theo Tenant vẫn ở "🟢 Approved".
+"🟡 Done-partial" trong `../features/00-index.md`; Metadata low-code theo Tenant đã **done
+2026-10-26** (`metap#37` + `metap-lowcode#6`, xem `../features/00-index.md`'s mục ✅ Done và
+`../features/15-tenant-scoped-lowcode-metadata.md`'s mục "Thực thi" — không còn ở "🟢 Approved"
+nữa, mục đó hiện trống).
 
 **Lưu ý stale đã phát hiện khi soát lại (2026-09-04, cập nhật 2026-09-06)**: `../roadmap.md`'s
 đoạn "Định hướng chưa lên phase" liệt kê **7** ý ban đầu bao gồm cả "computed/derived field" —

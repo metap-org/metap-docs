@@ -80,6 +80,7 @@ checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit ha
 | [33. Bootstrap app qua YAML (entity + `graphql-gateway`) kèm custom handler](33-declarative-yaml-app-bootstrap.md) | Backend Core + Backend Ops-Infra | không thuộc phase nào | done 2026-09-07 — `metap-app::entities_yaml` (nạp `EntityDefinition` từ YAML) + `metap-graphql-gateway`'s `UPSTREAM_CONFIG_FILE`; custom handler dùng nguyên `HandlerRegistry` đã có, không thêm cơ chế mới; chưa có binary nào migrate sang dùng thật |
 | [34. `metap-reconciler`: fix root cause gap "transition-state" + chế độ `plan()` generate-SQL](34-reconciler-plan-mode-and-unique-transition-fix.md) | Backend Core | không thuộc phase nào | done 2026-09-11 — `topo_sort` reorder (mọi drop trước mọi create trong nhóm FK/unique/index) đóng gap tái hiện 2 lần độc lập (Phase 80/82); `plan()` (thuần Rust, không DB) + `dev-tools reconcile-plan` thêm chế độ generate-SQL-cho-dev-tự-apply, cộng thêm không thay `reconcile()` auto-apply; verify sống: test mới xác nhận fail trên code cũ rồi pass sau fix, `dev-tools reconcile-plan` chạy thật không side-effect |
 | [35. Cô lập schema thật theo từng tenant (`TenantStrategy::Schema`)](35-per-tenant-schema-isolation.md) | Backend Core | không thuộc phase nào | done 2026-09-11 — nợ kỹ thuật #2 từ Phase 82; `create_tenant_schema` clone 16 bảng có `tenant_id` (loại trừ `tenant_hostnames`/`outbox_events` có chủ đích) vào schema `t_<uuid>` riêng mỗi tenant qua `CREATE TABLE ... LIKE`, tự tay `ADD CONSTRAINT` lại 3 FK (LIKE không copy FK); idempotent để giữ đúng lỗi `409 duplicate` cũ; tenant cũ trên `public` không đụng, chưa migrate dữ liệu thật (theo yêu cầu); verify sống: 2 tenant provision thật, ghi/đọc qua `Router::begin()` thật xác nhận không rò rỉ chéo, FK enforce đúng trong schema mới |
+| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | không thuộc phase nào | done 2026-10-26 — `metap#37` (squash `0acee038`) + `metap-lowcode#6` (squash `a5494647`); `MetadataResolver` trait (`metap-metadata`) + `tenant_id` thêm vào `low_code_entity_drafts`/`low_code_entity_versions`; `TenantMetadataResolver` (`metap-lowcode::infra`) xây xong nhưng chưa wire vào service nào (gap "T5" phân phối registry vẫn mở); khác vài điểm so với thiết kế gốc 2026-09-07 — xem file này's mục "Thực thi (2026-10-25/26) — khác gì so với thiết kế đã chốt" |
 
 ### 🟡 Done-partial
 
@@ -91,9 +92,7 @@ checklist rồi audit 03 dẫn tới, xem từng file's "Ghi chú" cho commit ha
 
 ### 🟢 Approved (trigger có, đang scoping/thiết kế, chưa code)
 
-| Tính năng | Track | Ghi chú |
-|---|---|---|
-| [15. Metadata low-code theo Tenant](15-tenant-scoped-lowcode-metadata.md) | Backend Core | Trigger + storage chốt 2026-09-06; thiết kế registry resolution + FE codegen chốt 2026-09-07 (ADR viết xong) — sẵn sàng code, chưa code |
+_(hiện không có mục nào — mục 15 đã chuyển sang ✅ Done ở trên, 2026-10-26)_
 
 ### ⚪ Pending (proposed, chưa có trigger)
 
