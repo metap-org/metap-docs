@@ -146,7 +146,7 @@ nhanh). Độ khó/effort là ước lượng định tính, không phải estim
 | 5 | Computed/derived field | [`13`](features/13-computed-derived-field.md) — **approved, đang implement 2026-09-02** | (chủ động implement, không chờ trigger) | TB | M |
 | 6 | Schema versioning cho entity | [`14`](features/14-entity-schema-versioning.md) | 1 entity cần đổi field shape không muốn migrate hết record cũ | Cao | L-XL |
 | 7 | Organization & Identity P1/P2 (positions/locations, manager self-ref, org chart) | [`03`](features/03-organization-identity.md) — **P1 done 2026-09-02**, P2 chưa có trigger | Chưa có, P0 đã xong | Thấp (P1) / TB (P2) | S-M (P1) |
-| 8 | Metadata low-code theo Tenant | [`15`](features/15-tenant-scoped-lowcode-metadata.md) | Chưa tenant nào cần entity/field khác shape nhau | Cao | XL |
+| 8 | Metadata low-code theo Tenant | [`15`](features/15-tenant-scoped-lowcode-metadata.md) — **done 2026-10-26** | (đã có trigger 2026-09-06, xong) | Cao | XL |
 | 9 | Cross-entity relations Mode 1 (denormalize lúc ghi) | [`05`](features/05-cross-entity-relations.md) | Nghiệp vụ cần snapshot (audit trail, hoá đơn) | Thấp | S-M |
 | 10 | Cross-entity relations Mode 3 (JOIN thật) | [`05`](features/05-cross-entity-relations.md) | Nhu cầu filter/sort xuyên entity thật | Rất cao | XL |
 | 11 | Entity variant polymorphic/discriminated-union | [`16`](features/16-entity-variant-polymorphic.md) | 1 entity thật cần nhiều schema trong cùng logical collection | **Cao nhất** | XL |
@@ -262,11 +262,17 @@ còn lại vẫn giữ nguyên "chưa nên bắt đầu" cho tới khi có trigg
     Theo tenant nghĩa là endpoint này cần biết "hỏi cho tenant nào", và bước codegen (chạy lúc
     dev, không phải lúc runtime của một tenant cụ thể) cần một câu trả lời riêng — chưa nghĩ tới,
     không hand-wave ở đây.
-  - **Trigger: chưa có.** Tầng data (bảng `records` JSONB) đã cho mỗi tenant dữ liệu hoàn toàn
-    riêng trên cùng một schema — "mỗi tenant là một business" hôm nay đã đúng ở mức dữ liệu.
-    Chưa tenant nào trong repo cần entity/field *khác nhau về shape* so với tenant khác. Khi
-    trigger đó xảy ra thật, viết feature brief riêng (`docs/features/`) trước khi code, đúng quy
-    trình.
+  - **Trigger: chưa có** *(lúc viết đoạn trên, 2026-08-22)*. Tầng data (bảng `records` JSONB) đã
+    cho mỗi tenant dữ liệu hoàn toàn riêng trên cùng một schema — "mỗi tenant là một business"
+    hôm nay đã đúng ở mức dữ liệu. Chưa tenant nào trong repo cần entity/field *khác nhau về
+    shape* so với tenant khác. Khi trigger đó xảy ra thật, viết feature brief riêng
+    (`docs/features/`) trước khi code, đúng quy trình.
+  - **Trigger đã tới 2026-09-06** (chủ dự án chốt trực tiếp "nhất định phải làm với
+    `metap-lowcode`" — SaaS pitch cần mỗi tenant tự tuỳ biến schema), thiết kế chốt 2026-09-07,
+    **done 2026-10-26**. Cả câu hỏi "registry resolution" và "metadata nên sống ở đâu" ở 2 bullet
+    trên đều đã trả lời — xem `docs/features/15-tenant-scoped-lowcode-metadata.md`'s "Thiết kế đã
+    chốt" và "Thực thi" cho chi tiết thật đã code (`MetadataResolver` trait, `metap` PR #37,
+    `metap-lowcode` PR #6).
 - **Cross-entity relations trong list view — Mode 1 (denormalize lúc ghi) và Mode 3 (JOIN thật)**
   (Mode 2 — batch-hydrate `refDisplayField` sau khi list — đã xong 2026-08-22, xem
   `docs/roadmap.md` và `docs/features/05-cross-entity-relations.md`; mục này chỉ còn giữ 2 hướng

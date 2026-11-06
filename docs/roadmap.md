@@ -149,14 +149,18 @@ ownership/process của team, xem `docs/team-charter.md`, `docs/CONTRIBUTING.md`
 
 | [102. Enforce OAuth2 `scope` vào RBAC/ABAC — token của client được admin duyệt không còn là admin](roadmap/102-oauth2-scope-enforcement.md) | Done 2026-10-14 — trigger: chủ dự án chọn hướng "scope OAuth2" trong 3 hướng gợi ý. Nợ bảo mật còn lại của Phase 88: scope chỉ hiện diện trong `context_attributes`, không ai enforce, nên client bên thứ ba được admin duyệt consent làm được mọi việc admin làm được. Gate đặt trong `PermissionService::check_action` **trước** admin bypass (điểm hẹp duy nhất 5 `can_*_entity` đều đi qua — phủ GraphQL/gRPC/attachments cùng lúc): cú pháp `read|write|delete|transition:<entity-hoặc-*>`, scope rỗng = không cấp gì, token không scope (session thường) không đổi. Bề mặt admin (`AdminContext`/`PlatformAdminContext`/mọi field `platform_fields`) cần scope `admin` tường minh. Lỗ hổng tìm thấy khi làm: `metap-grpc::authenticate` **bỏ rơi hoàn toàn claim `scope`**, nên token scoped là session đầy đủ qua gRPC và qua `graphql-gateway` — sửa bằng helper dùng chung `RequestContext::apply_oauth_grant` cho cả 2 transport. Verify: 6 unit test mới, 1 e2e HTTP/GraphQL mới + 3 assertion gRPC trên Postgres thật. Chưa enforce theo field. Đã chạy `metap-lowcode`/`metap-demo-waf` với bản này 2026-10-14: không lỗi do scope, nhưng lộ 3 lỗi có sẵn không liên quan (fixture `records` trong `metap-lowcode`, `result_large_err` của clippy 1.99 trong `scanning-service`) — đã sửa ở PR riêng của 2 repo đó |
 
+| [103. Index theo tenant, unique theo tenant, field hệ thống, partition audit](roadmap/103-tenant-scoped-indexes-system-fields-audit-partitions.md) | Done 2026-11-06 — trigger: thiết kế database Management của WAAP (ADR-0046 bên `metap-demo-waf`), chủ dự án chốt sửa ở `metap-go` thay vì vá trong sản phẩm. MG1: mọi bảng entity có index `tenant_id`, index field thành `(tenant_id, field)`. MG2: `uniqueScope` `tenant` (mặc định mới) / `global`. MG4: partition `audit_trail_entries` theo tháng (migration 0038), `cron-scheduler` tạo trước partition, không xoá dòng nào. MG5: field `system` + `CrudService.SetSystemFields` không tăng version, không audit. Lỗi thật tìm thấy: `DROP INDEX CONCURRENTLY IF EXISTS` không ghi schema nên im lặng không làm gì — nguyên nhân gốc của gap "partial unique index không hội tụ" trước đây phải `DROP INDEX` bằng tay. MG3 (entity append-only có partition) chưa làm. Verify: unit + 3 e2e mới trên PostgreSQL 16 thật, `metap-demo-waf`/`metap-lowcode` build và test pass |
+
 ## Định hướng chưa lên phase (chưa có trigger)
 
 Năm ý còn lại (cập nhật 2026-10-14) từ thảo luận kiến trúc, hợp lý về sản phẩm nhưng chưa có trigger cụ thể nên chưa
 được lên thành phase: workflow hai chế độ (in-process + cross-module), Tiny deployment profile (single binary, không RabbitMQ),
 schema versioning cho entity, entity variant kiểu polymorphic/discriminated-union (tự đánh giá rủi ro cao nhất), và Phase 9
-(Multi-Service Evolution). Hai ý đã ra khỏi danh sách: computed/derived field **xong** (2026-09-02,
+(Multi-Service Evolution). Ba ý đã ra khỏi danh sách: computed/derived field **xong** (2026-09-02,
 `docs/features/13-computed-derived-field.md`); migration path generic-table → bảng riêng **xong** (Phase 86 bỏ hẳn bảng `records`);
-metadata low-code theo từng Tenant đã chốt hướng ("Approved", 2026-09-06). Chi tiết ở `docs/team-charter.md`'s
+metadata low-code theo từng Tenant **xong** (2026-10-26 — `docs/features/15-tenant-scoped-lowcode-metadata.md`,
+`metap` PR #37 + `metap-lowcode` PR #6; xem feature doc's mục "Thực thi" cho các điểm khác thiết kế gốc do repo
+đổi nhiều giữa lúc chốt thiết kế và lúc code). Chi tiết ở `docs/team-charter.md`'s
 "Định hướng đang ghi nhận, chưa có trigger" và `docs/roadmap/00-index.md`. Không bắt đầu việc nào trong số này mà chưa có
 feature brief (`docs/features/`) nêu trigger cụ thể.
 

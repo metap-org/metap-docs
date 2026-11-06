@@ -1,9 +1,12 @@
 # Metadata low-code theo từng Tenant
 
-- **Trạng thái:** approved — trigger chốt 2026-09-06, **thiết kế chốt 2026-09-07** (cả 2 câu hỏi mở
-  đã đóng, xem "Thiết kế đã chốt" dưới + ADR mới trong `docs/architectures/09-adr/00-index.md`).
-  Storage đã chốt (control-plane DB tập trung); `metap-lowcode-http` routing hoá ra không cần đổi
-  gì (ghi chú cũ 2026-08-22 đã stale, xem "Rà soát" dưới). Sẵn sàng để code — chưa code.
+- **Trạng thái:** **done 2026-10-26** — thiết kế chốt 2026-09-07, thực thi 2026-10-25/26, merge
+  `metap-org/metap#37` (core: `MetadataResolver` trait, tenant-aware `metap-crud`/`metap-http`/
+  `metap-graphql-http`, migration thêm `tenant_id`) + `metap-org/metap-lowcode#6` (storage/
+  use-case tenant-scoped, `infra::TenantMetadataResolver`). Xem mục "Thực thi (2026-10-25/26)"
+  dưới cho những điểm khác với bản thiết kế gốc — repo đã đổi nhiều giữa lúc chốt thiết kế
+  (2026-09-07) và lúc code (gần 7 tuần: REST entity CRUD bị bỏ hoàn toàn ở `metap` core,
+  `metap-lowcode` restructure sang Clean Architecture).
 - **Người đề xuất:** ghi lại 2026-08-22 từ thảo luận sau khi Phase 18 xong,
   `docs/team-charter.md` ("Định hướng đang ghi nhận, chưa có trigger" #8) — chốt hướng dài hạn cho
   Phase 11C's "quy tắc cô lập schema cấp Tenant" (Phase 11, `docs/roadmap.md`); **kích hoạt
@@ -146,6 +149,60 @@ tenant_id)`.
 **HTTP layer** (`metap-lowcode-http`): mọi route publish/rollback/draft/... lấy `tenant_id` từ
 `AuthContext`/`AdminContext` đã có (không phải request body) — cùng kỷ luật "tenant luôn từ token,
 không bao giờ từ request" `metap-config`/`metap-control` đã áp dụng.
+
+## Thực thi (2026-10-25/26) — khác gì so với thiết kế đã chốt
+
+Thiết kế ở trên (chốt 2026-09-07) vẫn đúng về *hướng*, nhưng repo đã đổi khá nhiều trong gần 7 tuần
+giữa lúc chốt và lúc code — ghi lại đúng kiểu "Ghi chú stale đã sửa" ở trên, không sửa lại phần cũ:
+
+- **REST entity CRUD đã bị bỏ hoàn toàn ở `metap` core trước khi code (Phase 90, 2026-09-21)** —
+  tiêu chí chấp nhận ở dưới nói "qua REST (`/api/:entity*`) lẫn GraphQL" đã sai ngay từ giả định:
+  chỉ còn GraphQL (`POST /graphql`) và gRPC. `metap-graphql-http::SchemaHolder`'s cache đổi thành
+  `HashMap` trong `Mutex` theo `tenant_id` (không dùng `moka` ở tầng này — `GET
+  /graphql/schema.graphql`, route SDL public, vẫn đọc thẳng registry global, không qua resolver,
+  đúng tinh thần "blast radius" đã chốt).
+- **`metap-crud::CrudService` lớn hơn nhiều so với lúc viết thiết kế** — không phải 4 call site
+  như ước lượng ban đầu, mà toàn bộ 9 method (`list`/`get`/`get_many`/`create`/`update`/
+  `transition`/`delete`/`aggregate`/`check_record_permission`, cộng `list_audit_events` gọi qua
+  `check_record_permission`) đều đổi thứ tự: tính `tenant_id` (`scoped_tenant`, hàm thuần, không
+  phụ thuộc entity) **trước** khi tra entity, để tra entity có thể tenant-aware. `CrudService` tự
+  có field `metadata_resolver` riêng (không chỉ `AppState`) — `enrich_record_for_actions`/
+  `hydrate_related_display` nhận registry đã resolve làm tham số thay vì tự đọc registry global
+  lần 2.
+- **`metap-lowcode` đã restructure sang Clean Architecture (2026-09-12) trước khi code** — không
+  còn `store` module/`metap-lowcode-http` crate như bản phác thảo giả định. Tương đương hiện nay:
+  `application::{publish,rollback,preview_publish,build_live_registry,migrate_to_dedicated_table}`
+  (dùng port `application::LowCodeRepository`) + `infra::PostgresLowCodeRepository` (impl thật) +
+  `presenter`'s route handler (`/admin/lowcode/*`, lấy `tenant_id` từ `AdminContext` qua
+  `resolve_pool`, nay trả cả pool và tenant cùng lúc).
+- **`infra::TenantMetadataResolver` build xong nhưng CHƯA wire vào service nào trong
+  `metap-lowcode`** — `services/lowcode-admin-api` không serve entity CRUD traffic (gap T5 —
+  registry distribution giữa process, xem `docs/architecture.md` — vẫn chưa xây), nên không có
+  request path thật nào trong repo này cần resolver này chạy hôm nay. Nó là building block sẵn
+  cho app downstream (ví dụ tương lai) tự wire vào `AppState.metadata_resolver`/`CrudService` của
+  chính nó. `warm()` tồn tại đúng như thiết kế nhưng không có call site thật (chỉ dùng được khi
+  publish và serving nằm trong CÙNG process) — `invalidate()` là đường còn lại cho multi-process,
+  cũng chưa có subscriber thật (vẫn chờ T5).
+- **Storage: tinh chỉnh, không đổi hướng.** Vẫn tập trung ở 1 bảng chia sẻ
+  (`metadata.low_code_entity_drafts`/`_versions`, không phải 1 bản/tenant) đúng như chốt
+  2026-09-06. Nhưng từ Phase 16's `resolve_pool`/`Router::pool_for`, request đã luôn route qua
+  pool của tenant gọi — với tenant `Schema`-strategy đó vẫn là 1 pool chung, nên 2 tenant cùng
+  share pool đó cần cột `tenant_id` để tách hàng; với tenant `DedicatedDb` thì cột này dư ra một
+  chút (DB đã riêng rồi) nhưng vẫn ghi, giống mọi bảng theo-tenant khác trong repo. Migration thật:
+  `metap/crates/migrations/0037_lowcode_entities_tenant_scoped.sql` (file mới, không sửa
+  `0010_low_code_entities.sql` cũ — mỗi đổi schema luôn là migration mới).
+- **Advisory lock key của `insert_version`** đổi từ `hashtext(entity_name)` sang
+  `hashtext("{tenant_id}:{entity_name}")`, và `aggregate_id` của outbox event
+  `lowcode.registry.changed` đổi tương tự — tránh 2 tenant cùng tên entity giẫm lock/event lên
+  nhau. Payload event thêm `tenantId` bên cạnh `entityName` sẵn cho subscriber T5 tương lai lọc
+  đúng tenant khi invalidate, dù chưa có subscriber nào đọc field này hôm nay.
+
+Verify thật: e2e trên Postgres 16 native (môi trường không có Docker) — `metap`'s
+`metap-crud`/`metap-http`/`metap-graphql-http`/`metap-graphql`/`metap-grpc`/`metap-reconciler`/
+`metap-permission` suites (`-- --ignored --test-threads=1`); `metap-lowcode`'s
+`application --test publish_postgres` (28/28) và `metap-reconciler-orchestrator --test
+e2e_postgres` (5/5). `cargo build`/`clippy --workspace --all-targets -- -D warnings` sạch ở cả 2
+repo.
 
 ## Phạm vi
 
