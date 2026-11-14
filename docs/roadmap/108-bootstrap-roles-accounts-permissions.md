@@ -23,7 +23,7 @@ thêm từng quyền bằng tay. Cần khai báo sẵn một lần, chạy lần
 
 ## Đã làm
 
-- `Bootstrap{Roles, Grants, Users}`, `Grant{Role, Entities, Actions}`, `User{Email, Roles, PasswordRef}`;
+- `Bootstrap{Roles, Grants, Users}`, `Grant{Role, Entities, Actions}`, `User{Email, Roles, SecretRef}`;
   `Validate`, `Merge`, `Submit`/`Collect`.
 - `Apply(ctx, Deps, tenantID, Bootstrap, Options{Production})` trả `Result` (số policy tạo/đã có,
   user tạo/đã có/bỏ qua). `Deps` nhận interface nhỏ (`PolicyAdmin`, `Identity`, `PasswordSource`);
@@ -38,7 +38,7 @@ thêm từng quyền bằng tay. Cần khai báo sẵn một lần, chạy lần
 - `app.BootstrapMain`/`RunBootstrap`: process một lần cho từng product, như `db-migrate`. Env:
   `BOOTSTRAP_TENANT_IDS` (danh sách id hoặc `all` = mọi tenant active), `BOOTSTRAP_FILE` (file JSON
   bổ sung theo môi trường, `bootstrap.LoadFile` từ chối field lạ), mật khẩu từ biến env mà
-  `passwordRef` nêu tên, `NODE_ENV=production` thì thiếu mật khẩu là lỗi.
+  `secretRef` nêu tên, `NODE_ENV=production` thì thiếu mật khẩu là lỗi.
 - `app.Run` tự apply khi `BOOTSTRAP_ON_BOOT=true`. Chỉ dành cho product một service: nhiều service
   cùng apply có thể cùng tạo một policy (bảng `policies` không có unique), và mỗi service chỉ biết
   entity của mình nên wildcard sẽ mở thiếu.
