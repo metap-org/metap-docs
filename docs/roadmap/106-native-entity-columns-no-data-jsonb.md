@@ -1,6 +1,6 @@
 # 106. Mỗi field một cột thật, bỏ `data jsonb`
 
-Trạng thái: **đang làm** (2026-11-14). S1 đến S5 đã xong ở `metap` (commit `1604ef2`), S6 và S7 chưa. Trigger: chủ dự án không muốn giá trị field của entity nằm trong cột `data jsonb`.
+Trạng thái: **đang làm** (2026-11-14); đã diễn tập WAF trên DB sao chép (mục 8). S1 đến S5 đã xong ở `metap` (commit `1604ef2`), S6 và S7 chưa. Trigger: chủ dự án không muốn giá trị field của entity nằm trong cột `data jsonb`.
 Quyết định (chủ dự án, 2026-11-14): mỗi field một cột có kiểu; có migration chuyển dữ liệu hiện có từ `data` sang cột.
 
 ## 1. Hiện trạng
@@ -98,3 +98,23 @@ Trả lời câu "đổi entity thì làm gì, migrate xong mà ứng dụng l�
 - **Rollback thiết kế chỉ-thêm**: thêm field/index thì bản cũ bỏ qua cột mới, lùi chỉ là deploy bản cũ. Đổi tên/xoá field/đổi kiểu là thao tác một chiều, làm theo hai bản phát hành (thêm trước, dọn sau khi hết thời gian có thể lùi).
 - **Rollback lần chuyển sang cột thật**: `dev-tools restore-legacy-data` dựng lại `data` từ các cột (cả sau `--drop-data`), tạo lại trigger đồng bộ cũ, xoá dấu "đã backfill" để lần chuyển tiếp theo chép lại từ đầu. Đã test trên PostgreSQL 16: chuyển, drop, ghi một dòng bằng cột, restore, bản cũ ghi một dòng vào `data`, chuyển lại, dòng đó sang cột.
 - **Còn thiếu**: lùi được từng thao tác DDL riêng lẻ (mỗi thao tác là một transaction riêng, chạy dở thì chạy lại để hội tụ); lùi `widen_type`; tự động hoá snapshot trước migration.
+
+## 8. Diễn tập migration cho WAF (2026-11-14)
+
+Chạy trên một DB sao chép, không phải DB dev thật (phiên làm việc không có bản sao đó). Dựng DB bằng metap trước PR #42 để
+10 bảng `waf.waf_*` có đúng dạng cũ (cột `data jsonb`), seed khoảng 490 dòng cho 2 tenant (number, boolean, enum, json, reference).
+
+- `migrate-to-native-columns --all-tenants` rồi `--drop-data` cho cả 10 bảng: sạch. So lại bằng SQL độc lập 56 cột trên 9 bảng, khớp hết với `data`
+  (bảng thứ 10, `ip_access_lists`, migrate sạch nhưng không có cột nào để so).
+- 3 service mới boot 2 lần trên DB đã chuyển: cả 2 lần `ops_applied=0` cho 10 entity.
+- `zones-service` đọc dữ liệu đã chuyển qua gRPC, sắp xếp theo số đúng thứ tự; `datetime` ra dạng `+00:00` như đã nêu ở mục 2.
+- `restore-legacy-data` khôi phục 49/49 dòng khớp, sau đó migrate lại được.
+
+Hai điều phát hiện:
+
+1. **`loadEntityFromFile` nhận file sai dạng thành entity rỗng**: lệnh migrate không làm gì mà vẫn báo "Verification is clean". Đã sửa (entity không tên là lỗi, nhận cả dạng trần lẫn dạng bọc `{"data": ...}`), có test.
+2. **Một dòng có giá trị sai kiểu trong `data` (ví dụ `"n/a"` ở field số) làm migration dừng**, thông báo là lỗi Postgres không nêu dòng hay field. Hành vi an toàn (không bỏ sót dữ liệu) nhưng khó dò: trước khi chạy trên DB thật nên quét các dòng như vậy bằng SQL.
+
+Chưa làm: chạy trên DB dev thật của WAF (cần snapshot trước, chạy theo thứ tự domains, zones, ddos_policies, firewall_rules, ip_access_lists,
+scan_jobs, scan_findings, alert_policies, alert_notifications, incidents), `metap-lowcode` (S6, hoãn theo ưu tiên của chủ dự án), `metap-demo-jira`.
+
