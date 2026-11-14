@@ -87,3 +87,14 @@ Mỗi lát phải qua `go build ./... && go vet ./... && go test ./...` và `go 
 - `CopyGenericRecords` (bảng `records` chung đã bị bỏ ở migration 0033) viết lại để rải `data` lên các cột của bảng đích; không còn nguồn nào dùng nó trong thực tế.
 
 Chưa làm: `NOT NULL` cho field `required` (đề xuất ở mục 5, giữ nguyên), S6 (`metap-lowcode`), S7 (`metap-demo-waf`, dữ liệu thật).
+
+## 7. Đổi entity sau này, và rollback (2026-11-14)
+
+Trả lời câu "đổi entity thì làm gì, migrate xong mà ứng dụng lỗi thì lùi thế nào":
+
+- **Không có file migration sinh ra.** Đổi `EntityDefinition` trong code rồi khởi động lại; `reconcile()` tự áp phần chỉ-thêm (cột nullable, index `CONCURRENTLY`, FK).
+  Xem trước bằng `dev-tools reconcile-plan`, cổng CI bằng `--fail-on-destructive` (thoát khác 0 nếu kế hoạch bỏ FK/unique/trigger hoặc có đổi kiểu cột).
+- **Đổi kiểu field không còn bị bỏ qua im lặng**: `ErrColumnTypeChanged`, phải chạy `widen_type` (viết lại bảng) rồi mới reconcile.
+- **Rollback thiết kế chỉ-thêm**: thêm field/index thì bản cũ bỏ qua cột mới, lùi chỉ là deploy bản cũ. Đổi tên/xoá field/đổi kiểu là thao tác một chiều, làm theo hai bản phát hành (thêm trước, dọn sau khi hết thời gian có thể lùi).
+- **Rollback lần chuyển sang cột thật**: `dev-tools restore-legacy-data` dựng lại `data` từ các cột (cả sau `--drop-data`), tạo lại trigger đồng bộ cũ, xoá dấu "đã backfill" để lần chuyển tiếp theo chép lại từ đầu. Đã test trên PostgreSQL 16: chuyển, drop, ghi một dòng bằng cột, restore, bản cũ ghi một dòng vào `data`, chuyển lại, dòng đó sang cột.
+- **Còn thiếu**: lùi được từng thao tác DDL riêng lẻ (mỗi thao tác là một transaction riêng, chạy dở thì chạy lại để hội tụ); lùi `widen_type`; tự động hoá snapshot trước migration.
