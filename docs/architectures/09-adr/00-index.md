@@ -282,3 +282,11 @@ việc đó là thừa.
   `restore-legacy-data`. Đổi kiểu field bị từ chối thay vì bỏ qua, phải qua migration `widen_type`.
   Đánh đổi chấp nhận: đổi kiểu cột viết lại bảng; mọi đổi field là DDL. Chi tiết:
   `docs/roadmap/106-native-entity-columns-no-data-jsonb.md`.
+- **Backend chuyển từ Rust sang Go (2026-10-30, chủ dự án quyết định).** Go (`github.com/metap-org/metap`,
+  từ 2026-11-07 ở gốc repo, package dưới `pkg/`) là bản triển khai backend duy nhất; thư mục `crates/` bị xoá,
+  giữ nguyên ranh giới tầng (không route nào chạm driver SQL, không package thư viện nào biết entity nghiệp vụ).
+  Quyết định này thay mục "Backend: Rust" ở đầu file. **Lý do chuyển chưa được ghi lại ở đâu trong tài liệu**:
+  `CLAUDE.md` chỉ ghi đây là quyết định của chủ dự án. Cần chủ dự án bổ sung lý do vào đây. Hệ quả đã biết:
+  không có tương đương Go cho `metap-graphql*`/`metap-app` (Go giữ REST, GraphQL động chưa port), bốn workflow
+  chaos/benchmark/pentest bị xoá chứ chưa port (mất phủ kiểm thử có chủ đích), các repo downstream phải tự
+  chuyển sang module Go.
