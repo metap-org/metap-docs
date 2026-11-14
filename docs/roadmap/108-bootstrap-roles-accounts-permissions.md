@@ -1,6 +1,6 @@
 # 108. Bootstrap role, tài khoản và quyền khi chạy lần đầu
 
-**Trạng thái:** lát 1 và 2 xong 2026-11-14 (`pkg/bootstrap` trong metap). Lát 3 và 4 chưa làm.
+**Trạng thái:** xong 4 lát, 2026-11-14 (metap-org/metap#46, metap-org/waap#36).
 
 ## Vấn đề
 
@@ -33,16 +33,41 @@ thêm từng quyền bằng tay. Cần khai báo sẵn một lần, chạy lần
 - Test: unit bằng fake (wildcard, additive, production, validate) và integration với Postgres thật
   cho đường tạo user.
 
+## Lát 3 và 4 (đã làm)
+
+- `app.BootstrapMain`/`RunBootstrap`: process một lần cho từng product, như `db-migrate`. Env:
+  `BOOTSTRAP_TENANT_IDS` (danh sách id hoặc `all` = mọi tenant active), `BOOTSTRAP_FILE` (file JSON
+  bổ sung theo môi trường, `bootstrap.LoadFile` từ chối field lạ), mật khẩu từ biến env mà
+  `passwordRef` nêu tên, `NODE_ENV=production` thì thiếu mật khẩu là lỗi.
+- `app.Run` tự apply khi `BOOTSTRAP_ON_BOOT=true`. Chỉ dành cho product một service: nhiều service
+  cùng apply có thể cùng tạo một policy (bảng `policies` không có unique), và mỗi service chỉ biết
+  entity của mình nên wildcard sẽ mở thiếu.
+- `bootstrap.ScopedIdentity` đi qua `Router.PoolFor`, nên user của tenant `dedicated_db` được tạo
+  đúng database của nó.
+- `dev-tools apply-bootstrap <tenantId> <bootstrap.json> [entity.json ...]` cho khai báo thuần JSON;
+  `provision-tenant` in nhắc chạy bootstrap sau khi tạo tenant. Chưa gọi tự động từ
+  `provision-tenant` vì dev-tools không biết entity của product nào.
+- waap: `m-bootstrap/` với persona `security_analyst`, `developer`, `viewer` (Tenant Admin là role
+  `admin` có sẵn, Platform Admin vẫn là `dev-tools bootstrap-platform-admin`) và
+  `cmd/waf-bootstrap` blank-import entity của cả 3 service.
+
+## Kiến trúc: bootstrap nằm ở đâu khi tách microservice
+
+Mỗi product có một process bootstrap riêng, không nằm trong từng service. Lý do: quyền của một role
+trải qua entity của nhiều service, wildcard chỉ mở đúng khi thấy cả registry của product, và việc
+này chạy một lần mỗi lần deploy chứ không theo vòng đời của service. Process đó chạy trước hoặc
+cùng lúc deploy (job/init container), cùng kiểu với migration.
+
 ## Giới hạn đã biết
 
 - Chưa có cột `source=bootstrap` trên `policies`. Hệ quả: nếu admin xoá một policy do bootstrap tạo
   thì lần chạy sau tạo lại nó. Thêm cột (migration + `PolicyRow`) khi lát 3 cần phân biệt.
 - Role của user chỉ gán lúc tạo user mới; user đã có thì không bổ sung role thiếu.
+- Persona waap mới là entity-level; chưa có field-level hay điều kiện ABAC (ví dụ analyst chỉ thấy
+  zone được giao).
 
-## Còn lại
+## Còn lại (nếu muốn làm tiếp)
 
-- Lát 3: móc vào `provision-tenant` và `app.Main`, thêm `dev-tools apply-bootstrap`; mỗi product có
-  một process bootstrap một lần (như `db-migrate`) blank-import các package entity để gom mảnh khai
-  báo.
-- Lát 4: persona của waap (Platform Admin, Tenant Admin, Security Analyst, Developer, Viewer), cột
-  `source`, tài liệu hướng dẫn, ghi chú kiến trúc "product layout".
+- Cột `source` trên `policies` để phân biệt policy do bootstrap tạo.
+- Ép đổi mật khẩu ở lần đăng nhập đầu.
+- Gọi bootstrap tự động sau `provision-tenant` khi có đường để product đăng ký hook.
