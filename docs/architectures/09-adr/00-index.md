@@ -285,8 +285,10 @@ việc đó là thừa.
 - **Backend chuyển từ Rust sang Go (2026-10-30, chủ dự án quyết định).** Go (`github.com/metap-org/metap`,
   từ 2026-11-07 ở gốc repo, package dưới `pkg/`) là bản triển khai backend duy nhất; thư mục `crates/` bị xoá,
   giữ nguyên ranh giới tầng (không route nào chạm driver SQL, không package thư viện nào biết entity nghiệp vụ).
-  Quyết định này thay mục "Backend: Rust" ở đầu file. **Lý do chuyển chưa được ghi lại ở đâu trong tài liệu**:
-  `CLAUDE.md` chỉ ghi đây là quyết định của chủ dự án. Cần chủ dự án bổ sung lý do vào đây. Hệ quả đã biết:
+  Quyết định này thay mục "Backend: Rust" ở đầu file. **Lý do (chủ dự án, 2026-11-14):** Rust khó maintain
+  trong dự án này, và dung lượng ổ cứng cho môi trường phát triển rất tốn (thư mục build `target/` lớn, đã từng
+  làm đầy đĩa và treo máy). Chủ dự án vẫn thích Rust; đây là đánh đổi về chi phí vận hành, không phải đánh giá
+  về ngôn ngữ. Hệ quả đã biết:
   không có tương đương Go cho `metap-graphql*`/`metap-app` (Go giữ REST, GraphQL động chưa port), bốn workflow
   chaos/benchmark/pentest bị xoá chứ chưa port (mất phủ kiểm thử có chủ đích), các repo downstream phải tự
   chuyển sang module Go.
