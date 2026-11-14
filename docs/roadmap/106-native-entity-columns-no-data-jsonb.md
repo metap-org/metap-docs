@@ -1,6 +1,6 @@
 # 106. Mỗi field một cột thật, bỏ `data jsonb`
 
-Trạng thái: **đang làm** (2026-11-14). Trigger: chủ dự án không muốn giá trị field của entity nằm trong cột `data jsonb`.
+Trạng thái: **đang làm** (2026-11-14). S1 đến S5 đã xong ở `metap` (commit `1604ef2`), S6 và S7 chưa. Trigger: chủ dự án không muốn giá trị field của entity nằm trong cột `data jsonb`.
 Quyết định (chủ dự án, 2026-11-14): mỗi field một cột có kiểu; có migration chuyển dữ liệu hiện có từ `data` sang cột.
 
 ## 1. Hiện trạng
@@ -54,11 +54,11 @@ chụp snapshot DB, và so sánh số dòng/giá trị sau khi chuyển. Không 
 
 | Lát | Nội dung | Kiểm chứng |
 |---|---|---|
-| S1 | `metadata`/`reconciler`: `Compile` mọi field thành cột; index/unique/searchable trên cột; op `DropDataColumn`; chế độ chuyển tiếp | unit không DB; e2e reconcile trên PG16: bảng mới không có `data`, bảng cũ hội tụ 1 lượt |
-| S2 | `crud`: đọc/ghi/transition/delete/get_many theo cột; `unique_violation` theo tên index mới | e2e `crud_service_postgres`: mọi kind, partial update, system field, version conflict |
-| S3 | `query`: planner, JQL, aggregate, record-level policy, keyset cursor; `find_referencing_records` | e2e planner/aggregate; so kết quả với bản `data` cũ trên cùng dữ liệu |
-| S4 | Nơi đọc `data` còn lại: `AUTH_CONTEXT_ENTITY`, `workflow`, audit đọc bản ghi cũ, `grpcapi` | grep không còn `data ->>` ngoài bảng nền tảng |
-| S5 | Công cụ migration: `dev-tools migrate-to-native-columns <tenant> <entity>` (plan, chạy, kiểm số dòng), cổng kiểm, `DropDataColumn` | e2e: dữ liệu giả lập đủ kind, kể cả dòng không ép được kiểu |
+| S1 (xong) | `metadata`/`reconciler`: `Compile` mọi field thành cột; index/unique/searchable trên cột; op `DropDataColumn`; chế độ chuyển tiếp | unit không DB; e2e reconcile trên PG16: bảng mới không có `data`, bảng cũ hội tụ 1 lượt |
+| S2 (xong) | `crud`: đọc/ghi/transition/delete/get_many theo cột; `unique_violation` theo tên index mới | e2e `crud_service_postgres`: mọi kind, partial update, system field, version conflict |
+| S3 (xong) | `query`: planner, JQL, aggregate, record-level policy, keyset cursor; `find_referencing_records` | e2e planner/aggregate; so kết quả với bản `data` cũ trên cùng dữ liệu |
+| S4 (xong) | Nơi đọc `data` còn lại: `AUTH_CONTEXT_ENTITY`, `workflow`, audit đọc bản ghi cũ, `grpcapi` | grep không còn `data ->>` ngoài bảng nền tảng |
+| S5 (xong) | Công cụ migration: `dev-tools migrate-to-native-columns <tenant> <entity>` (plan, chạy, kiểm số dòng), cổng kiểm, `DropDataColumn` | e2e: dữ liệu giả lập đủ kind, kể cả dòng không ép được kiểu |
 | S6 | `metap-lowcode`: publish entity tạo cột; đổi field = add/rename/widen/drop có sẵn; entity cũ migrate | build + test repo đó |
 | S7 | Downstream: `metap-demo-waf` (9 entity, dữ liệu thật), `metap-demo-jira`; cập nhật CLAUDE.md và tài liệu | chạy migration trên bản sao DB, so số dòng; portal đọc ghi được |
 
@@ -72,3 +72,18 @@ Mỗi lát phải qua `go build ./... && go vet ./... && go test ./...` và `go 
 - **Khác biệt định dạng ngày/tiền** ở mục 2 có thể làm lệch test snapshot ở downstream; sẽ sửa test, không đổi cách lưu.
 - **Chưa quyết:** có cần `NOT NULL` cho field `required` không. Đề xuất chưa làm trong đợt này (thêm `NOT NULL` vào bảng đang có dòng cần backfill giá trị mặc định); validation ở `CrudService` vẫn là chốt chặn.
 - **Chưa quyết:** có giữ chế độ ghi kép (`data` và cột) sau lát S5 không. Đề xuất bỏ ngay sau khi qua cổng kiểm để không có hai nguồn sự thật.
+
+## 6. Kết quả S1 đến S5 (2026-11-14)
+
+Đã kiểm trên PostgreSQL 16 thật: unit và integration của `pkg/reconciler`, `pkg/crud`, `pkg/query`, `pkg/grpcapi`, `pkg/httpserver`, `pkg/peripherals` đều xanh
+(riêng `pkg/cache` và `pkg/secrets` cần Redis và Vault, không có trong môi trường này, không liên quan). Chi tiết đã làm khác với dự kiến:
+
+- Bảng còn cột `data` bị **từ chối** (`ErrLegacyDataColumn`) thay vì chuyển tự động; phải chạy `dev-tools migrate-to-native-columns` trước khi triển khai mã mới. Lý do: dịch vụ mới chỉ đọc cột, bảng chưa backfill sẽ trả NULL.
+- Trigger đồng bộ cũ phải bị bỏ khi chuyển, nếu không nó ghi đè giá trị cột bằng NULL (đã có test).
+- Thao tác migration khai báo là DDL cột: mở rộng kiểu là `ALTER COLUMN TYPE ... USING` (viết lại bảng, khoá ACCESS EXCLUSIVE); đổi tên field đã là `RenameColumn` của Diff.
+- Field `searchable` chỉ cho kind `string`/`enum` (trigram và tsvector chạy trên text); kind khác bị `Compile` từ chối.
+- Field tên `data` bị từ chối (trùng cột cũ trong lúc chuyển).
+- `ParamBuilder.SetEntity` mang danh sách field cho điều kiện policy record-level; field không khai báo trong điều kiện luôn không khớp (`NULL::text`), đúng như trước.
+- `CopyGenericRecords` (bảng `records` chung đã bị bỏ ở migration 0033) viết lại để rải `data` lên các cột của bảng đích; không còn nguồn nào dùng nó trong thực tế.
+
+Chưa làm: `NOT NULL` cho field `required` (đề xuất ở mục 5, giữ nguyên), S6 (`metap-lowcode`), S7 (`metap-demo-waf`, dữ liệu thật).
