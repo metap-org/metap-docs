@@ -4,6 +4,20 @@
 
 ## Data Model
 
+> **Cập nhật 2026-11-14 (roadmap 106): không còn `data jsonb`.** Mỗi field của entity là một cột có kiểu riêng trong bảng của entity đó. Bảng `records` chung đã bị bỏ từ 2026-09-14. Các đoạn bên dưới nói về `records`/`data jsonb` là lịch sử, giữ lại để biết quyết định đã đi qua đâu. Chi tiết: [roadmap 106](../../roadmap/106-native-entity-columns-no-data-jsonb.md).
+
+### Hiện tại
+
+Mỗi entity có bảng riêng, schema-qualified vào schema của sản phẩm (`waf`, `jira`, ...):
+
+- cột hệ thống: `id`, `tenant_id`, `code`, `status`, `version` (optimistic locking), `deleted` (xoá mềm), `created_at`, `updated_at`, `created_by`, `updated_by`
+- **một cột có kiểu cho mỗi field** (`text`, `double precision`, `numeric(18,4)`, `boolean`, `date`, `timestamptz`, `uuid`, `jsonb` cho field kind `json`), nullable
+- index, unique (partial `WHERE deleted = false`), tìm kiếm (GIN) và FK đặt trực tiếp trên cột
+- dịch vụ vẫn trao đổi record dưới dạng JSON; việc dịch JSON và cột nằm trong `metap-crud` (`record_sql.go`) và `metap-query`
+- bảng cũ còn `data` bị từ chối khi khởi động cho đến khi chạy `dev-tools migrate-to-native-columns`; lùi bằng `dev-tools restore-legacy-data`
+
+### Lịch sử: bảng `records` chung
+
 Metap bắt đầu với một bảng `records` tổng quát:
 
 - các cột ổn định cho field ở cấp hệ thống

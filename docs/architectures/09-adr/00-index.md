@@ -274,3 +274,11 @@ việc đó là thừa.
   stale tới TTL hoặc invalidate tay; chưa sửa, cần đổi `CrudService`/`RecordBackend::update` (đụng
   mọi call site downstream), việc lớn hơn phạm vi Phase 90. Chi tiết:
   `docs/roadmap/90-remove-rest-entity-crud.md`.
+- **Mỗi field một cột có kiểu, bỏ `data jsonb` (2026-11-14, chủ dự án quyết định).** Lý do: giá trị field
+  nằm trong blob JSON làm mất ràng buộc kiểu, index biểu thức khó đọc, và bản sao đồng bộ bằng trigger
+  sinh ra hai sự cố (trigger biến mất, backfill không chạm dòng nào). Giữ ranh giới dịch vụ là JSON,
+  dịch ở `metap-crud`/`metap-query`. Bảng cũ còn `data` bị từ chối khi khởi động cho đến khi chuyển
+  bằng `migrate-to-native-columns` (backfill theo lô, kiểm tra, rồi mới bỏ `data`); lùi bằng
+  `restore-legacy-data`. Đổi kiểu field bị từ chối thay vì bỏ qua, phải qua migration `widen_type`.
+  Đánh đổi chấp nhận: đổi kiểu cột viết lại bảng; mọi đổi field là DDL. Chi tiết:
+  `docs/roadmap/106-native-entity-columns-no-data-jsonb.md`.
