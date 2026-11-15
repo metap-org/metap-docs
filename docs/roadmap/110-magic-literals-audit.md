@@ -29,10 +29,17 @@ Chủ dự án chỉ ra `Format("2006-01-02T15:04:05.000Z07:00")` vẫn còn vi�
 - Thay hàng loạt chỉ ở những ngữ cảnh rõ nghĩa (truy cập record, danh sách field, khai báo entity, khoá slog, tên header). Hai lần thay nhầm bị bắt khi rà diff: cột `tenant_id`/`job_id` trong SQL bị đổi thành khoá log, và một chuỗi `Reason: "forbidden"` không phải mã lỗi. Đã sửa lại.
 - Kiểm tra: `go vet` sạch, test unit và integration của cả hai repo xanh (trừ test cần Redis/Vault không có trong môi trường này).
 
+## Đợt 3 (2026-11-15)
+
+- **Trạng thái trong SQL và Go dùng chung một hằng số** (`pkg/reconciler/statusnames.go`): hàng đợi orchestrator (`DeployPending`, `DeployRunning`, `DeployDone`, `DeployFailed`, `DeployBlocked`) và trạng thái entity (`active`, `migrating`, `error`). Các câu SQL ghép hằng số qua `sqlLit` (đầu vào là hằng số lúc biên dịch, không bao giờ là dữ liệu request). Truy vấn trigger của cron lấy `waiting` từ `WorkflowWaiting`. `RunStatus`/`WorkflowRunStatus` của cron vốn đã có kiểu, chỉ SQL còn viết tay.
+- **Số cố định có tên và chú thích** (metap): tốc độ giới hạn gRPC (`rateInterval`, `rateBurst`), TTL cache context, độ trễ retry của trigger, trang của bulk query (`bulkQueryPageLimit`), trang mặc định của GraphQL list (`defaultListLimit`), timeout forward (`forwardTimeout`), lease migrate (`migrationLeaseTTL`), backoff kết nối lại, cỡ pool Postgres.
+- **waap**: `model.DefaultMaxListLimit`/`LargeMaxListLimit` cho `MaxLimit` của list view, timeout HTTP và giới hạn đọc của từng service, `existenceCheckLimit`, `zoneCascadeLimit`, `defaultBurstWindowSeconds`; leeway JWT của gateway dùng `jwks.DefaultLeeway`.
+- Kiểm tra: `go vet` sạch, test unit và integration xanh (trừ Redis/Vault).
+- Cố ý để nguyên: `e-edge` và `a-api` (module riêng, chỉ dùng kit; các số của chúng đã là hằng số hoặc đọc từ env có tên), và các số nằm sẵn trong hằng số có tên từ trước.
+
 ## Chưa làm
 
-- Khoá JSON của wire format (`"entity"`, `"status"`, `"action"`, `"createdAt"`, ...) trong gRPC/GraphQL; phần lớn là tên field của hợp đồng, chưa rõ có đáng gom không.
-- Trạng thái của cron/workflow-run trong metap (`"waiting"`, `"running"`, `"failed"`, ~16 chỗ).
-- Số cố định: giới hạn trang (`Limit: 100`, `50`, `200`), một số timeout lẻ; tên biến môi trường (~100 chuỗi `env.String("...")`), mỗi cái chỉ xuất hiện ở nơi đọc nó.
+- Khoá JSON của wire format (`"entity"`, `"status"`, `"createdAt"`, ...) trong gRPC/GraphQL; phần lớn là tên field của hợp đồng, chưa rõ có đáng gom không.
+- Tên biến môi trường (~100 chuỗi `env.String("...")`), mỗi cái chỉ xuất hiện ở nơi đọc nó.
 - Giá trị enum của field entity khi chỉ khai báo ở một chỗ (ví dụ `logged/challenged/blocked` của security event).
 - Chưa bật linter bắt tái phát (ví dụ `goconst`); `.golangci.yml` hiện chỉ có depguard.
