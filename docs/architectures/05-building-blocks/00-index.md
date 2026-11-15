@@ -13,3 +13,4 @@ này chỉ còn là mục lục — nội dung thật nằm ở từng file con.
 | [5.3 Whitebox: Core Services](../05-building-blocks/03-core-services.md) | Metadata Registry, Control Plane (Router/Multi-Tenancy), CRUD Service, Permission Service, Query Planner, Workflow Functions, Outbox and EventBus |
 | [5.4 Data Model & Database Design](../05-building-blocks/04-data-model.md) | Bảng `records` tổng quát, lộ trình dedicated-table, Database Design (ER diagram) |
 | [5.5 Service Boundaries & Development View](../05-building-blocks/05-service-boundaries-and-dev-view.md) | Quy tắc phụ thuộc giữa layer, sơ đồ workspace (Cargo + pnpm) |
+| [5.6 Tham chiếu metadata của entity](../05-building-blocks/06-metadata-reference.md) | Từng thành phần của `EntityDefinition`: field, ListView, Workflow, Audit, Actions, `RefEntity` và `RelatedView` |
