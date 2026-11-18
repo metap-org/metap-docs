@@ -187,3 +187,21 @@ MFA (TOTP), màn cấu hình SSO cho tenant (OIDC đã có ở backend), SCIM, A
 
 - Chưa có màn cấu hình `auth.passwordMinLength` cho tenant admin trong portal; đặt được qua API cấu hình tenant sẵn có.
 - Chưa xem giao diện trên trình duyệt; luồng nhận lời mời mới kiểm bằng test tích hợp, chưa chạy live (cần tài khoản admin để mời).
+
+## P3: đã làm một phần (2026-11-18)
+
+**Xong: quản trị tenant qua gRPC + GraphQL (metap).**
+
+- Migration `0044`: `control.tenants.deletion_requested_at`, `deletion_effective_at`.
+- `pkg/control/tenant_admin.go`: `Search`, `GetDetail`, `RegisterShared` (tenant trên bảng dùng chung, `schema_name = public`), `Update`, `Suspend`, `Resume`, `RequestDeletion`, `CancelDeletion`, `PurgeDue`. Chuyển trạng thái viết bằng điều kiện trong câu UPDATE, nên hai admin chạy song song không thắng cả hai; lỗi `ErrTenantNotFound`, `ErrTenantState`.
+- `metap.identity.v1.TenantAdminService` (chỉ `platform_admin` của platform tenant, thêm scope `admin` với token có scope): `ListTenants`, `GetTenant`, `CreateTenant` (đăng ký tenant, mời admin đầu tiên qua email, lỗi giữa chừng để tenant ở `deleted`, không bao giờ nửa vời), `UpdateTenant`, `SuspendTenant`, `ResumeTenant`, `RequestTenantDeletion` (khoá ngay, giữ 30 ngày mặc định, huỷ được), `CancelTenantDeletion`. Audit dưới entity `control.tenants`. Mã lỗi mới `tenant_invalid_state`.
+- GraphQL gateway: `tenants`, `tenant`, `createTenant`, `updateTenant`, `suspendTenant`, `resumeTenant`, `requestTenantDeletion`, `cancelTenantDeletion`.
+- Test tích hợp: `TestTenantLifecycle`, `TestTenantSearch` (control), `TestTenantAdminService` (gRPC, gồm từ chối khi không phải platform admin, Router từ chối tenant đang suspend, audit), `TestTenantFieldsCallGRPCAsTheCaller` (gateway).
+
+**Giới hạn đã biết**
+
+- Suspend/xoá có hiệu lực ở nơi khác sau tối đa 30 giây (TTL của `RegistryCache`), giống giới hạn đã ghi của `RegistryCache`.
+- `PurgeDue` chỉ đổi trạng thái sang `deleted`; chưa có job gọi nó định kỳ và chưa xoá dữ liệu vật lý.
+- Chỉ tạo được tenant trên bảng dùng chung; `dedicated_db` vẫn qua `dev-tools provision-tenant`.
+
+**Còn lại của P3:** đăng ký tự phục vụ (`POST /auth/signup`, xác nhận email), job gọi `PurgeDue`, `TenantsAdminPage` viết lại trên API này, bỏ `tenantAdmin.ts`/`impersonation.ts`.
