@@ -1,6 +1,6 @@
 # 115. Khoảng trống user, phân quyền, tenant của metap cho WAAP
 
-**Trạng thái:** M2 làm một phần 2026-11-18 (xem 113 P3); còn lại là kế hoạch.
+**Trạng thái:** M2 làm một phần và M1 xong 2026-11-18 (xem 113 P3 và mục "M1: đã làm" bên dưới); còn lại là kế hoạch.
 
 ## Vấn đề
 
@@ -10,7 +10,7 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 
 | # | Thiếu | Đề xuất | Ưu tiên | Trạng thái |
 |---|---|---|---|---|
-| M1 | Gán role theo phạm vi tài nguyên (org, account, nhóm zone, zone) | Bảng `role_assignments(user, role, scope_type, scope_id)`; metadata khai báo entity thuộc phạm vi nào; `PermissionService` lọc theo phạm vi | Cao (chặn S1 của WAAP) | Chưa làm |
+| M1 | Gán role theo phạm vi tài nguyên (org, account, nhóm zone, zone) | Bảng `role_assignments(user, role, scope_type, scope_id)`; metadata khai báo entity thuộc phạm vi nào; `PermissionService` lọc theo phạm vi | Cao (chặn S1 của WAAP) | **Xong** (migration 0045, xem dưới) |
 | M2 | Tenant qua API và tự đăng ký | `TenantAdminService` + `POST /auth/signup` + xác nhận email | Cao (chặn S0) | **`TenantAdminService` xong** (113 P3); đăng ký tự phục vụ chưa |
 | M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Chưa làm |
 | M4 | Danh sách phiên, đăng xuất một phiên | Bảng phiên + thu hồi từng phiên | Trung bình | Chưa làm |
@@ -27,3 +27,17 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 
 1. M1: bảng `role_assignments` chung (đề xuất) hay mở rộng `AUTH_CONTEXT_ENTITY` (hiện đọc một bản ghi mỗi user, không liệt kê và không thu hồi theo phạm vi được).
 2. M6: tài nguyên ảo trong policy hay mở rộng danh sách action của entity.
+
+## M1: đã làm (2026-11-18, metap)
+
+Chọn phương án bảng `role_assignments` chung (không mở rộng `AUTH_CONTEXT_ENTITY`) theo đề xuất; câu hỏi chờ quyết số 1 coi như theo đề xuất cho tới khi chủ dự án nói khác.
+
+- Migration `0045`: `metadata.role_assignments(tenant_id, user_id, role, scope_type, scope_id)`, unique theo cả năm cột.
+- Metadata: `EntityDefinition.Scopes` (`metadata.Scope("zone","zoneId")`, `ScopeIn` cho field danh sách, `ScopeSelf` khi entity chính là phạm vi); kiểm hợp lệ ở compiler. Entity không khai báo phạm vi nào cho một loại thì role gán theo loại đó không chạm tới nó.
+- `RequestContext.ScopedRoles` nạp mỗi request cùng `Roles` (không cache); `Roles` và `IsAdmin()` vẫn chỉ là role toàn tenant, nên admin theo phạm vi không phải admin tenant.
+- **Quy tắc an toàn** (`pkg/permission/scope.go`): quyền là OR của các *nhóm role* (nhóm toàn tenant cộng một nhóm cho mỗi bộ role khác nhau mà gán theo phạm vi tạo ra). Một bản ghi truy cập được khi có nhóm cho phép hành động trên entity, bao phủ bản ghi, và qua policy cấp bản ghi **chỉ với role của nhóm đó**, không phải hợp mọi role người dùng giữ ở bất cứ đâu, vì như vậy role cấp ở zone A sẽ rò sang zone B. Các phạm vi cùng bộ role gộp một nhóm (một role trên một nghìn zone là một nhóm).
+- crud: list, aggregate (SQL qua `query.WithAccessPlan`), get, get_many, create (phải nằm trong phạm vi), update (bản ghi sau khi sửa vẫn phải trong tầm), delete, transition, capabilities, đọc bản ghi liên quan. Người không có role theo phạm vi đi đúng đường cũ, không đổi hành vi.
+- gRPC `UserAdminService`: `AssignRole`/`RevokeRole` nhận `scope_type` + `scope_id`, `ListScopeMembers` ("ai thấy zone này"), `User.scoped_roles`; xoá user kéo theo xoá gán theo phạm vi. GraphQL: `assignUserRole(..., scopeType, scopeId)`, `scopeMembers`, `User.scopedRoles`.
+- Test: `pkg/permission/scope_test.go` (thuần logic), `pkg/crud/scoped_roles_postgres_test.go` (Postgres thật: chỉ thấy phạm vi của mình, role cấp ở zone này không rò sang zone khác, tạo và chuyển bản ghi ra ngoài phạm vi bị chặn, ràng buộc theo mảng và theo account, role toàn tenant kết hợp với role theo phạm vi, admin theo phạm vi, aggregate), `pkg/grpcapi/scoped_roles_service_postgres_test.go`. Đã thử phá (bỏ bước kiểm phạm vi) để chắc test thật sự bắt được.
+
+**Giới hạn đã biết:** policy từ chối (deny) được tính theo từng nhóm, nên deny gắn với một role người dùng giữ ở phạm vi A không áp ở phạm vi B. Chưa có UI quản lý gán theo phạm vi; chưa có cách khai báo phạm vi qua `dev-tools`/lowcode ngoài JSON của entity (`scopes`).
