@@ -12,7 +12,7 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 |---|---|---|---|---|
 | M1 | Gán role theo phạm vi tài nguyên (org, account, nhóm zone, zone) | Bảng `role_assignments(user, role, scope_type, scope_id)`; metadata khai báo entity thuộc phạm vi nào; `PermissionService` lọc theo phạm vi | Cao (chặn S1 của WAAP) | **Xong** (migration 0045, xem dưới) |
 | M2 | Tenant qua API và tự đăng ký | `TenantAdminService` + `POST /auth/signup` + xác nhận email | Cao (chặn S0) | **`TenantAdminService` xong** (113 P3); đăng ký tự phục vụ chưa |
-| M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Chưa làm |
+| M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Xong (2026-11-19): TOTP + mã khôi phục, đăng nhập hai bước, key `auth.requireMfa` theo tenant; chưa có WebAuthn, chưa mã hóa secret TOTP khi lưu |
 | M4 | Danh sách phiên, đăng xuất một phiên | Bảng phiên + thu hồi từng phiên | Trung bình | Chưa làm |
 | M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Xong (2026-11-19): service account + API key `mk_`, băm SHA-256, hạn, lần dùng cuối, thu hồi; GraphQL gateway có đủ field; chưa có scope theo key, trần hạn theo tenant |
 | M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Chưa làm |
