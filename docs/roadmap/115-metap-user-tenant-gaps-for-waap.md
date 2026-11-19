@@ -14,7 +14,7 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 | M2 | Tenant qua API và tự đăng ký | `TenantAdminService` + `POST /auth/signup` + xác nhận email | Cao (chặn S0) | **`TenantAdminService` xong** (113 P3); đăng ký tự phục vụ chưa |
 | M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Chưa làm |
 | M4 | Danh sách phiên, đăng xuất một phiên | Bảng phiên + thu hồi từng phiên | Trung bình | Chưa làm |
-| M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Chưa làm |
+| M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Xong (2026-11-19): service account + API key `mk_`, băm SHA-256, hạn, lần dùng cuối, thu hồi; chưa có scope theo key, trần hạn theo tenant, field GraphQL gateway |
 | M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Chưa làm |
 | M7 | SSO theo domain email, bắt buộc SSO | `SsoConnection` + định tuyến domain; SAML sau | Thấp | Chưa làm |
 | M8 | Owner khác admin, khôi phục owner | Cờ owner, chờ 72 giờ, báo admin | Thấp | Chưa làm |
