@@ -85,6 +85,16 @@ Mỗi transition có `Action`, `From`, `To`, `Label` và tuỳ chọn:
 
 `Guard` và `Validator` là `PolicyCondition`, cùng kiểu với policy, và có thể đọc người gọi (`$ctx.roles`, `$ctx.userId`) cùng người đã làm từng action trước đó (`$workflow.actors.<action>`). Nhờ vậy viết được ràng buộc kiểu "người duyệt khác người gửi".
 
+**Thông báo khi guard/validator không qua** (2026-11-20). Câu người dùng nhận được chọn theo thứ tự:
+
+1. `GuardMessage` / `ValidatorMessage` của transition (một câu cho cả guard).
+2. `Message` của chính điều kiện bị trượt: `AttributeCondition(...).WithMessage("...")`, hoặc của nhóm `all`/`any` bao quanh nó. Guard ghép nhiều điều kiện nên đặt câu cho từng điều kiện, vì chỉ điều kiện đầu tiên trượt được báo.
+3. Câu dựng sẵn từ nhãn trường: `Verification Status must be "verified" (currently empty)`.
+
+Lỗi `guard_failed` / `validator_failed` và lý do trong capabilities dùng cùng câu đó. Lỗi còn có `extensions.details` = `{ field, label, op, expected, actual }` của điều kiện trượt, để frontend tự viết lại hoặc dịch. JSON của `PolicyCondition` có thêm khoá `message` (không bắt buộc).
+
+Message của lỗi GraphQL chỉ còn câu cho người đọc; mã lỗi nằm ở `extensions.code` (trước đây gateway ghép `code: message`).
+
 ### UniqueConstraints
 
 Tổ hợp từ 2 field trở lên phải duy nhất; một field đơn thì dùng `Unique` của field đó. Có `Scope` riêng (cùng ngữ nghĩa `UniqueScope`) và cũng là partial index.
