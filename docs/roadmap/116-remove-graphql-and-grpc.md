@@ -1,6 +1,6 @@
 # 116. Bỏ GraphQL và gRPC: metap chỉ nói HTTP/JSON
 
-**Trạng thái:** đã chốt hướng 2026-11-21 (chủ dự án); chưa triển khai. Tài liệu này là quyết định và kế hoạch. Thay quyết định "Entity CRUD ứng dụng: GraphQL-only" (2026-09-21, [roadmap 90](90-remove-rest-entity-crud.md)) trong [09. ADR](../architectures/09-adr/00-index.md).
+**Trạng thái:** đã chốt hướng 2026-11-21 (chủ dự án). P0 (spike) xong 2026-11-21, xem mục "P0: đã làm"; P1–P6 chưa làm. Tài liệu này là quyết định và kế hoạch. Thay quyết định "Entity CRUD ứng dụng: GraphQL-only" (2026-09-21, [roadmap 90](90-remove-rest-entity-crud.md)) trong [09. ADR](../architectures/09-adr/00-index.md).
 
 ## Vấn đề
 
@@ -126,3 +126,24 @@ Có trường hợp nào dưới đây thì xem lại quyết định, cho phầ
 2. OpenAPI của thao tác custom: gộp vào `/metadata/openapi.json` hay tách tài liệu riêng.
 3. Read model analytics của WAAP: upstream của gateway hay FE gọi thẳng `a-api`.
 4. Chạy song song bao lâu, và phiên bản nào thì xoá hẳn (P6).
+
+## P0: đã làm (2026-11-21)
+
+Spike chứng minh được hai điểm rủi ro, đều chạy trên dev stack của WAAP.
+
+**Thao tác custom bằng REST có kiểu (huma v2).**
+- `pkg/httpserver/typedapi.go` dựng một API huma duy nhất trên chi router. OpenAPI 3.1 sinh từ kiểu Go, phục vụ ở `/metadata/api.json` (tách khỏi `/metadata/openapi.json` của entity; câu hỏi mở số 2 chốt theo hướng này).
+- Lỗi của huma (input sai schema, body hỏng) và lỗi của handler đều ra cùng envelope `{"error":{code,message,fieldErrors,details}}`. Lỗi schema là 400 `validation_failed`, `fieldErrors` theo tên input.
+- Xác thực là middleware dùng `authenticate()`, nên bearer, API key, cookie phiên kèm CSRF giữ nguyên hành vi.
+- Nhóm Sessions đã chuyển: `GET /me/sessions`, `DELETE /me/sessions/{id}`, `POST /me/sessions/revoke-others`. Logic vẫn ở `pkg/identity`, handler chỉ đọc input, gọi xuống và định dạng output. Test tích hợp `TestSessionOperationsOverREST` phủ cả cookie và CSRF.
+
+**Gateway và `expand` chéo service.**
+- `pkg/apigateway` cùng binary `cmd/api-gateway` (`UPSTREAMS=name=url|prefix,...;...`): reverse proxy học bảng entity → service từ `/metadata/entities` của từng upstream bằng credential của người gọi; route không phải entity đi theo prefix dài nhất.
+- `GET /api/{entity}[/{id}]?expand=f`: gom id theo entity đích, mỗi entity đích gọi một lần `GET /api/{target}?ids=` (lô 200), gắn kết quả vào `expanded.{f}`. Bản ghi không còn hoặc không được đọc thì ra `null`. Field không phải reference bị từ chối 400.
+- REST list nhận `?ids=a,b,c` (dùng `CrudService.GetMany`, có kiểm quyền). `ids`, `expand`, `fields` là tham số dành riêng, không bị hiểu là filter.
+- **Liên kết chéo service trong metadata:** `EntityField.RefersTo(entity)` cho field chuỗi chứa id của record mà service khác sở hữu. Không khoá ngoại, không kiểm entity đích có trong registry, schema vật lý không đổi (có test ở reconciler). Gateway dựa vào đó để biết `expand` sang đâu. WAAP khai báo cho `zoneId` của `waf.scan_jobs`, `waf.incidents`, `waf.security_events`.
+- Chạy thật: đăng nhập và `/me/sessions` qua prefix tới zones-service; `waf.scan_jobs?expand=zoneId` (scanning-service) trả hostname của zone (zones-service) chỉ với một lời gọi sang zones; zone không tồn tại ra `null`; không có token thì service tự trả 401.
+
+**Sửa kèm:** body lỗi 500 dự phòng của `pkg/kit/httpx` ghi nguyên chuỗi `"code":errcode.InternalError` (JSON không hợp lệ). REST trước đây làm rơi `details` của lỗi guard (metap#57); giờ `ErrorBody.Details` có ở mọi route.
+
+**Chưa làm ở P0, chuyển sang P1:** `fields`; `expand` trong cùng service nếu không qua gateway; quy ước URL ghi vào `08-cross-cutting`; cú pháp filter lồng trên query string.
