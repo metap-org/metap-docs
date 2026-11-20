@@ -167,20 +167,9 @@ việc đó là thừa.
   liên quan gì tới lựa chọn `String` vs `Reference`. Kết luận thật vẫn không đổi (tách theo
   `zoneId: String` là đúng, lý do route-leak vẫn đứng vững), chỉ phần "giữ chung DB để không mất
   FK" ở trên là diễn giải sai — không có FK Postgres thật nào để giữ hay mất trong sản phẩm này.
-  Xem `docs/roadmap/61-waf-microservices-split.md` cho chi tiết đầy đủ. GraphQL
-  (`metap/crates/graphql-gateway`) là lớp gộp query cross-service cho FE.
-  **Cập nhật 2026-09-04 (Phase 73 + phiên sau đó) — đoạn "tái dùng nguyên trạng/chỉ read/decode-only
-  không propagate identity" ở trên đã lỗi thời, xoá luôn thay vì giữ làm lịch sử** (đúng quy ước của
-  file này): (1) `metap-demo-waf` giờ có **binary GraphQL gateway riêng**
-  (`metap-demo-waf/data-plane/graphql-gateway`, package `waf-graphql-gateway`) bọc thư viện
-  `metap-graphql-gateway` qua `schema_builder::build_with_extensions`, thêm 7 mutation nghiệp vụ
-  riêng (`verifyZoneDns`, `testZoneOrigin`, ...) — không còn "không code mới"; (2) **dùng được cho
-  cả mutation**, không chỉ read (đã verify sống 2026-09-02, forward đúng `updated_by`/bị 403 đúng
-  khi thiếu quyền); (3) gateway **có propagate identity người gọi thật** xuống từng upstream
-  (`RequestContext::forwarded_bearer_token`, forward nguyên vẹn khi hợp lệ, fallback về
-  service-account qua `ServiceTokenSource` khi không có) — không còn chỉ decode-only vô danh. Xem
-  `docs/roadmap/73-waf-graphql-protocol.md` cho quyết định đầy đủ. Xem
-  `../metap-demo-waf/data-plane/README.md` cho bảng service/port cụ thể.
+  Xem `docs/roadmap/61-waf-microservices-split.md` cho chi tiết đầy đủ. Lớp gộp cross-service cho FE
+  là gateway chung của metap; giao thức của nó theo quyết định "metap chỉ nói HTTP/JSON" bên dưới.
+  Xem `../waap/m-deploy/README.md` cho bảng service/port cụ thể.
 - **JWKS (Ed25519, multi-service trust root) thay cho 1 file RSA keypair chia sẻ — opt-in, không
   bắt buộc.** (2026-09-04.) `metap-demo-waf`'s 3 service + `waf-graphql-gateway` trước đó mint/verify
   session bằng cách copy **1 file private key RSA** (`dev-jwt-private.pem`) vào cả 4 container —
@@ -253,27 +242,17 @@ việc đó là thừa.
   số `reason: Option<&str>` được thêm tường minh trên cả 4 method (`CrudService` lẫn trait
   `RecordBackend`) thay vì nhét vào `data`/`payload` nghiệp vụ — nhất quán với việc `workflow_events`
   cũng không dùng `payload` cho mục đích này.
-- **Entity CRUD ứng dụng: GraphQL-only, REST chỉ giữ cho auth và những gì tự thân là giao thức HTTP
-  (OAuth2/JWKS well-known, health/metrics, upload/download file nhị phân).** (Chốt 2026-09-21, chủ
-  dự án: "bỏ hết giao thức http cho router, chỉ dùng graphql thôi, http dùng cho webhook, để đỡ phức
-  tạp hoá application" — mục tiêu dài hạn là composition cross-service qua một GraphQL federation
-  gateway thật (`metap-graphql-gateway` đã có sẵn) thay vì tự tay fan-out REST sang nhiều service.)
-  `metap-graphql`/`metap-graphql-http` đã có parity CRUD đầy đủ với REST từ Phase 49/50
-  (list/get/create/update/delete/transition, cộng `aggregate` riêng), nên không cần xây gì mới
-  trước khi xoá — REST entity CRUD generic của `metap-http` (`routes::records`, `/api/:entity*`) bị
-  xoá thẳng, không deprecate dần. Việc này chia làm 2 giai đoạn có chủ đích: giai đoạn 1 (Phase 90,
-  xong) chỉ xoá phần entity CRUD generic trong `metap` core, giữ nguyên toàn bộ nhóm "structural"
-  (auth, OAuth2 AS, JWKS/well-known, health/metrics, attachment nhị phân) và toàn bộ nhóm chưa có
-  tương đương GraphQL (`/admin/*`, `/cron/*`, `/dashboards/*`, `/preferences/*`, config, `/users`,
-  workflow-events) — xây GraphQL parity cho nhóm sau rồi mới bỏ REST của chúng là giai đoạn 2, chưa
-  bắt đầu. `metap-cron-scheduler`'s `workflow_transition`/`bulk_query_action` (dependent REST nội bộ
-  duy nhất còn lại trong repo `metap`) chuyển sang gọi qua `metap-grpc::client::GrpcBackend` (đã có
-  sẵn từ Phase 49/50) thay vì HTTP. Khoảng hở lộ ra khi xoá REST (không phải lỗi mới tạo ra):
-  `invalidate_context_cache_if_auth_context_entity` chưa bao giờ tồn tại ngoài
-  `routes::records::update_record` — một update qua GraphQL/gRPC luôn để `ContextAttributesCache`
-  stale tới TTL hoặc invalidate tay; chưa sửa, cần đổi `CrudService`/`RecordBackend::update` (đụng
-  mọi call site downstream), việc lớn hơn phạm vi Phase 90. Chi tiết:
-  `docs/roadmap/90-remove-rest-entity-crud.md`.
+- **metap chỉ nói HTTP/JSON (REST): bỏ GraphQL và gRPC, kể cả giữa các service.** (Chốt 2026-11-21, chủ
+  dự án.) Lý do: metap là nền tảng management, tải không cần tới gRPC hay GraphQL; phần cần thông lượng
+  cao đã đứng riêng (ở WAAP: edge plane, analytics plane với service và ClickHouse riêng). Ba giao thức
+  cho cùng một việc làm mỗi thao tác custom phải viết ba lần (proto, handler gRPC, field GraphQL), lỗi đi
+  qua ba lần dịch, và GraphQL dồn mọi thứ vào một route nên không rate-limit, log, phân quyền theo đường dẫn
+  được. Một thao tác mới giờ chỉ tốn một handler Go có kiểu (huma v2, OpenAPI sinh từ kiểu); entity CRUD
+  giữ REST `/api/{entity}` (thêm `fields`, `expand`, `ids`, action route); service gọi service bằng
+  `HttpBackend`; gateway chung `pkg/apigateway` chỉ là reverse proxy kèm `expand` chéo service theo lô.
+  Đánh đổi chấp nhận: mất gom nhiều query vào một request, mất IDL proto. Thay quyết định "Entity CRUD
+  ứng dụng: GraphQL-only" (2026-09-21, roadmap 90/95). Chi tiết, giai đoạn và việc của downstream:
+  `docs/roadmap/116-remove-graphql-and-grpc.md`.
 - **Mỗi field một cột có kiểu, bỏ `data jsonb` (2026-11-14, chủ dự án quyết định).** Lý do: giá trị field
   nằm trong blob JSON làm mất ràng buộc kiểu, index biểu thức khó đọc, và bản sao đồng bộ bằng trigger
   sinh ra hai sự cố (trigger biến mất, backfill không chạm dòng nào). Giữ ranh giới dịch vụ là JSON,
