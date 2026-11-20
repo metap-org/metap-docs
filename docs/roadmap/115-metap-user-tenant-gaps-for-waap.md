@@ -19,7 +19,7 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 | M7 | SSO theo domain email, bắt buộc SSO | `SsoConnection` + định tuyến domain; SAML sau | Thấp | Chưa làm |
 | M8 | Owner khác admin, khôi phục owner | Cờ owner, chờ 72 giờ, báo admin | Thấp | Chưa làm |
 | M9 | Audit: chuỗi băm, API lọc, xuất file | | Trung bình | Xong (2026-11-20): chuỗi băm theo tenant (migration `0050`), `auditEntries` lọc theo người/đối tượng/thời gian, `verifyAuditChain`, `GET /admin/audit/export` (CSV/JSON) |
-| M10 | Truy cập hộ của NCC có cấp quyền, có hạn | Grant có hạn, audit đứng tên support | Thấp | Chưa làm |
+| M10 | Truy cập hộ của NCC có cấp quyền, có hạn | Grant có hạn, audit đứng tên support | Thấp | Xong (2026-11-20): `SupportAccessService` (grant/list/revoke cho tenant admin, `StartSupportSession` cho platform admin), migration `0051` |
 | M11 | Setting bảo mật của tenant (MFA, hạn API key, TTL phiên, mật khẩu) | Key mới trong `metap-config` tầng Tenant | Thấp | Xong (2026-11-20): MFA/TTL phiên/độ dài mật khẩu đã có từ trước; thêm `auth.apiKeyMaxLifetimeDays` (trần hạn API key, áp ở `CreateApiKey`) |
 | M12 | SCIM | Sau MVP | — | Xong bản đầu (2026-11-20): `/scim/v2` Users (list có filter `userName eq`, get, create, replace, patch, delete) + ServiceProviderConfig/ResourceTypes/Schemas; chưa có Groups/roles |
 
@@ -54,3 +54,11 @@ Chọn phương án bảng `role_assignments` chung (không mở rộng `AUTH_CO
 **M11.** `auth.apiKeyMaxLifetimeDays` (tầng Tenant, 0 = không trần). Có trần thì mọi API key phải có hạn và không vượt trần; tenant khác không bị ảnh hưởng.
 
 **M12 — SCIM 2.0, bản đầu.** `/scim/v2` là lớp REST mỏng chạy `UserAdminService` trong cùng tiến trình với bearer token của người gọi (API key của service account admin), nên xác thực, kiểm admin, chặn gỡ admin cuối, mời qua email và audit là đúng luật của admin API. Tạo user = mời qua email (SCIM không mang mật khẩu). `PATCH` nhận `active` dạng bool hoặc chuỗi `"False"` (Entra), `displayName`, `name.formatted`; `userName` không đổi được. Chưa làm: Groups, roles, bulk, filter khác `userName eq`.
+
+## M10: đã làm (2026-11-20, metap)
+
+- Tenant admin cấp quyền: `GrantSupportAccess{reason, role, hours}` (lý do bắt buộc, role phải có trong tenant, 1-168 giờ, mặc định 24). Có thể thu hồi bất cứ lúc nào (`RevokeSupportGrant`).
+- Platform admin gọi `StartSupportSession{tenantId}` theo grant còn hiệu lực mới nhất: tạo service account `Support: <email>` trong tenant với **đúng role được cấp** và một API key hết hạn cùng grant (tối đa 8 giờ mỗi phiên). Không thêm đường xác thực mới, nên mọi thao tác của support ghi audit đứng tên tài khoản đó và tenant thấy nó trong danh sách service account.
+- Thu hồi grant: thu hồi mọi key, xoá mọi tài khoản phiên ngay. `ListSupportGrants` cũng dọn tài khoản của grant đã hết hạn.
+- Audit: cấp, thu hồi, và bắt đầu phiên (đứng tên người support) đều vào trail của tenant.
+- Chưa làm: tenant duyệt từng phiên, gửi email báo tenant, lý do riêng cho từng phiên.
