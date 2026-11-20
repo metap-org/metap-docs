@@ -1,6 +1,6 @@
 # 115. Khoảng trống user, phân quyền, tenant của metap cho WAAP
 
-**Trạng thái:** M2 làm một phần và M1 xong 2026-11-18 (xem 113 P3 và mục "M1: đã làm" bên dưới); còn lại là kế hoạch.
+**Trạng thái:** M1–M12 xong ở metap (2026-11-18 → 2026-11-20, các mục "đã làm" bên dưới); giao diện cho WAAP xong 2026-11-20 (mục "Giao diện" cuối tài liệu). Các ý "Chưa làm" trong từng mục vẫn chưa ai yêu cầu.
 
 ## Vấn đề
 
@@ -78,3 +78,15 @@ Phát hiện: bản Go có thư viện OIDC (`pkg/tenantauth`) nhưng chưa có 
 - Cấu hình do tenant admin quản (`SsoAdminService`, GraphQL `ssoConfig`/`setSsoConfig`/`deleteSsoConfig`): issuer https và kiểm tra discovery ngay lúc lưu, client secret chỉ ghi (lưu SecretStore, không bao giờ trả về), giới hạn domain email, role mặc định (không bao giờ admin), URI callback hiển thị để đăng ký ở IdP.
 - **SSO bắt buộc:** `/auth/login` và đổi tenant trả 403 `sso_required` cho mọi member trừ owner. Chỉ owner được bật (owner giữ đăng nhập mật khẩu làm đường lui, liên kết với M8); xoá cấu hình thì mật khẩu dùng lại.
 - Chưa làm: SAML, ánh xạ nhóm/role từ claim của IdP, kiểm `email_verified`, ép SSO ở bước nhận lời mời và đặt lại mật khẩu, xác minh quyền sở hữu domain.
+
+## Giao diện (platform-ui, design-system, waap): đã làm (2026-11-20)
+
+Backend M1–M12 xong thì người dùng WAAP vẫn chưa chạm được vào phần lớn tính năng: chưa có màn nào. Làm thành ba đợt, rồi một lượt sửa bố cục theo góp ý xem trên trình duyệt.
+
+- **Tài khoản cá nhân** (platform-ui#11, waap#48, design-system#5): đăng nhập hai bước (TOTP hoặc mã khôi phục), bắt buộc thiết lập MFA khi tenant đặt `auth.requireMfa`, `sso_required` kèm nút SSO, "Tiếp tục bằng SSO" theo tên miền email. Trang `/account/security`: bật/tắt MFA (QR qua atom `QrCode`), tạo lại mã khôi phục, phiên đăng nhập (kết thúc một phiên, mọi phiên khác).
+- **Quản trị workspace** `/admin/workspace` (platform-ui#12, #13, waap#49): setting bảo mật (`auth.requireMfa`, `auth.passwordMinLength`, `auth.sessionTtlSeconds`, `auth.apiKeyMaxLifetimeDays`), tài khoản dịch vụ và API key (token hiện một lần, hạn theo trần của tenant), SSO OIDC, truy cập hỗ trợ (cấp, thu hồi, phiên), nhật ký (lọc, xuất CSV/JSON qua `fetch`, kiểm tra chuỗi hash), chủ sở hữu (chuyển quyền, huỷ khôi phục đang chờ). Màn Người dùng có nhãn owner và đặt lại MFA.
+- **Bố cục** (design-system#6, platform-ui#14): atom `SettingsSection`/`SettingsRow`, `StickyActionBar`, `Tabs` dọc; trang Workspace dùng menu tab dọc; panel chi tiết người dùng dựng lại (vai trò và tên chỉ lưu khi bấm Lưu, mở khoá có xác nhận, tài khoản của chính mình chỉ trỏ sang trang bảo mật); Cron Jobs trên `DataList` với form trong dialog; Chính sách mặc định chọn vai trò đầu tiên không phải `admin`/`platform_admin`.
+- **SPA và SSO:** quy tắc trả `index.html` khi reload (waap#41) từng bắt cả `/auth/sso/start` và `/auth/sso/callback`; giờ hai route này đi thẳng tới backend ở cả vite và nginx (waap#48).
+- **Lỗi metap tìm ra khi thử API qua portal**, sửa ở metap#56: `/auth/me` gia hạn cookie phiên theo người trong header `Authorization` khi request có cả cookie lẫn header (phiên trình duyệt thành phiên của service account); scalar `Json` của gateway gửi số viết trong query dưới dạng chuỗi.
+- Đã thử API thật qua dev proxy của WAAP trên tenant tạm (xoá sau): MFA hai bước và bắt buộc, phiên, setting và trần hạn API key, service account, owner, SSO (lỗi issuer), truy cập hỗ trợ, nhật ký. Chưa thử đăng nhập SSO thật (dev không có IdP OIDC https). Giao diện do chủ dự án xem trên trình duyệt.
+- Chưa làm: phía platform admin (mở phiên hỗ trợ, yêu cầu/hoàn tất khôi phục owner, tạm ngưng/xoá tenant), trang tự đăng ký (M2), UI gán role theo phạm vi (M1).
