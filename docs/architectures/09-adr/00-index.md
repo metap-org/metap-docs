@@ -249,7 +249,8 @@ việc đó là thừa.
   qua ba lần dịch, và GraphQL dồn mọi thứ vào một route nên không rate-limit, log, phân quyền theo đường dẫn
   được. Một thao tác mới giờ chỉ tốn một handler Go có kiểu (huma v2, OpenAPI sinh từ kiểu); entity CRUD
   giữ REST `/api/{entity}` (thêm `fields`, `expand`, `ids`, action route); service gọi service bằng
-  `HttpBackend`; gateway chung `pkg/apigateway` chỉ là reverse proxy kèm `expand` chéo service theo lô.
+  REST (`pkg/recordclient`); gateway chung `pkg/apigateway` chỉ là reverse proxy kèm `expand` chéo service theo lô
+  và gộp metadata. Đã triển khai xong 2026-11-21 (một lượt).
   Đánh đổi chấp nhận: mất gom nhiều query vào một request, mất IDL proto. Thay quyết định "Entity CRUD
   ứng dụng: GraphQL-only" (2026-09-21, roadmap 90/95). Chi tiết, giai đoạn và việc của downstream:
   `docs/roadmap/116-remove-graphql-and-grpc.md`.
