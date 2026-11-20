@@ -1,6 +1,6 @@
 # 116. Bỏ GraphQL và gRPC: metap chỉ nói HTTP/JSON
 
-**Trạng thái:** đã chốt hướng 2026-11-21 (chủ dự án); chưa triển khai. Tài liệu này là quyết định và kế hoạch. Thay quyết định "Entity CRUD ứng dụng: GraphQL-only" (2026-09-21, [roadmap 90](90-remove-rest-entity-crud.md)) trong [09. ADR](../architectures/09-adr/00-index.md).
+**Trạng thái:** đã chốt hướng 2026-11-21 (chủ dự án). P0 (spike) xong 2026-11-21, xem mục "P0: đã làm". P1–P6 làm **một lượt** cùng ngày (chủ dự án chọn "chuyển 1 lượt": không chạy song song GraphQL/gRPC), xem mục "P1–P6: đã làm"; còn lại vài việc nhỏ ghi ở cuối mục đó. Tài liệu này là quyết định và kế hoạch. Thay quyết định "Entity CRUD ứng dụng: GraphQL-only" (2026-09-21, [roadmap 90](90-remove-rest-entity-crud.md)) trong [09. ADR](../architectures/09-adr/00-index.md).
 
 ## Vấn đề
 
@@ -94,7 +94,7 @@ Gateway chung, mỏng, không biết entity nghiệp vụ nào:
 
 ## Giai đoạn
 
-Mỗi giai đoạn là một hoặc vài PR, chạy được và kiểm chứng được. GraphQL và gRPC chạy song song cho tới khi consumer cuối cùng chuyển xong.
+Mỗi giai đoạn là một hoặc vài PR, chạy được và kiểm chứng được. GraphQL và gRPC chạy song song cho tới khi consumer cuối cùng chuyển xong. *(Thực tế: P1–P6 làm một lượt, không có giai đoạn chạy song song, xem "P1–P6: đã làm".)*
 
 | | Việc | Xong khi |
 |---|---|---|
@@ -126,3 +126,89 @@ Có trường hợp nào dưới đây thì xem lại quyết định, cho phầ
 2. OpenAPI của thao tác custom: gộp vào `/metadata/openapi.json` hay tách tài liệu riêng.
 3. Read model analytics của WAAP: upstream của gateway hay FE gọi thẳng `a-api`.
 4. Chạy song song bao lâu, và phiên bản nào thì xoá hẳn (P6).
+
+## P0: đã làm (2026-11-21)
+
+Spike chứng minh được hai điểm rủi ro, đều chạy trên dev stack của WAAP.
+
+**Thao tác custom bằng REST có kiểu (huma v2).**
+- `pkg/httpserver/typedapi.go` dựng một API huma duy nhất trên chi router. OpenAPI 3.1 sinh từ kiểu Go, phục vụ ở `/metadata/api.json` (tách khỏi `/metadata/openapi.json` của entity; câu hỏi mở số 2 chốt theo hướng này).
+- Lỗi của huma (input sai schema, body hỏng) và lỗi của handler đều ra cùng envelope `{"error":{code,message,fieldErrors,details}}`. Lỗi schema là 400 `validation_failed`, `fieldErrors` theo tên input.
+- Xác thực là middleware dùng `authenticate()`, nên bearer, API key, cookie phiên kèm CSRF giữ nguyên hành vi.
+- Nhóm Sessions đã chuyển: `GET /me/sessions`, `DELETE /me/sessions/{id}`, `POST /me/sessions/revoke-others`. Logic vẫn ở `pkg/identity`, handler chỉ đọc input, gọi xuống và định dạng output. Test tích hợp `TestSessionOperationsOverREST` phủ cả cookie và CSRF.
+
+**Gateway và `expand` chéo service.**
+- `pkg/apigateway` cùng binary `cmd/api-gateway` (`UPSTREAMS=name=url|prefix,...;...`): reverse proxy học bảng entity → service từ `/metadata/entities` của từng upstream bằng credential của người gọi; route không phải entity đi theo prefix dài nhất.
+- `GET /api/{entity}[/{id}]?expand=f`: gom id theo entity đích, mỗi entity đích gọi một lần `GET /api/{target}?ids=` (lô 200), gắn kết quả vào `expanded.{f}`. Bản ghi không còn hoặc không được đọc thì ra `null`. Field không phải reference bị từ chối 400.
+- REST list nhận `?ids=a,b,c` (dùng `CrudService.GetMany`, có kiểm quyền). `ids`, `expand`, `fields` là tham số dành riêng, không bị hiểu là filter.
+- **Liên kết chéo service trong metadata:** `EntityField.RefersTo(entity)` cho field chuỗi chứa id của record mà service khác sở hữu. Không khoá ngoại, không kiểm entity đích có trong registry, schema vật lý không đổi (có test ở reconciler). Gateway dựa vào đó để biết `expand` sang đâu. WAAP khai báo cho `zoneId` của `waf.scan_jobs`, `waf.incidents`, `waf.security_events`.
+- Chạy thật: đăng nhập và `/me/sessions` qua prefix tới zones-service; `waf.scan_jobs?expand=zoneId` (scanning-service) trả hostname của zone (zones-service) chỉ với một lời gọi sang zones; zone không tồn tại ra `null`; không có token thì service tự trả 401.
+
+**Sửa kèm:** body lỗi 500 dự phòng của `pkg/kit/httpx` ghi nguyên chuỗi `"code":errcode.InternalError` (JSON không hợp lệ). REST trước đây làm rơi `details` của lỗi guard (metap#57); giờ `ErrorBody.Details` có ở mọi route.
+
+**Chưa làm ở P0, chuyển sang P1:** `fields`; `expand` trong cùng service nếu không qua gateway; quy ước URL ghi vào `08-cross-cutting`; cú pháp filter lồng trên query string.
+
+## P1–P6: đã làm (2026-11-21)
+
+Chủ dự án chọn chuyển **một lượt**: mỗi nhóm dựng REST, đổi FE, xoá phần GraphQL/gRPC tương ứng ngay, không có giai đoạn
+chạy song song. Câu hỏi mở số 4 vì vậy không còn.
+
+**metap**
+- **REST dùng backend đã bọc của service.** `AppState.Records` (từ `app.Options.WrapBackend`) và `AppState.Actions` giờ được
+  dựng bất kể transport; mọi route `/api/{entity}` gọi `state.RecordBackend()`. Guard của waap (`GuardedZonesBackend`) vì thế
+  áp lên REST.
+- **Action khai báo qua REST:** `POST /api/{entity}/{id}/actions/{action}` (scope record) và `POST /api/{entity}/actions/{action}`
+  (scope entity); body `{"input":{}}`, trả `{"data": ...}`; action không khai báo hoặc sai scope là 404 `action_not_found`.
+- **`pkg/recordclient`** thay `GrpcBackend`: `crud.RecordBackend` + `crud.ActionInvoker` trên REST của service khác, chuyển tiếp
+  token của người gọi (không có thì dùng service token), lỗi trả về đúng `*crud.ServiceError` (giữ `fieldErrors`, `details`).
+  `cmd/cron-scheduler` dùng nó (`CRON_TARGET_URL` thay `CRON_TARGET_GRPC_ADDR`).
+- **63 RPC identity/admin sang REST có kiểu.** Service chuyển thành Go thuần ở `pkg/adminapi` (kiểu request/response trong
+  `types.go`, sinh một lần từ message protobuf rồi bảo trì tay; lỗi là `*crud.ServiceError`; caller lấy từ `WithCaller` hoặc
+  `WithAuthenticator`). `pkg/httpserver/ops_admin.go` phục vụ chúng bằng huma, chỉ trên token issuer (`AppState.Identity`):
+  `/me`, `/me/tenants`, `/me/mfa*`, `/tenant-users`, `/admin/users*`, `/admin/invitations`, `/admin/roles*`,
+  `/admin/permission-resources`, `/admin/service-accounts`, `/admin/api-keys/{id}`, `/admin/scope-members`, `/admin/audit*`,
+  `/admin/support-grants*`, `/admin/owner*`, `/admin/sso`, `/platform/tenants*`, `/platform/support-sessions`,
+  `/platform/owner-recovery*`. Danh sách luôn là `[]`, không bao giờ `null`. Trường JSON trước đây là chuỗi (`diffJson`,
+  `conditionJson`) của audit người dùng/vai trò và quyền nâng cao nay là JSON thật (`diff`, `condition`). SCIM chạy
+  `UserAdminService` in-process, xác thực bằng đúng `authenticate()` của HTTP. Test gRPC cũ của các service này được port
+  sang gọi thẳng `adminapi` (giữ luồng token thật: API key, session, support), thêm `TestAdminOperationsOverREST` cho tầng HTTP.
+- **Nhóm platform** (policy, cron, config, preference, dashboard) đã có route REST sẵn từ trước; FE gọi thẳng.
+- **Gateway:** `pkg/apigateway` gộp `/metadata/entities` và `/metadata/entity-access` của mọi upstream (FE trước đây phải tự
+  gộp ở dev proxy, còn nginx production thì thiếu hẳn); `/metadata/entities/{entity}` đi tới service sở hữu. `apigateway.Main()`
+  để sản phẩm dựng binary của mình.
+- **Read model:** `app.Options.ExternalEntities` (đăng ký metadata, không reconcile, mọi lời gọi tới backend riêng qua
+  `crud.RouteBackends`). Câu hỏi mở số 3 chốt: read model analytics của WAAP do alerting-service phục vụ như một entity bình
+  thường, gateway không cần biết gì.
+- `query.AggregateSpec` có tag JSON camelCase.
+- **Xoá:** `pkg/grpcapi` (kể cả proto, pb), `pkg/graphqlgateway`, `app.Options.GRPCPort`; `graphql-go` không còn trong `go.mod`
+  (`grpc`/`protobuf` chỉ còn là dependency gián tiếp của SDK cloud trong `pkg/secrets`).
+
+**waap**
+- `m-gateway` thành `api-gateway` (gọi `apigateway.Main()`, không có code WAF). Compose bỏ `GRPC_ENABLED`, cổng gRPC và service
+  account của gateway; `UPSTREAMS` khai báo prefix cho zones-service.
+- `GuardedZonesBackend` gọi scanning/alerting bằng `recordclient` (`SCANNING_URL`/`ALERTING_URL`); sibling không với tới được
+  vẫn ra 503 `reference_check_unavailable`.
+- `c-config-distributor/management` đọc zones bằng REST (`ZONES_URL` mặc định zones-service `:3000`).
+- alerting-service phục vụ `waf.security_events` (`ExternalEntities` trên `m-analytics.Backend`).
+- `m-web`: dev proxy và nginx chỉ còn trỏ tới gateway; `api/waf.ts` dùng client REST của platform-ui và `invokeAction`.
+
+**platform-ui:** `api/records.ts` (list/infinite/trang đánh số/get/`ids`/aggregate/create/update/delete/transition/
+`invokeAction`) thay `graphqlRecords.ts`; mọi module admin và account chuyển sang REST; `graphqlClient.ts`, `useGraphQLQuery`,
+`graphqlRecords.ts`, `graphqlNaming.ts` đã xoá. Ngoại lệ có chủ đích: các trang control-plane của **metap-lowcode**
+(`TenantsAdminPage`, `lowCodeControlPlane`) vẫn gọi gateway GraphQL riêng của hệ thống đó, qua client nhỏ tự chứa trong
+`controlPlaneClient.ts`; đó là API của hệ thống khác, không phải của metap.
+
+**Kiểm chứng:** metap `go build`/`go vet` sạch; toàn bộ test unit và integration qua (trừ test cần Redis/Vault thật, môi trường
+chạy thiếu `REDIS_URL`/Vault, không liên quan). waap build/vet/test sạch. platform-ui và m-web: typecheck, oxlint, prettier sạch.
+Chạy thật trên dev stack của waap qua gateway `:4000` với một tenant tạm (đã dọn): đăng nhập, `/me*`, `/tenant-users`, đọc và ghi
+admin (mời, vai trò + quyền, chặn xoá vai trò đang dùng với `fieldErrors`, service account, config, preference), metadata gộp đủ
+11 entity `waf.*`, CRUD zone, action `testOrigin`/`syncConfigState`/`correlate`, aggregate, `waf.security_events`,
+`waf.scan_jobs?expand=zoneId` ra hostname của zone, xoá zone bị chặn 409 `record_referenced` khi còn scan job và được phép sau khi
+xoá scan job. FE chưa kiểm qua trình duyệt (theo quy ước, chủ dự án tự kiểm).
+
+**Chưa làm / ngoài phạm vi:**
+- `fields` (chọn trường) và cú pháp filter lồng trên query string (câu hỏi mở số 1); quy ước URL chưa ghi vào `08-cross-cutting`.
+- **metap-demo-jira:** backend vẫn là Rust phụ thuộc `../metap/crates` đã xoá từ 2026-10-30, vốn không build được; 2 file FE dùng
+  GraphQL chưa chuyển.
+- **metap-lowcode:** Rust, cùng tình trạng; gateway GraphQL control-plane của nó giữ nguyên (xem ngoại lệ ở trên).
+- control-plane (`c-config-distributor`) đã qua test unit nhưng chưa chạy lại end-to-end với Redis/edge sau khi đổi sang REST.
