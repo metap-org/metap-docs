@@ -15,7 +15,7 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 | M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Xong (2026-11-19): TOTP + mã khôi phục, đăng nhập hai bước, key `auth.requireMfa` theo tenant; chưa có WebAuthn, chưa mã hóa secret TOTP khi lưu |
 | M4 | Danh sách phiên, đăng xuất một phiên | Bảng phiên + thu hồi từng phiên | Trung bình | Xong (2026-11-19): mỗi lần đăng nhập là một phiên (`metadata.sessions`, token mang `sid`), xem danh sách, kết thúc một phiên hoặc mọi phiên khác, đăng xuất thu hồi phiên ở server; chưa có xem phiên của người khác (admin), giới hạn số phiên, báo đăng nhập mới |
 | M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Xong (2026-11-19): service account + API key `mk_`, băm SHA-256, hạn, lần dùng cuối, thu hồi; GraphQL gateway có đủ field; chưa có scope theo key, trần hạn theo tenant |
-| M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Chưa làm |
+| M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Xong (2026-11-20): `permission.DeclareResource`, `CheckResource`/`CheckResourceIn`, grant `resource:<tên>` qua `SetRolePermissions`, `ListPermissionResources`, gateway `permissionResources` |
 | M7 | SSO theo domain email, bắt buộc SSO | `SsoConnection` + định tuyến domain; SAML sau | Thấp | Chưa làm |
 | M8 | Owner khác admin, khôi phục owner | Cờ owner, chờ 72 giờ, báo admin | Thấp | Chưa làm |
 | M9 | Audit: chuỗi băm, API lọc, xuất file | | Trung bình | Chưa làm |
