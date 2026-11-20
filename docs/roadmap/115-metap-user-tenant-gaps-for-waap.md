@@ -14,14 +14,14 @@ Use case của Management plane (WAAP) cần các năng lực về user, phân q
 | M2 | Tenant qua API và tự đăng ký | `TenantAdminService` + `POST /auth/signup` + xác nhận email | Cao (chặn S0) | **`TenantAdminService` xong** (113 P3); **tự đăng ký xong** (2026-11-19): `POST /auth/signup` + `/auth/signup/verify`, bật bằng key `signup.enabled`; có CAPTCHA (`CAPTCHA_PROVIDER`/`CAPTCHA_SECRET`) và chặn tên tenant (`signup.blockedTenantNames` + danh sách dành riêng); chưa có chọn gói, gửi lại link |
 | M3 | MFA (TOTP, WebAuthn), bắt buộc MFA theo tenant | Yếu tố MFA theo identity, bước hai khi login, key `require_mfa` | Cao | Xong (2026-11-19): TOTP + mã khôi phục, đăng nhập hai bước, key `auth.requireMfa` theo tenant; chưa có WebAuthn, chưa mã hóa secret TOTP khi lưu |
 | M4 | Danh sách phiên, đăng xuất một phiên | Bảng phiên + thu hồi từng phiên | Trung bình | Xong (2026-11-19): mỗi lần đăng nhập là một phiên (`metadata.sessions`, token mang `sid`), xem danh sách, kết thúc một phiên hoặc mọi phiên khác, đăng xuất thu hồi phiên ở server; chưa có xem phiên của người khác (admin), giới hạn số phiên, báo đăng nhập mới |
-| M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Xong (2026-11-19): service account + API key `mk_`, băm SHA-256, hạn, lần dùng cuối, thu hồi; GraphQL gateway có đủ field; chưa có scope theo key, trần hạn theo tenant |
-| M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Chưa làm |
+| M5 | API key và service account | Key theo tenant/user: tiền tố, băm, phạm vi, hạn, lần dùng cuối, xoay, thu hồi | Cao (chặn S0) | Xong (2026-11-19): service account + API key `mk_`, băm SHA-256, hạn, lần dùng cuối, thu hồi; GraphQL gateway có đủ field; chưa có scope theo key (trần hạn theo tenant: xong ở M11) |
+| M6 | Quyền không gắn entity ("xem dữ liệu request", "duyệt change request") | Policy trên tài nguyên ảo, action tự do | Trung bình | Xong (2026-11-20): `permission.DeclareResource`, `CheckResource`/`CheckResourceIn`, grant `resource:<tên>` qua `SetRolePermissions`, `ListPermissionResources`, gateway `permissionResources` |
 | M7 | SSO theo domain email, bắt buộc SSO | `SsoConnection` + định tuyến domain; SAML sau | Thấp | Chưa làm |
 | M8 | Owner khác admin, khôi phục owner | Cờ owner, chờ 72 giờ, báo admin | Thấp | Chưa làm |
-| M9 | Audit: chuỗi băm, API lọc, xuất file | | Trung bình | Chưa làm |
+| M9 | Audit: chuỗi băm, API lọc, xuất file | | Trung bình | Xong (2026-11-20): chuỗi băm theo tenant (migration `0050`), `auditEntries` lọc theo người/đối tượng/thời gian, `verifyAuditChain`, `GET /admin/audit/export` (CSV/JSON) |
 | M10 | Truy cập hộ của NCC có cấp quyền, có hạn | Grant có hạn, audit đứng tên support | Thấp | Chưa làm |
-| M11 | Setting bảo mật của tenant (MFA, hạn API key, TTL phiên, mật khẩu) | Key mới trong `metap-config` tầng Tenant | Thấp | Chưa làm |
-| M12 | SCIM | Sau MVP | — | Chưa làm |
+| M11 | Setting bảo mật của tenant (MFA, hạn API key, TTL phiên, mật khẩu) | Key mới trong `metap-config` tầng Tenant | Thấp | Xong (2026-11-20): MFA/TTL phiên/độ dài mật khẩu đã có từ trước; thêm `auth.apiKeyMaxLifetimeDays` (trần hạn API key, áp ở `CreateApiKey`) |
+| M12 | SCIM | Sau MVP | — | Xong bản đầu (2026-11-20): `/scim/v2` Users (list có filter `userName eq`, get, create, replace, patch, delete) + ServiceProviderConfig/ResourceTypes/Schemas; chưa có Groups/roles |
 
 ## Câu hỏi chờ quyết
 
@@ -41,3 +41,16 @@ Chọn phương án bảng `role_assignments` chung (không mở rộng `AUTH_CO
 - Test: `pkg/permission/scope_test.go` (thuần logic), `pkg/crud/scoped_roles_postgres_test.go` (Postgres thật: chỉ thấy phạm vi của mình, role cấp ở zone này không rò sang zone khác, tạo và chuyển bản ghi ra ngoài phạm vi bị chặn, ràng buộc theo mảng và theo account, role toàn tenant kết hợp với role theo phạm vi, admin theo phạm vi, aggregate), `pkg/grpcapi/scoped_roles_service_postgres_test.go`. Đã thử phá (bỏ bước kiểm phạm vi) để chắc test thật sự bắt được.
 
 **Giới hạn đã biết:** policy từ chối (deny) được tính theo từng nhóm, nên deny gắn với một role người dùng giữ ở phạm vi A không áp ở phạm vi B. Chưa có UI quản lý gán theo phạm vi; chưa có cách khai báo phạm vi qua `dev-tools`/lowcode ngoài JSON của entity (`scopes`).
+
+## M9, M11, M12: đã làm (2026-11-20, metap, một commit)
+
+**M9 — audit chống sửa và tra cứu.**
+- Migration `0050`: mỗi dòng `audit_trail_entries` có `seq` (từ 1, theo tenant), `prev_hash`, `hash`; bảng `audit_chain_heads` giữ đầu chuỗi mỗi tenant. Hàm SQL `metadata.audit_entry_hash` là định nghĩa duy nhất của hash (người ghi và người kiểm dùng chung nên không lệch). Dòng cũ (seq NULL) nằm ngoài chuỗi.
+- Ghi: một transaction riêng mỗi entry, khoá dòng head của tenant (`FOR UPDATE`) rồi đọc hash trước, chèn, dời head. Tenant khác nhau không chờ nhau; cùng tenant ghi tuần tự (đánh đổi có chủ đích, đã test 20 writer đồng thời).
+- `VerifyChain` đi hết chuỗi, tính lại hash, báo vị trí đầu tiên hỏng: `gap` (mất/chèn dòng), `prev_hash`, `hash` (sửa nội dung), `head` (cắt đuôi). Đây là chống sửa kiểu phát hiện, không phải chống sửa tuyệt đối: người sở hữu DB có thể viết lại cả chuỗi lẫn head; muốn chắc hơn thì lưu `head_hash` ra ngoài (kèm trong báo cáo).
+- Tra cứu cả tenant: `audit.Store.Search` (người, loại đối tượng, đối tượng, hành động, khoảng thời gian, keyset), gRPC `AuditAdminService.SearchAudit`/`VerifyAuditChain` (admin), GraphQL `auditEntries`, `verifyAuditChain`.
+- Xuất file: `GET /admin/audit/export?format=csv|json&actor=&entity=&record=&actions=&from=&to=` (REST vì là tải file), admin, đi hết các trang rồi stream.
+
+**M11.** `auth.apiKeyMaxLifetimeDays` (tầng Tenant, 0 = không trần). Có trần thì mọi API key phải có hạn và không vượt trần; tenant khác không bị ảnh hưởng.
+
+**M12 — SCIM 2.0, bản đầu.** `/scim/v2` là lớp REST mỏng chạy `UserAdminService` trong cùng tiến trình với bearer token của người gọi (API key của service account admin), nên xác thực, kiểm admin, chặn gỡ admin cuối, mời qua email và audit là đúng luật của admin API. Tạo user = mời qua email (SCIM không mang mật khẩu). `PATCH` nhận `active` dạng bool hoặc chuỗi `"False"` (Entra), `displayName`, `name.formatted`; `userName` không đổi được. Chưa làm: Groups, roles, bulk, filter khác `userName eq`.
