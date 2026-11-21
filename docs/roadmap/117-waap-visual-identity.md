@@ -29,6 +29,17 @@ Thanh bên mực tối bên cạnh vùng làm việc sáng; một màu tín hi�
 
 **m-web** — logo (khiên + đường lưu lượng + điểm kiểm tra, `src/brand/Logo.tsx`), trang đăng nhập hai cột (panel mực có lưới mờ và vệt sáng cyan, tiêu đề, bốn trụ cột sản phẩm; dưới `lg` chỉ còn logo nhỏ trên form), favicon SVG, tiêu đề tab `WAAP Console`, chuyển từ theme enterprise sang `waap`, chuỗi i18n `waf.brand.*` (en, vi). Font: ngăn xếp hệ thống có `Inter`/`JetBrains Mono` đứng đầu; **không tải webfont** (không thêm phụ thuộc CDN, và ngăn xếp tự rơi về font hệ thống).
 
+## Chỉnh chi tiết component: bớt vuông vắn (cùng ngày, theo phản hồi của chủ dự án)
+
+Nguyên nhân "vuông vắn", tìm thấy trong code:
+- **Popover, menu, tooltip, dialog hiện ra không có chuyển động.** Chúng dùng `transition` giữa hai trạng thái, nhưng một phần tử Radix được mount sẵn ở trạng thái mở nên không có trạng thái "trước" để chuyển; đóng thì Radix gỡ ngay vì không có animation để chờ. Giờ dùng keyframe (`pop-in`/`pop-out`, `dialog-in`/`dialog-out`, `fade-*`, `sheet-<cạnh>-in/out`) dùng thuộc tính `scale`/`translate` độc lập (không đè phép dịch căn giữa của dialog); popover, menu, tooltip và select phóng ra từ đúng điểm neo (`--radix-*-content-transform-origin`); lớp phủ mờ nhẹ (`backdrop-blur-[2px]`). `prefers-reduced-motion` tắt hết chuyển động.
+- **Vòng focus cứng:** `ring-2` kèm `ring-offset-2` (khe trắng giữa phần tử và vòng). Đổi thành vầng sáng mềm `ring-[3px] ring-ring/30` và đường viền chuyển sang màu ring (`focus-visible:border-ring`) ở input, textarea, select; ô lỗi dùng `destructive/30`. Áp ở 17 component.
+- **Bóng mặc định của Tailwind** (một lớp, đen). Thay bằng bóng nhiều lớp nhuốm màu mực qua `--shadow-color` (token mới, có bản tối): `shadow-xs/sm/md/lg`. Nút chính và nút nguy hiểm có `shadow-sm`, nổi lên `shadow-md` khi hover; input có `shadow-xs`; thẻ dùng `shadow-sm`.
+- **Bo góc:** theme `waap` từ 0.375rem lên **0.625rem** (nút, input 8px, popover/menu/tab 10px, thẻ và dialog 14px); thẻ, dialog, command palette dùng `rounded-xl`, popover/menu/select `rounded-lg`, mục menu và tab `rounded-md`, mục thanh bên `rounded-lg`.
+- **Tương tác:** nút có `transition` trên màu, viền, bóng và `transform`, ấn xuống dịch 1px; input hover đổi viền; công tắc bỏ bóng quá nặng của núm.
+
+Chưa làm: bảng (`Table`) chưa bo thành khối, `Tag`/`Chip`/`Alert` còn màu cứng, `Skeleton` chưa có hiệu ứng quét sáng, toast chưa đổi hiệu ứng vào/ra. Cũng như phần trên, chưa ai xem trên trình duyệt: nên kiểm các lớp phủ (dialog, sheet, popover) khi mở và đóng, và vầng focus bằng bàn phím.
+
 ## Chưa làm / việc tiếp theo
 
 - **Chưa xem bằng mắt.** Điều đáng nhìn kỹ nhất: tương phản thanh bên ở trạng thái hover/active, trang đăng nhập ở cỡ `lg` ngay ngưỡng, biểu đồ với `--chart-1` cyan.
