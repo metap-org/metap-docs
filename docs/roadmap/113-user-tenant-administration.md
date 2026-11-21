@@ -185,7 +185,7 @@ MFA (TOTP), màn cấu hình SSO cho tenant (OIDC đã có ở backend), SCIM, A
 
 **Còn lại của P2**
 
-- Chưa có màn cấu hình `auth.passwordMinLength` cho tenant admin trong portal; đặt được qua API cấu hình tenant sẵn có.
+- ~~Chưa có màn cấu hình `auth.passwordMinLength` cho tenant admin~~: đã có từ roadmap 115, tab Security của Workspace sửa độ dài mật khẩu tối thiểu, bắt buộc MFA, thời hạn phiên và trần hạn API key (kiểm lại 2026-11-21).
 - Chưa xem giao diện trên trình duyệt; luồng nhận lời mời mới kiểm bằng test tích hợp, chưa chạy live (cần tài khoản admin để mời).
 
 ## P3: đã làm một phần (2026-11-18)

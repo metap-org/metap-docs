@@ -77,7 +77,11 @@ Phát hiện: bản Go có thư viện OIDC (`pkg/tenantauth`) nhưng chưa có 
 - Luồng: `GET /auth/sso/discover?email=` (chỉ định tuyến khi đúng một tenant nhận domain đó), `GET /auth/sso/start?tenant=` (PKCE + nonce, state lưu DB, dùng một lần, 10 phút), `GET /auth/sso/callback` (xác minh id_token; tìm member theo subject, nếu chưa có thì gắn member cùng email, nếu chưa có nữa thì tạo mới với role mặc định). Không hỏi MFA sau SSO: IdP là yếu tố thứ hai.
 - Cấu hình do tenant admin quản (`SsoAdminService`, GraphQL `ssoConfig`/`setSsoConfig`/`deleteSsoConfig`): issuer https và kiểm tra discovery ngay lúc lưu, client secret chỉ ghi (lưu SecretStore, không bao giờ trả về), giới hạn domain email, role mặc định (không bao giờ admin), URI callback hiển thị để đăng ký ở IdP.
 - **SSO bắt buộc:** `/auth/login` và đổi tenant trả 403 `sso_required` cho mọi member trừ owner. Chỉ owner được bật (owner giữ đăng nhập mật khẩu làm đường lui, liên kết với M8); xoá cấu hình thì mật khẩu dùng lại.
-- Chưa làm: SAML, ánh xạ nhóm/role từ claim của IdP, kiểm `email_verified`, ép SSO ở bước nhận lời mời và đặt lại mật khẩu, xác minh quyền sở hữu domain.
+- **Làm thêm 2026-11-21 (củng cố SSO):**
+  - **`email_verified`:** chỉ khi nhà cung cấp xác nhận địa chỉ (`email_verified` true) thì địa chỉ đó mới được dùng để tìm, liên kết hay tạo member. Trước đó một người có tài khoản IdP mang email của người khác (chưa xác minh) liên kết được vào member có sẵn và chiếm tài khoản đó. Người đã gắn với IdP theo `sub` vẫn đăng nhập bình thường.
+  - **Ánh xạ nhóm sang role:** `roleClaim` (tên claim, chuỗi hoặc danh sách) và `roleMap` (giá trị sang role) trong cấu hình SSO. Mỗi lần đăng nhập, các role nằm trong `roleMap` được đặt theo claim (vào nhóm thì có, rời thì mất); role ngoài bảng và role của owner không bao giờ bị đổi. Không map được sang `admin` hay `platform_admin`, giống `defaultRole`. Có ô cấu hình ở tab SSO của Workspace.
+  - **Ép SSO ở nhận lời mời:** `acceptInvitation` tự mở phiên mật khẩu nên lách được tenant bắt buộc SSO; nay trả 403 `sso_required` sau khi người đó đã tham gia, và trang nhận lời mời báo rõ. Đặt lại mật khẩu không cần chặn: nó không mở phiên và đăng nhập mật khẩu vào tenant bắt buộc SSO vốn đã bị từ chối.
+  - Còn: SAML, xác minh quyền sở hữu domain.
 
 ## Giao diện (platform-ui, design-system, waap): đã làm (2026-11-20)
 
