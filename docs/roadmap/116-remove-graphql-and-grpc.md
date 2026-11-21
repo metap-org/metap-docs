@@ -232,4 +232,27 @@ Làm nốt các mục "chưa làm" của P1–P6 và một lỗi lộ ra khi ki�
   được liệt kê, đọc từ phải sang trái), service dùng nó cho rate limit, captcha đăng ký và IP của phiên; gateway tự giới hạn theo
   người gọi và chuyển địa chỉ người gọi cho các lời gọi riêng của nó (expand, metadata); nginx ghi đè `X-Forwarded-For` bằng
   `$remote_addr`; compose của waap đặt `TRUSTED_PROXIES`. Có test cho `ClientIP`, limiter sau proxy tin cậy và `fields`+`expand`.
-- **Chưa làm:** `c-config-distributor` chạy lại end-to-end với Redis và edge sau khi đổi sang REST (xem mục dưới khi xong).
+
+## Chạy lại control-plane → edge sau khi đổi sang REST (2026-11-21)
+
+Dựng stack thật (Postgres, Redis, zones-service, `waf-config-distributor`, `waf-edge`, một origin giả), tạo domain, zone, firewall rule
+qua REST của zones-service (kể cả `syncConfigState` rồi `transitions/activate`: chỉ kích hoạt được khi `hasConfig`, thông báo guard
+đọc được), cho distributor đọc zones qua REST (`ZONES_URL`) và edge nạp từ Redis.
+
+Chạy đúng: resync đọc zone/rule qua `recordclient`, publish `waf:zone:<host>`; request tới host đó khớp rule trả 403, path khác đi tới
+origin, host lạ trả 421; telemetry từ edge tới `/ingest/events` của distributor (`eventsSent` tăng; chặng tiếp theo tới analytics-api
+không chạy trong lần này); xóa rule thì hết bị chặn sau một lần resync; chuyển zone sang `suspended` thì bị gỡ khỏi Redis và edge trả
+421 (`resync found an orphaned rule-set, removing`); xóa zone khi scanning-service không chạy bị từ chối `reference_check_unavailable`
+(đúng thiết kế).
+
+**Hai lỗi thật lộ ra (cả hai có từ trước, không do bỏ GraphQL):**
+1. **Rule thêm sau lần nạp đầu không bao giờ tới edge.** Edge bỏ qua zone có `configVersion` không đổi, mà không có gì tăng
+   `Zone.configVersion` (docs nói "tự động", code không làm). Lần chứng minh ở roadmap 98 chỉ thử tạo mới trước khi edge nạp lần đầu nên
+   không thấy. Sửa: `control-plane` gắn `configVersion` = hash nội dung rule-set (trừ `compiledAt`) khi publish
+   (`ruleset.ContentVersion`); xem `docs/management/04-architecture-boundary.md`. Không dùng bộ đếm ở management vì nó bỏ sót rule áp
+   cho cả tenant, sửa DB trực tiếp, và hai thay đổi đồng thời.
+2. **`tenantId` trong rule-set do resync tạo ra luôn rỗng** (đường sự kiện thì có): REST không trả tenant trong bản ghi (GraphQL cũ thì
+   có). `management.Client` giờ gắn tenant của phiên đăng nhập vào mỗi bản ghi. Edge không đọc field này nên chưa gây hỏng gì.
+
+**Chưa kiểm:** đường sự kiện RabbitMQ (môi trường không có RabbitMQ; resync là đường đảm bảo hội tụ nên phần cốt lõi đã được chạy),
+chặng distributor → analytics-api, và pillar DDoS / IP access list qua cùng pipeline (chỉ có unit test).
