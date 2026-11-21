@@ -38,13 +38,13 @@ Nguyên nhân "vuông vắn", tìm thấy trong code:
 - **Bo góc:** theme `waap` từ 0.375rem lên **0.625rem** (nút, input 8px, popover/menu/tab 10px, thẻ và dialog 14px); thẻ, dialog, command palette dùng `rounded-xl`, popover/menu/select `rounded-lg`, mục menu và tab `rounded-md`, mục thanh bên `rounded-lg`.
 - **Tương tác:** nút có `transition` trên màu, viền, bóng và `transform`, ấn xuống dịch 1px; input hover đổi viền; công tắc bỏ bóng quá nặng của núm.
 
-Chưa làm: bảng (`Table`) chưa bo thành khối, `Tag`/`Chip`/`Alert` còn màu cứng, `Skeleton` chưa có hiệu ứng quét sáng, toast chưa đổi hiệu ứng vào/ra. Cũng như phần trên, chưa ai xem trên trình duyệt: nên kiểm các lớp phủ (dialog, sheet, popover) khi mở và đóng, và vầng focus bằng bàn phím.
+Làm nốt cùng ngày: `Tag` dùng token (info/success/warning/destructive/chart-2) thay `bg-*-100`; `Skeleton` quét sáng (`shimmer`) thay nhấp nháy; toast trượt vào (`toast-in`); đầu bảng có nền nhạt. `Chip` và `Alert` vốn đã dùng token (không có màu cứng như ghi trước đó). Cũng như phần trên, chưa ai xem trên trình duyệt: nên kiểm các lớp phủ (dialog, sheet, popover) khi mở và đóng, và vầng focus bằng bàn phím.
 
 ## Chưa làm / việc tiếp theo
 
 - **Chưa xem bằng mắt.** Điều đáng nhìn kỹ nhất: tương phản thanh bên ở trạng thái hover/active, trang đăng nhập ở cỡ `lg` ngay ngưỡng, biểu đồ với `--chart-1` cyan.
 - Dùng `font-mono` cho dữ liệu máy trong các trang (IP, id rule, request id, path, hostname): token và theme đã có, chưa áp vào từng bảng.
-- Đổi hết các chỗ màu cứng còn lại của design-system (`Tag` có palette riêng, một số `bg-*-100` trong `Alert`/`Chip`) sang token trạng thái.
 - Webfont `Inter`/`JetBrains Mono` tự host nếu muốn đúng chữ trên mọi máy.
+- Mỗi trang của m-web chưa tự áp `font-mono`; cách đúng là một gợi ý hiển thị theo field (như `widget`) để danh sách sinh tự động tự chọn mono cho IP/id/path, chưa làm.
 - Minh họa/trạng thái rỗng (`EmptyState`), màn hình lỗi và email giao dịch chưa mang nhận diện.
 - Các theme khác trong metap-themes (`enterprise`, `fintech`, ...) chưa khai báo token mới; chúng chạy bằng giá trị mặc định, nên chỉ thanh bên và trạng thái trông như cũ.
