@@ -122,7 +122,7 @@ Có trường hợp nào dưới đây thì xem lại quyết định, cho phầ
 
 ## Câu hỏi còn mở (chốt ở P0/P1)
 
-1. Cú pháp query của list trên REST: filter lồng (`all`/`any`), sort nhiều trường, JQL đi qua query string hay `POST /api/{entity}/search`.
+1. ~~Cú pháp query của list trên REST~~ → chốt: filter lồng/khoảng/`OR`/`NOT` đi qua `jql` trên query string, sort một field (xem `08-cross-cutting`, "Quy ước REST").
 2. OpenAPI của thao tác custom: gộp vào `/metadata/openapi.json` hay tách tài liệu riêng.
 3. Read model analytics của WAAP: upstream của gateway hay FE gọi thẳng `a-api`.
 4. Chạy song song bao lâu, và phiên bản nào thì xoá hẳn (P6).
@@ -207,8 +207,52 @@ admin (mời, vai trò + quyền, chặn xoá vai trò đang dùng với `fieldE
 xoá scan job. FE chưa kiểm qua trình duyệt (theo quy ước, chủ dự án tự kiểm).
 
 **Chưa làm / ngoài phạm vi:**
-- `fields` (chọn trường) và cú pháp filter lồng trên query string (câu hỏi mở số 1); quy ước URL chưa ghi vào `08-cross-cutting`.
+- ~~`fields` và cú pháp filter lồng; quy ước URL~~ → xong, xem mục "Bổ sung" ngay dưới.
 - **metap-demo-jira:** backend vẫn là Rust phụ thuộc `../metap/crates` đã xoá từ 2026-10-30, vốn không build được; 2 file FE dùng
   GraphQL chưa chuyển.
 - **metap-lowcode:** Rust, cùng tình trạng; gateway GraphQL control-plane của nó giữ nguyên (xem ngoại lệ ở trên).
 - control-plane (`c-config-distributor`) đã qua test unit nhưng chưa chạy lại end-to-end với Redis/edge sau khi đổi sang REST.
+
+## Bổ sung (2026-11-21, sau P1–P6)
+
+Làm nốt các mục "chưa làm" của P1–P6 và một lỗi lộ ra khi kiểm lại vai trò của gateway.
+
+- **`?fields=a,b`** trên list, `?ids=` và get: `data` chỉ giữ các field đó, vỏ bản ghi giữ nguyên, field lạ là 400 `validation_failed`
+  kèm `fieldErrors.fields`. Che field theo quyền chạy trước nên `fields` chỉ thu hẹp. Gateway biết `fields` đi cùng `expand`: nó hỏi
+  service thêm cả các field sẽ expand (nếu không `?fields=name&expand=zoneId` mất id để expand, ra `null`), rồi bỏ chúng khỏi kết
+  quả nếu người gọi không xin.
+- **Filter lồng, sort:** không thêm cú pháp. JQL đã có `AND`/`OR`/`NOT`, ngoặc, so sánh, `~`, `IN`, `IS EMPTY`, `ORDER BY`; sort giữ một
+  field vì keyset cursor gắn với đúng một khóa. Chốt trong `08-cross-cutting`.
+- **OpenAPI cho route entity:** `/metadata/openapi.json` giờ mô tả 6 route generic (`/api/{entity}`, `/{id}`, `aggregate`,
+  `transitions`, hai dạng `actions`) với đủ tham số, envelope `Record`/`Page`/`Error`. Entity là tham số đường dẫn, không có path theo
+  từng entity; kiểu của `data` là `EntitySummary` của entity đó.
+- **Quy ước URL** ghi vào `08-cross-cutting` ("Quy ước REST").
+- **Lỗi lộ ra: rate limit sau gateway.** Limiter của service tính theo `RemoteAddr`; sau gateway (rồi nginx) mọi người dùng cùng một
+  địa chỉ nên cả portal chung một bucket ~5 req/s. Sửa: `httpx.ClientIP` + `TRUSTED_PROXIES` (chỉ tin `X-Forwarded-For` từ proxy
+  được liệt kê, đọc từ phải sang trái), service dùng nó cho rate limit, captcha đăng ký và IP của phiên; gateway tự giới hạn theo
+  người gọi và chuyển địa chỉ người gọi cho các lời gọi riêng của nó (expand, metadata); nginx ghi đè `X-Forwarded-For` bằng
+  `$remote_addr`; compose của waap đặt `TRUSTED_PROXIES`. Có test cho `ClientIP`, limiter sau proxy tin cậy và `fields`+`expand`.
+
+## Chạy lại control-plane → edge sau khi đổi sang REST (2026-11-21)
+
+Dựng stack thật (Postgres, Redis, zones-service, `waf-config-distributor`, `waf-edge`, một origin giả), tạo domain, zone, firewall rule
+qua REST của zones-service (kể cả `syncConfigState` rồi `transitions/activate`: chỉ kích hoạt được khi `hasConfig`, thông báo guard
+đọc được), cho distributor đọc zones qua REST (`ZONES_URL`) và edge nạp từ Redis.
+
+Chạy đúng: resync đọc zone/rule qua `recordclient`, publish `waf:zone:<host>`; request tới host đó khớp rule trả 403, path khác đi tới
+origin, host lạ trả 421; telemetry từ edge tới `/ingest/events` của distributor (`eventsSent` tăng; chặng tiếp theo tới analytics-api
+không chạy trong lần này); xóa rule thì hết bị chặn sau một lần resync; chuyển zone sang `suspended` thì bị gỡ khỏi Redis và edge trả
+421 (`resync found an orphaned rule-set, removing`); xóa zone khi scanning-service không chạy bị từ chối `reference_check_unavailable`
+(đúng thiết kế).
+
+**Hai lỗi thật lộ ra (cả hai có từ trước, không do bỏ GraphQL):**
+1. **Rule thêm sau lần nạp đầu không bao giờ tới edge.** Edge bỏ qua zone có `configVersion` không đổi, mà không có gì tăng
+   `Zone.configVersion` (docs nói "tự động", code không làm). Lần chứng minh ở roadmap 98 chỉ thử tạo mới trước khi edge nạp lần đầu nên
+   không thấy. Sửa: `control-plane` gắn `configVersion` = hash nội dung rule-set (trừ `compiledAt`) khi publish
+   (`ruleset.ContentVersion`); xem `docs/management/04-architecture-boundary.md`. Không dùng bộ đếm ở management vì nó bỏ sót rule áp
+   cho cả tenant, sửa DB trực tiếp, và hai thay đổi đồng thời.
+2. **`tenantId` trong rule-set do resync tạo ra luôn rỗng** (đường sự kiện thì có): REST không trả tenant trong bản ghi (GraphQL cũ thì
+   có). `management.Client` giờ gắn tenant của phiên đăng nhập vào mỗi bản ghi. Edge không đọc field này nên chưa gây hỏng gì.
+
+**Chưa kiểm:** đường sự kiện RabbitMQ (môi trường không có RabbitMQ; resync là đường đảm bảo hội tụ nên phần cốt lõi đã được chạy),
+chặng distributor → analytics-api, và pillar DDoS / IP access list qua cùng pipeline (chỉ có unit test).
