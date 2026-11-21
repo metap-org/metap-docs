@@ -122,7 +122,7 @@ Có trường hợp nào dưới đây thì xem lại quyết định, cho phầ
 
 ## Câu hỏi còn mở (chốt ở P0/P1)
 
-1. Cú pháp query của list trên REST: filter lồng (`all`/`any`), sort nhiều trường, JQL đi qua query string hay `POST /api/{entity}/search`.
+1. ~~Cú pháp query của list trên REST~~ → chốt: filter lồng/khoảng/`OR`/`NOT` đi qua `jql` trên query string, sort một field (xem `08-cross-cutting`, "Quy ước REST").
 2. OpenAPI của thao tác custom: gộp vào `/metadata/openapi.json` hay tách tài liệu riêng.
 3. Read model analytics của WAAP: upstream của gateway hay FE gọi thẳng `a-api`.
 4. Chạy song song bao lâu, và phiên bản nào thì xoá hẳn (P6).
@@ -207,8 +207,29 @@ admin (mời, vai trò + quyền, chặn xoá vai trò đang dùng với `fieldE
 xoá scan job. FE chưa kiểm qua trình duyệt (theo quy ước, chủ dự án tự kiểm).
 
 **Chưa làm / ngoài phạm vi:**
-- `fields` (chọn trường) và cú pháp filter lồng trên query string (câu hỏi mở số 1); quy ước URL chưa ghi vào `08-cross-cutting`.
+- ~~`fields` và cú pháp filter lồng; quy ước URL~~ → xong, xem mục "Bổ sung" ngay dưới.
 - **metap-demo-jira:** backend vẫn là Rust phụ thuộc `../metap/crates` đã xoá từ 2026-10-30, vốn không build được; 2 file FE dùng
   GraphQL chưa chuyển.
 - **metap-lowcode:** Rust, cùng tình trạng; gateway GraphQL control-plane của nó giữ nguyên (xem ngoại lệ ở trên).
 - control-plane (`c-config-distributor`) đã qua test unit nhưng chưa chạy lại end-to-end với Redis/edge sau khi đổi sang REST.
+
+## Bổ sung (2026-11-21, sau P1–P6)
+
+Làm nốt các mục "chưa làm" của P1–P6 và một lỗi lộ ra khi kiểm lại vai trò của gateway.
+
+- **`?fields=a,b`** trên list, `?ids=` và get: `data` chỉ giữ các field đó, vỏ bản ghi giữ nguyên, field lạ là 400 `validation_failed`
+  kèm `fieldErrors.fields`. Che field theo quyền chạy trước nên `fields` chỉ thu hẹp. Gateway biết `fields` đi cùng `expand`: nó hỏi
+  service thêm cả các field sẽ expand (nếu không `?fields=name&expand=zoneId` mất id để expand, ra `null`), rồi bỏ chúng khỏi kết
+  quả nếu người gọi không xin.
+- **Filter lồng, sort:** không thêm cú pháp. JQL đã có `AND`/`OR`/`NOT`, ngoặc, so sánh, `~`, `IN`, `IS EMPTY`, `ORDER BY`; sort giữ một
+  field vì keyset cursor gắn với đúng một khóa. Chốt trong `08-cross-cutting`.
+- **OpenAPI cho route entity:** `/metadata/openapi.json` giờ mô tả 6 route generic (`/api/{entity}`, `/{id}`, `aggregate`,
+  `transitions`, hai dạng `actions`) với đủ tham số, envelope `Record`/`Page`/`Error`. Entity là tham số đường dẫn, không có path theo
+  từng entity; kiểu của `data` là `EntitySummary` của entity đó.
+- **Quy ước URL** ghi vào `08-cross-cutting` ("Quy ước REST").
+- **Lỗi lộ ra: rate limit sau gateway.** Limiter của service tính theo `RemoteAddr`; sau gateway (rồi nginx) mọi người dùng cùng một
+  địa chỉ nên cả portal chung một bucket ~5 req/s. Sửa: `httpx.ClientIP` + `TRUSTED_PROXIES` (chỉ tin `X-Forwarded-For` từ proxy
+  được liệt kê, đọc từ phải sang trái), service dùng nó cho rate limit, captcha đăng ký và IP của phiên; gateway tự giới hạn theo
+  người gọi và chuyển địa chỉ người gọi cho các lời gọi riêng của nó (expand, metadata); nginx ghi đè `X-Forwarded-For` bằng
+  `$remote_addr`; compose của waap đặt `TRUSTED_PROXIES`. Có test cho `ClientIP`, limiter sau proxy tin cậy và `fields`+`expand`.
+- **Chưa làm:** `c-config-distributor` chạy lại end-to-end với Redis và edge sau khi đổi sang REST (xem mục dưới khi xong).

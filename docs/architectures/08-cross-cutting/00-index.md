@@ -58,13 +58,10 @@ header đó — dấu hiệu của một request browser dùng `fetch(..., {cred
 đầy đủ (2 tuyến song song) ở [06. Runtime View](../06-runtime/00-index.md)'s mục "Tạo user, đăng nhập, và kiểm
 tra quyền".
 
-**`graphql-gateway` là ngoại lệ có chủ đích, không tham gia cơ chế này** — service riêng, tự
-keypair, tự CORS, "decode-only" (chỉ verify JWT, không mint) — mở rộng nó sang cookie nghĩa là
-thêm CORS/cookie cross-origin cho 1 service, phạm vi lớn hơn nhiều so với nhu cầu thật. Giải pháp:
-`GET /auth/token` (route mới trên service chính, dùng `AuthContext` nên chạy được dù caller vào
-bằng cookie hay Bearer) mint 1 JWT ngắn hạn theo đúng identity của caller; `platform-ui`'s
-`useGraphQLQuery` gọi route này ngay trước mỗi lần gọi gateway, không giữ token lại — đúng tinh
-thần "không giữ credential sống lâu phía client" của cả đợt đổi này.
+**Gateway không tham gia cơ chế này (từ 2026-11-21: `pkg/apigateway`, thay `graphql-gateway`)** — nó là reverse proxy,
+không xác thực ai, chỉ chuyển tiếp `Authorization`/`Cookie`/`X-CSRF-Token`; service phía sau tự verify token qua JWKS và tự
+kiểm CSRF. Vì vậy cookie phiên chạy nguyên vẹn qua gateway (SPA gọi cùng origin qua nginx). Route `GET /auth/token` vẫn còn
+cho client cần Bearer ngắn hạn, nhưng FE không còn cần nó để gọi gateway.
 
 `POST /auth/logout` (route mới) xoá cả 2 cookie (`Max-Age=0`) — client không tự xoá được cookie
 `HttpOnly`, không yêu cầu `AuthContext` (logout một session đã hết hạn/đã logout rồi là no-op hợp
@@ -73,6 +70,59 @@ lý, không cần 401 trước). `AppState.cookie_secure` (mặc định `true`)
 bước này browser âm thầm không lưu cookie, giống hệt triệu chứng "login xong không giữ được session"
 dù mọi thứ khác đều đúng (lỗ hổng phát hiện live 2026-09-03 ở `metap-demo-crm`/`metap-demo-jira`/
 `metap-demo-waf` — cả 3 quên set field này khi phase 64 ship, xem `docs/roadmap/69-*.md`).
+
+## Quy ước REST (roadmap 116)
+
+metap chỉ nói HTTP/JSON. Một thao tác mới tốn đúng một handler; hợp đồng là OpenAPI (`/metadata/openapi.json` cho
+route entity generic, `/metadata/api.json` cho thao tác có kiểu).
+
+**URL là route thật** (rate-limit, log, phân quyền theo đường dẫn được):
+- Tài nguyên là danh từ số nhiều; entity là tham số đường dẫn: `/api/{entity}`, `/api/{entity}/{id}`.
+- Hành động không phải CRUD đặt dưới tài nguyên, `POST .../{verb}`: `/api/{entity}/{id}/transitions/{action}` (workflow),
+  `/api/{entity}[/{id}]/actions/{action}` (action khai báo trên entity), `/admin/users/{id}/mfa/reset`,
+  `/platform/tenants/{id}/suspend`.
+- Của người gọi: `/me`, `/me/sessions/{id}`; quản trị tenant: `/admin/*`; quản trị nền tảng: `/platform/*`.
+- Thất bại luôn là `{"error":{"code","message","fieldErrors","details"}}` (một dạng, mọi route, mọi service).
+- Danh sách luôn là `[]`, không bao giờ `null`.
+
+**Tham số của `GET /api/{entity}`** (tên dành riêng, không bao giờ bị hiểu là filter theo field):
+
+| Tham số | Ý nghĩa |
+|---|---|
+| `limit` | 1–200 (mặc định 30; list view có thể đặt trần thấp hơn) |
+| `sort` | một field có `sortable`, tiền tố `-` là giảm dần; mặc định theo list view, rồi `-createdAt` |
+| `cursor` / `offset` | keyset (mặc định, rẻ với dữ liệu lớn) hoặc trang đánh số (tối đa 100000); không dùng chung |
+| `withTotal` | `true`: đếm tổng số dòng khớp vào `page.total` |
+| `search` | văn bản tự do trên các field `searchable` kiểu chuỗi/enum |
+| `listView` | tên list view; `filters` của nó là các field được dùng làm `field=value` |
+| `field=value` | so sánh bằng, chỉ với field nằm trong `filters` của list view; giá trị rỗng = "chưa đặt" |
+| `jql` | **mọi thứ phức tạp hơn so sánh bằng** |
+| `ids` | tối đa 200 id, một lần gọi: bản ghi nào tồn tại và đọc được thì trả về, còn lại vắng mặt |
+| `fields` | chỉ giữ các field này trong `data` (field lạ: 400 kèm tên); mặc định mọi field đọc được |
+| `expand` | resolve field tham chiếu vào `expanded` (chéo service nhờ gateway, gọi `?ids=` một lần mỗi entity đích) |
+
+**Chốt các câu hỏi mở của roadmap 116:** filter lồng, khoảng giá trị, `OR`/`NOT` đi qua **`jql`**, không có cú pháp thứ hai
+trên query string (JQL đã có `AND`/`OR`/`NOT`, ngoặc, `=` `!=` `>` `>=` `<` `<=`, `~` chứa, `IN`, `IS EMPTY`, `ORDER BY`, và
+được kiểm theo metadata của entity). Sort chỉ một field: keyset cursor gắn với đúng một khóa sắp xếp cộng `id`, đa khóa buộc
+đổi cursor mà chưa có nhu cầu thật; cần thứ tự phức tạp hơn thì `jql ... ORDER BY`. `fields` chỉ thu hẹp thứ người gọi vốn
+đã đọc được (che field theo quyền chạy trước), phần vỏ (`id`, `version`, `status`, thời gian) luôn giữ.
+
+**Ai là "người gọi" khi có proxy phía trước.** Mọi thứ phụ thuộc địa chỉ người gọi (rate limit, captcha đăng ký, IP của
+phiên đăng nhập) dùng `httpx.ClientIP`: mặc định là địa chỉ TCP; chỉ khi peer nằm trong `TRUSTED_PROXIES` (CIDR hoặc IP,
+phân tách bằng dấu phẩy) mới đọc `X-Forwarded-For` **từ phải sang trái, bỏ qua mọi proxy tin cậy**, địa chỉ đầu tiên còn lại
+là người gọi. Header từ peer không tin cậy không bao giờ được tin. Không đặt `TRUSTED_PROXIES` thì hành vi y như trước.
+Bài học khi bỏ gRPC/GraphQL: sau gateway, mọi người dùng đều đến từ **một** địa chỉ, nên limiter theo `RemoteAddr` của service
+trở thành một bucket chung cho cả portal (~5 req/s) — service phải đặt `TRUSTED_PROXIES` là địa chỉ gateway, gateway đặt là
+địa chỉ nginx/LB.
+
+**Phân vai ở lớp ngoài:**
+- **Rate limit:** gateway giới hạn theo người gọi (`RATE_LIMIT_PER_MS`/`RATE_LIMIT_BURST`, mặc định 200 ms / burst 300); mỗi
+  service vẫn giới hạn theo cấu hình tenant/nền tảng (`http.rateLimitPerMillisecond`/`http.rateLimitBurst`) với cùng định
+  nghĩa người gọi, nên đi thẳng vào service cũng không né được.
+- **CORS:** SPA gọi cùng origin qua nginx nên gateway không làm CORS. Service giữ allowlist `CORS_ORIGINS` cho client gọi
+  thẳng (dev, công cụ). Gateway không bao giờ nới CORS thay service.
+- **Xác thực:** không ở gateway; mỗi service tự verify (JWKS). Gateway chỉ chuyển tiếp header và cookie.
+- **TLS, giới hạn kích thước, SPA:** nginx. Phía trước nginx là LB thì cấu hình `real_ip` cho nginx.
 
 ## Security Principles
 
