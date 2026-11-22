@@ -221,12 +221,21 @@ Cấm: `if role == "..."` trong handler; dùng `platform_admin` cho tính năng 
 
 ## 8. Cấu hình và dây nối
 
-Một struct `Config` mỗi service, đọc env **một lần** ở `cmd/` bằng `kit/env`
-(`ConfigFromEnv()`), truyền xuống. `main.go` chỉ ráp `app.Options`.
+Một struct `Config` mỗi service, đọc **một lần** ở `cmd/` bằng `kit/env` (`LoadConfig()`), truyền
+xuống. `main.go` chỉ ráp `app.Options`.
+
+**Nguồn giá trị** (thứ tự, cái đầu thắng): biến môi trường, file YAML mà `CONFIG_FILE` trỏ tới, giá
+trị mặc định của chỗ đọc. File là nơi đặt cấu hình ổn định của service; env chỉ để ghi đè từng giá
+trị theo môi trường và để đưa secret vào (đừng để secret trong file). Mỗi khoá trong file chính là
+tên biến nó thay, viết thường và lồng nhau: `smtp.host` là `SMTP_HOST`, `jwks.keys_dir` là
+`JWKS_KEYS_DIR`, `cors_origins: [a, b]` là `CORS_ORIGINS=a,b`. Code đọc cấu hình không đổi gì:
+`kit/env` tự tìm trong file khi env không có. Dòng đầu của `main`: `configfile.MustLoadFromEnv()`.
+Mẫu: `waap/m-deploy/config/management.yaml`.
 
 ```go
 func main() {
-	cfg := billingservice.ConfigFromEnv()
+	configfile.MustLoadFromEnv()
+	cfg := billingservice.LoadConfig()
 	app.Main(app.Options{
 		Name:    "billing-service",
 		Routes:  billingservice.MountRoutes(cfg),   // chỉ /internal/*, health
