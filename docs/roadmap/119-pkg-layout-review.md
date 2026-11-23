@@ -1,8 +1,10 @@
 # 119. Rà lại bố cục `pkg/` của metap: nên gộp, tách, đổi tên thế nào
 
 Chủ dự án yêu cầu (2026-11-23), sau roadmap 118: rà toàn bộ `pkg/` và đề xuất cách sắp xếp/gộp cho hợp lý. Tài liệu này ghi
-hiện trạng đo từ mã (`go list`, đồ thị import, số dòng), những chỗ lệch, và đề xuất theo thứ tự. **Chưa sửa gì**; metap và
-waap chưa phát hành ổn định nên được phép đổi đường dẫn import (waap và lowcode sửa theo trong PR đi kèm).
+hiện trạng đo từ mã (`go list`, đồ thị import, số dòng), những chỗ lệch, và đề xuất theo thứ tự. metap và waap chưa phát hành
+ổn định nên được phép đổi đường dẫn import (waap sửa theo trong PR đi kèm; lowcode chưa build được nên làm riêng).
+
+**Trạng thái (2026-11-23): đã làm xong cả 6 bước** (metap #85 và #86, waap #76 cùng PR theo sau). Các chỗ khác đề xuất: xem §7.
 
 ## 1. Hiện trạng
 
@@ -121,9 +123,25 @@ Mỗi bước là một PR, giữ hành vi, chạy `go test ./...` + tích hợp
 Làm theo thứ tự 1→6: 1–3 sửa chỗ **lệch thật** (hai đường token, ngăn kéo, hai nơi cấu hình); 4–6 là sắp xếp cho dễ đọc, có
 thể hoãn. Mỗi bước thêm luật depguard giữ kết quả (ví dụ cấm import `pkg/peripherals` đã xóa, cấm `auth/*` import `httpserver`).
 
-## 6. Điều cần chốt
+## 6. Các câu hỏi đã chốt
 
-1. Đồng ý bỏ `peripherals` và `infra` và gom vào chỗ đúng như §3.1–3.3? (đề xuất: có, đây là phần giá trị nhất)
-2. Vai trò (roles) nên ở `permission/rolestore` hay `identity/roles`? (đề xuất: `permission/rolestore`)
-3. Có làm nhóm `auth/` và `messaging/` (§3.4–3.5) không, hay chỉ sửa các chỗ lệch ở §3.1–3.3? (đề xuất: làm sau, tách PR)
-4. `authcontext` ở `identity/authctx` hay `httpserver/auth`? (đề xuất: `httpserver/auth`, vì chỉ transport cần nó)
+1. Bỏ `peripherals` và `infra`: **có**, đã bỏ.
+2. Vai trò ở `permission/rolestore`: **có**.
+3. Làm cả `auth/` và `messaging/`: **có**, làm luôn (bước 4–5).
+4. `authcontext`: đặt ở `internal/authctx` (không phải `httpserver/auth`), vì nó dùng cả `httpserver` lẫn `internal/admin` và
+   `internal/signin`; để trong `httpserver` sẽ làm `internal/*` import ngược lên transport.
+
+## 7. Kết quả và chỗ khác đề xuất
+
+Bố cục thực tế được ghi ở mục "Package layout" của `CLAUDE.md` trong metap (kèm bảng đổi đường dẫn cũ → mới). Khác đề xuất:
+
+| Đề xuất | Thực tế | Lý do |
+|---|---|---|
+| `jwks` đổi tên `token` | giữ `auth/jwks` | `token` là tên biến cục bộ ở hầu hết file import nó |
+| `authcontext` → `identity/authctx` hoặc `httpserver/auth` | `internal/authctx` | tránh `internal/*` phụ thuộc ngược lên `httpserver` |
+| `attachments`, `dashboards` vào `httpserver/*routes` | **giữ nguyên** `pkg/attachments`, `pkg/dashboards` | kho dữ liệu của chúng chứa mã DB; đặt dưới `httpserver` vi phạm luật depguard `transport-no-driver` |
+| `SecretStore` vào `secrets` | `secrets` (không phụ thuộc) + `secrets/backend` | để chỉ binary dựng kho Vault/AWS/GCP mới link SDK đám mây |
+| `cache` → `permission/cache` | đúng như đề xuất | `permission` là người dùng duy nhất |
+| `runtime` → `httpmw` | đúng như đề xuất | |
+
+Chưa làm: lowcode cần một đợt theo riêng (chi → router, đường dẫn mới, `go mod tidy`, toolchain 1.26.11).
