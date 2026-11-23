@@ -5,7 +5,7 @@ và core CRUD là một hàm dài trộn nhiều mối quan tâm. Tài liệu n�
 đo từ mã, những gì chưa chốt, và thứ tự làm. **Đây là thay đổi phá vỡ (breaking change) lớn** ở metap; waap và
 `internal/admin` đi theo.
 
-**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án, chưa có mã.** Nhánh làm việc: xem §9.
+**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án, P0 (kiểm chứng distributor) xong, chưa có mã.** Nhánh làm việc: xem §9.
 
 ## 1. Vấn đề (đo từ mã)
 
@@ -117,12 +117,15 @@ Kiểu `Scope` nằm trong `pkg/kit` (thuần stdlib) vì `e-edge` và `a-api` c
 
 - Chữ ký generic cuối cùng của `action.*` và cách sinh metadata (ảnh hưởng form tự sinh của `platform-ui`): chốt sau khi thử trên hai action đầu.
 - TTL của cache role (đề xuất 30–60 giây) và cách báo nạp lại ma trận giữa nhiều instance (outbox/RabbitMQ hay kiểm tra version định kỳ).
-- Event theo từng bước hay một event tổng hợp cho thao tác nhiều bước.
+- Cách tránh để edge nhận rule-set lưng chừng giữa các `Step` (kết quả P0, §7): bước cuối là bước kích hoạt, hoặc một event tổng hợp ở cuối, hoặc `Atomic()` cho thao tác đổi trực tiếp rule-set.
 - Nghiệp vụ dở dang: bù trừ, resume hay chấp nhận trạng thái một phần, quyết định theo từng nghiệp vụ.
 
 ## 7. Chưa kiểm chứng (không ghi như sự thật)
 
-- `c-config-distributor` có chịu được nhiều event cho một thao tác (biên dịch lại giữa chừng) hay không.
+- ~~`c-config-distributor` có chịu được nhiều event cho một thao tác~~ **Đã kiểm chứng (P0, 2026-11-24, chỉ đọc code):** chịu được. `sync.Zone`
+  đọc lại trạng thái hiện tại từ management cho mỗi event, biên dịch và publish idempotent, không gộp event; lần chạy cuối luôn ra
+  trạng thái mới nhất, và resync mỗi 60 giây (`RESYNC_INTERVAL_SECONDS`) là chốt hội tụ. Điều cần xử lý không phải số event mà là
+  **trạng thái trung gian**: các `Step` commit độc lập nên edge có thể nhận rule-set lưng chừng giữa hai bước (xem §6).
 - Có phát event CRUD thông thường nào ngoài `workflow.EmitTransitioned` (`crud/transition.go`) hay không (không thấy `EmitRecord` trong `crud`).
 
 ## 8. Ngoài phạm vi
