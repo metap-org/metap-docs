@@ -10,8 +10,9 @@ dưới đây là kết luận từ đọc mã, cần một test tái hiện tr�
 ## Tóm tắt
 
 Phần lõi chắc: xác thực SAML, ràng buộc state, kiểm soát vai trò từ IdP, xác minh domain, mã hoá
-credential đều làm đúng. Không có finding HIGH. Có **1 MEDIUM** và 5 LOW/INFO, phần lớn là chỗ
-hai cơ chế cùng việc đã lệch nhau.
+credential đều làm đúng. Không có finding HIGH. Đợt đầu có **1 MEDIUM** và 5 LOW/INFO, phần lớn là chỗ
+hai cơ chế cùng việc đã lệch nhau; đợt 2 (các mục chưa kiểm) thêm **2 MEDIUM** (MFA không đếm lần sai,
+phiên hỗ trợ tạo truy cập sống lâu hơn grant), 2 LOW và 1 INFO. Tất cả đã sửa, trừ một LOW còn mở ở cuối.
 
 | # | Mức độ | Vấn đề | Trạng thái |
 |---|---|---|---|
