@@ -23,6 +23,13 @@ mạng) thì không ai kiểm.
 | 5 | LOW | Quota gói: fail-open khi không resolve được gói, kiểm-rồi-tạo không nguyên tử, và chỉ kiểm lúc `Create` (đổi `zoneId` của rule bằng `Update` vượt hạn mức từng zone) | **Một phần** 2026-11-23 — đã chặn đường `Update` đổi `zoneId` (test mới); fail-open giữ nguyên có chủ đích (test `TestPlanQuotasFollowWhatTheBillingDomainSays` ghim: billing lỗi không chặn onboarding), nâng log lên error; kiểm-rồi-tạo nay nguyên tử trong tiến trình: khoá theo phạm vi quota (tenant+entity, thêm zone cho rule) giữ qua đếm và tạo, test `TestConcurrentCreatesDoNotOvershootThePlan`. Giới hạn: khoá trong tiến trình, đúng với management một process; nhiều replica cần khoá advisory trong transaction tạo |
 | 6 | LOW | `SubmitFindings` không nguyên tử/idempotent: tạo finding trước rồi mới chuyển trạng thái job; job đã `completed` → 500 sau khi finding đã ghi, retry sinh trùng; số finding mỗi lần gọi chỉ bị giới hạn bởi 1 MiB body | **Đã fix** 2026-11-23 — callback từ chối job không ở `queued`/`running` (409 `scan_not_running`) trước khi ghi gì, và giới hạn 500 finding/lần (413); lỗi giữa vòng vẫn có thể để lại một phần |
 | 7 | INFO | `accountGuard` giữ nguyên `accountId` do client gửi khi không đọc được zone/zone không có account — cần test với role giới hạn theo account | **Đã fix** 2026-11-23 — `withZoneAccount` luôn bỏ `accountId` do client gửi trước, rồi mới chép từ zone (waap #73); test `TestRuleAccountIsTheZonesNotTheClients` |
+| 8 | MEDIUM | `waf.security_events` (read model over Analytics) **không kiểm quyền nào**: route chỉ yêu cầu đăng nhập, Analytics lọc theo tenant, nên Viewer/Developer (không được cấp entity này) liệt kê và tổng hợp được mọi sự kiện của tenant (IP nguồn, đường dẫn). Kèm theo: entity không nằm trong registry của binary bootstrap, nên `waf.*` không bao giờ cấp được cho nó | Đã sửa 2026-11-23: `analytics.Backend` hỏi `CanReadEntity` trước mọi đọc (không nối dây thì từ chối hết); bootstrap đăng ký entity và cấp cho Viewer (persona tài liệu ghi Viewer đọc analytics); test `TestSecurityEventsNeedTheReadPermission` |
+| 9 | HIGH | Treo pool kết nối ở lõi metap: `CrudService.List` giữ một giao dịch (một kết nối) rồi `hydrateRelatedDisplay` gọi `LoadSnapshot` cần kết nối thứ hai; số List đồng thời ≥ kích thước pool thì mọi kết nối bị giữ và đều chờ nhau tới khi request hết hạn. Lộ ra khi test ghi phiên bản chính sách chạy 6 sửa đồi đồng thời | Đã sửa 2026-11-23 (metap): đọc quyền/snapshot của entity liên quan **trước** khi mở giao dịch; test `TestConcurrentListsWithRelatedDisplayDoNotExhaustTheConnectionPool` (12 List, pool 3) hết hạn trên mã cũ |
+| 10 | LOW | Phiên bản chính sách: hai thay đổi cùng lúc đọc cùng "mới nhất" và ghi cùng số → lịch sử có hai "version 1" | Đã sửa 2026-11-23: `(zoneId, number)` unique, `RecordVersion` thử lại với số kế tiếp; test đồng thời đỏ trên mã cũ. Lưu ý triển khai: DB dev không được có sẵn cặp trùng, nếu không index không dựng được lúc boot |
+| 11 | LOW | `matchCondition` không giới hạn độ sâu, số phép so sánh, kích thước danh sách hay độ dài regex ngoài trần 1 MiB của body; edge chia sẻ CPU giữa các tenant và chạy mọi luật của zone cho mọi request | Đã sửa 2026-11-23: tối đa 8 tầng, 50 phép so sánh, 200 giá trị, 1 KiB/giá trị, 512 byte/regex, 32 KiB tổng; zones từ chối lúc lưu, distributor bỏ luật vượt (cùng một bộ số, hai bản độc lập) |
+| 12 | LOW | `correlate`: chống trùng bằng `strings.Contains(title, ip)` nên incident đang mở của `11.2.3.45` làm mất incident mới của `1.2.3.4`; `threshold < 1` mở incident cho mọi địa chỉ chỉ có một sự kiện; cửa sổ không giới hạn | Đã sửa 2026-11-23: so khớp ` from <ip> in `, cửa sổ 1 đến 1440 phút, ngưỡng tối thiểu 1 |
+| 13 | INFO | `correlate` chỉ đọc 200 sự kiện mới nhất mỗi lượt: trong một đợt tấn công lớn số đếm bị cắt ở 200 (thang mức độ nghiêm trọng chỉ đạt "critical" đúng ở 200) và địa chỉ ồn nhất chiếm hết chỗ của các địa chỉ khác | **Mở.** Cách đúng là nhóm theo `(zoneId, sourceIp)` ngay ở Analytics qua API aggregate (đã có `Client.Aggregate`) thay vì đếm trong bộ nhớ |
+| 14 | INFO | Persona: Developer có `update` trên `ScanFindings` nhưng quyền trường mặc định cho phép sửa mọi trường (kể cả `severity`), không chỉ trạng thái xử lý; `waf.*` đọc của Analyst tự mở rộng cho entity mới thêm về sau; snapshot phiên bản chính sách lấy "như người gọi thấy", nên chính sách cấp bản ghi làm snapshot thiếu và rollback sau đó xoá phần không thấy | **Mở**, thiết kế: cần grant theo trường trong `bootstrap.Grant` (chưa có) và snapshot bằng ngữ cảnh admin |
 
 ## Chi tiết
 
@@ -129,10 +136,17 @@ tích hợp "role scoped theo account A tạo rule với accountId=B".
   bản đồ 21 là chỗ chưa sạch).
 - **Route ngoài entity**: portal chỉ proxy các prefix công khai nên `/internal/*` không lộ.
 
-## Chưa kiểm
+## Đợt 2 (2026-11-23): các mục trước đây chưa kiểm
 
-`m-bootstrap/personas.go` (grant từng persona — nơi quyết định Viewer/Developer thật sự làm được
-gì; mục 2 phụ thuộc vào đây), `versions/` (đúng đắn của snapshot/rollback), `entities/*` (mức
-`maxLength` của trường văn bản tự do: `note`, `description`, `channels`), `alerting/correlate.go`
-(giới hạn khối lượng sweep), `analytics/` (token chuyển tiếp và lọc theo zone), control plane
-(distributor), edge và `a-api`.
+- **`m-bootstrap/personas.go`**: xem finding 8 và 14. Analyst không xoá/sửa được Zone và domain (chỉ
+  có đọc cộng ghi trên luật, policy DDoS, danh sách IP); các action đòi `Requires: create` trên zone
+  nên cũng ngoài tầm Analyst.
+- **`versions/`**: xem finding 10 và 14; rollback không nguyên tử (đã ghi trong mã: chạy lại rollback tới cùng
+  version thì hoàn tất).
+- **`entities/*` — độ dài trường tự do**: chỉ `matchCondition` ảnh hưởng tới hiệu năng edge; đã giới hạn (finding 11).
+  `note`, `description`, `channels` chỉ bị trần body 1 MiB, chấp nhận (không vào luồng nóng).
+- **`alerting/correlate.go`**: xem finding 12 và 13.
+- **`analytics/`**: xem finding 8; token người gọi được chuyển tiếp nguyên và a-api tự kiểm; a-api dựng
+  SQL chỉ từ cột có trong allowlist, mọi giá trị là tham số, `tenant_id` luôn là điều kiện đầu.
+- **`a-api`**: truy vấn ClickHouse tham số hoá, bộ lọc allowlist, keyset cursor kiểm tra định dạng, giới hạn trang.
+- **Chưa kiểm sâu**: distributor (ngoài `compile` đã đọc ở finding 11), edge. Cần một đợt riêng.
