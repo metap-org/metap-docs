@@ -20,7 +20,7 @@ hai cơ chế cùng việc đã lệch nhau.
 | 3 | LOW | Hai danh sách chặn IP khác nhau cho cùng một việc (SSRF): `cronscheduler.IsBlockedIP` yếu hơn `safehttp.PublicAddress`, và cả hai chưa chặn NAT64/6to4/Teredo | Đã sửa (metap #80): một danh sách `safehttp.PublicAddress`, thêm NAT64/6to4/Teredo |
 | 4 | LOW | Route SSO công khai chỉ qua bucket rate limit chung (burst 300), không qua bucket `guarded`; mỗi lượt `start` ghi một dòng DB và (OIDC) gọi ra IdP | Đã sửa (metap #80): `discover`/`start` dùng chung bucket `guarded` |
 | 5 | LOW | Xoá workspace chỉ cần gõ tên, không yêu cầu nhập lại mật khẩu/MFA | Đã sửa (metap #81, waap #73): xoá workspace cần mật khẩu của owner, và mã MFA nếu có |
-| 6 | INFO | SAML dùng `NameID` làm `external_subject`; với format `emailAddress` thì định danh = email | Mở |
+| 6 | INFO | SAML dùng `NameID` làm `external_subject`; với format `emailAddress` thì định danh = email | Đã sửa 2026-11-23: tenant chọn `nameIdFormat` = `persistent`; NameID mờ là subject, địa chỉ chỉ đến từ attribute (bắt buộc khai `emailAttribute`); mặc định vẫn `emailAddress` |
 
 ## Chi tiết
 
