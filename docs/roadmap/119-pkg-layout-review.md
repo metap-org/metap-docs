@@ -6,7 +6,7 @@ waap chưa phát hành ổn định nên được phép đổi đường dẫn i
 
 ## 1. Hiện trạng
 
-53 package dưới `pkg/` (cộng `internal/admin`, `internal/signin`, 6 binary dưới `cmd/`), khoảng 45 nghìn dòng. Đồ thị import
+53 package dưới `pkg/` (cộng `internal/admin`, `internal/signin`, 6 binary dưới `cmd/`), khoảng 50 nghìn dòng mã (không tính test). Đồ thị import
 **không có vòng** và phần lõi dữ liệu có tầng rõ: `kit` → `metadata`/`permission` → `query`/`workflow`/`audit` → `crud` →
 `httpserver`. Vấn đề không nằm ở phụ thuộc mà ở **tên và chỗ đặt**: 30 package phẳng cùng cấp, trong đó một số là ngăn kéo
 (`peripherals`, `infra`, `control`), một số chỉ có một người dùng, và cùng một việc có hai nơi.
