@@ -5,7 +5,7 @@ và core CRUD là một hàm dài trộn nhiều mối quan tâm. Tài liệu n�
 đo từ mã, những gì chưa chốt, và thứ tự làm. **Đây là thay đổi phá vỡ (breaking change) lớn** ở metap; waap và
 `internal/admin` đi theo.
 
-**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án, P0 (kiểm chứng distributor) xong, chưa có mã.** Nhánh làm việc: xem §9.
+**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án; P0, P1 và P2 đã làm trên nhánh `feat/120-rbac-router-action-ctx` của metap (chưa merge); P3 trở đi chưa làm.** Nhánh làm việc và commit: xem §9.
 
 ## 1. Vấn đề (đo từ mã)
 
@@ -44,13 +44,27 @@ trong process với TTL ngắn (đề xuất 30–60 giây, chốt lúc làm) c�
 cache cực ngắn). Đây là điểm đảo một phần quyết định cũ ở `internal/authctx` (role "never cached"): chỉ phần role đổi, không phải
 session.
 
-### 2.3 `CrudService` không còn kiểm tra RBAC; chỉ lấy ra qua hai cửa
+### 2.3 CRUD là một pipeline; câu hỏi quyền cấp entity được tiêm vào, mặc định bật
 
-- `CrudService` chỉ làm dữ liệu và ABAC. `Create/Update/Delete/Transition` thành pipeline: `prepare(...)` (các bước thuần: từ
-  chối system field, validate, recompute, quyền ghi field, scope, trạng thái workflow ban đầu) rồi `persist(...)` (một chỗ duy
-  nhất mở transaction, ghi, audit, outbox).
-- Lấy `CrudService` ra chỉ qua `Gated(...)` (có kiểm tra role bằng cùng `RoleMatrix`) hoặc `Trusted(...)` (tên nói rõ là không kiểm
-  tra quyền, cho job nội bộ). Kiểu trần không export, để một service quên bọc không mặc định thành "mở".
+**Đã điều chỉnh (2026-11-24, chủ dự án chọn):** bản đầu của mục này nói `CrudService` không tự kiểm tra role và chỉ lấy ra qua
+`Gated`/`Trusted`. Khi làm P2 thấy hai điều khiến phương án đó không đứng được: (1) `CrudService` vẫn phải hỏi quyền đọc của
+**entity khác** (hiển thị quan hệ, `loadRelatedAccess`), mà cổng ở cửa chỉ biết entity chính; (2) nhiều nơi dùng thẳng
+`state.Crud` (các `WrapBackend` và action của waap), nên bỏ kiểm tra bên trong sẽ làm các chỗ đó mặc định thành "mở" nếu quên bọc.
+Phương án thay thế giữ đúng mục đích (RBAC không nằm rải trong code CRUD, dùng chung một nguồn trong bộ nhớ) mà không đổi mặc định
+an toàn:
+
+- `Create/Update/Delete/Transition` thành pipeline `resolve → authorizeEntity → loadCurrent → authorizeRecord → prepare* → persist`
+  (`pkg/crud/pipeline.go`). `persist` là chỗ duy nhất mở transaction, ghi, xếp event outbox, commit rồi ghi audit. `prepareCreate`,
+  `prepareUpdate`, `prepareTransition` là hàm thuần, test không cần DB.
+- Câu hỏi quyền cấp entity cho entity đang làm việc đi qua `EntityAccess` (cùng `PermissionService` trừ khi dịch vụ đến từ
+  `Trusted()`), nên có một chỗ duy nhất để đổi, và cổng ở router (§2.1) cùng `CrudService` dùng chung một nguồn trong bộ nhớ.
+- `CrudService.Trusted()` trả về bản sao bỏ **chỉ** câu hỏi đó, cho mã (job, bootstrap, sweep) làm việc trên mọi entity của chính dịch
+  vụ mình. Quyền theo record, theo field, scope và mask vẫn áp cho người mà `RequestContext` nêu, và đọc quan hệ sang entity khác
+  vẫn hỏi quyền.
+- `Gated(backend, access)` bọc một `RecordBackend` không tự hỏi câu đó (backend từ xa, wrapper trên dịch vụ trusted) để mỗi thao tác
+  hỏi trước. Khác `CrudService`, `Gated` không biết entity có tồn tại không nên entity lạ trả 403 thay vì 404.
+- Hậu quả: tên `Trusted` nói thẳng ở chỗ gọi rằng kiểm tra role đang tắt; mọi đường còn lại đi qua `NewCrudService`/`WithAudit` vẫn
+  kiểm tra như trước. Chi phí của hai lần kiểm tra (cổng và service) gần như bằng 0 vì cùng đọc từ bộ nhớ.
 
 ### 2.4 Handler action có kiểu và có ngữ cảnh
 
@@ -98,9 +112,8 @@ Kiểu `Scope` nằm trong `pkg/kit` (thuần stdlib) vì `e-edge` và `a-api` c
 
 ## 4. Thay đổi phá vỡ
 
-1. `crud.Create/Update/Delete/Transition`: bỏ chữ ký nhận `RequestContext` trần cho kiểm tra quyền; thêm `Call`. Lấy `CrudService`
-   chỉ qua `Gated`/`Trusted`.
-2. `PermissionService.CanXEntity`: không còn gọi từ `crud`; ma trận thay thế cho phần RBAC.
+1. `crud.Create/Update/Delete/Transition` giữ chữ ký; thêm `Trusted()` và `Gated(...)`; `PermissionChecker` tách `EntityAccess` ra.
+2. `PermissionService.CanXEntity`: vẫn là nguồn câu trả lời, nhưng đọc từ `MatrixStore` (bộ nhớ) thay vì truy vấn mỗi lần.
 3. `internal/authctx`: role cache có TTL (session vẫn tức thì).
 4. `internal/admin`: bỏ `adminCaller(ctx)` ở từng phương thức (cổng nhóm `Admin` lo); bỏ kiểu protobuf còn sót.
 5. `ActionHandler`: giữ, đánh dấu lỗi thời; handler mới dùng `action.*`.
@@ -116,7 +129,7 @@ Kiểu `Scope` nằm trong `pkg/kit` (thuần stdlib) vì `e-edge` và `a-api` c
 ## 6. Chưa chốt
 
 - Chữ ký generic cuối cùng của `action.*` và cách sinh metadata (ảnh hưởng form tự sinh của `platform-ui`): chốt sau khi thử trên hai action đầu.
-- TTL của cache role (đề xuất 30–60 giây) và cách báo nạp lại ma trận giữa nhiều instance (outbox/RabbitMQ hay kiểm tra version định kỳ).
+- TTL đã chốt 45 giây cho cả role và policy (chủ dự án, 2026-11-24). Còn chưa chốt: cách báo nạp lại giữa nhiều instance (outbox/RabbitMQ hay kiểm tra version định kỳ); hiện chỉ dựa vào TTL, và policy/role ghi qua process này thì có hiệu lực ngay chỉ với policy ghi qua `PermissionService`.
 - Cách tránh để edge nhận rule-set lưng chừng giữa các `Step` (kết quả P0, §7): bước cuối là bước kích hoạt, hoặc một event tổng hợp ở cuối, hoặc `Atomic()` cho thao tác đổi trực tiếp rule-set.
 - Nghiệp vụ dở dang: bù trừ, resume hay chấp nhận trạng thái một phần, quyết định theo từng nghiệp vụ.
 
@@ -126,7 +139,7 @@ Kiểu `Scope` nằm trong `pkg/kit` (thuần stdlib) vì `e-edge` và `a-api` c
   đọc lại trạng thái hiện tại từ management cho mỗi event, biên dịch và publish idempotent, không gộp event; lần chạy cuối luôn ra
   trạng thái mới nhất, và resync mỗi 60 giây (`RESYNC_INTERVAL_SECONDS`) là chốt hội tụ. Điều cần xử lý không phải số event mà là
   **trạng thái trung gian**: các `Step` commit độc lập nên edge có thể nhận rule-set lưng chừng giữa hai bước (xem §6).
-- Có phát event CRUD thông thường nào ngoài `workflow.EmitTransitioned` (`crud/transition.go`) hay không (không thấy `EmitRecord` trong `crud`).
+- ~~Có phát event CRUD thông thường ngoài `workflow.EmitTransitioned`~~ **Đã kiểm chứng (2026-11-24):** có. `persist` xếp `workflow.EmitCreated`, `EmitUpdated`, `EmitDeleted` và `EmitTransitioned` trong cùng transaction với ghi.
 
 ## 8. Ngoài phạm vi
 
@@ -141,9 +154,9 @@ Thứ tự (mỗi bước là một PR, merge **squash** theo quy ước của r
 
 | Bước | Nội dung | Repo |
 |---|---|---|
-| P0 | Kiểm chứng distributor với nhiều event (chỉ đọc) | waap |
-| P1 | `RoleMatrix`, role cache có TTL (session tức thì), middleware cổng ở router | metap |
-| P2 | Pipeline `prepare` + `persist` cho CRUD; `Gated`/`Trusted` | metap |
+| P0 | Kiểm chứng distributor với nhiều event (chỉ đọc). **Xong**, kết quả ở §7 | waap |
+| P1 | `RoleMatrix`, role cache có TTL (session tức thì), middleware cổng ở router. **Xong**: cache role 45 giây (`ROLE_CACHE_TTL_SECONDS`), `MatrixStore` giữ policy cấp entity của tenant trong bộ nhớ 45 giây (`POLICY_CACHE_TTL_SECONDS`), cổng `gateEntity`/`gateTransition` trên các route record. Khác bản đầu: ma trận giữ **mọi** policy cấp entity (cả deny, điều kiện theo context, scoped role), không chỉ dòng RBAC thuần, nên quyết định không đổi | metap |
+| P2 | Pipeline cho CRUD; `Trusted`/`Gated`. **Xong** (xem §2.3 cho điều chỉnh so với bản đầu) | metap |
 | P3 | `action.Ctx`, `Step`/Operation, `actiontest`; `ActionHandler` cũ chạy song song | metap |
 | P4 | `internal/admin` theo pattern mới (bỏ `adminCaller`, thêm audit và transaction qua `persist`) | metap |
 | P5 | Port `zones` (hai action đầu rồi phần còn lại) | waap |
