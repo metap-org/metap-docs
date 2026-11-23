@@ -5,7 +5,7 @@ và core CRUD là một hàm dài trộn nhiều mối quan tâm. Tài liệu n�
 đo từ mã, những gì chưa chốt, và thứ tự làm. **Đây là thay đổi phá vỡ (breaking change) lớn** ở metap; waap và
 `internal/admin` đi theo.
 
-**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án; P0, P1 và P2 đã làm trên nhánh `feat/120-rbac-router-action-ctx` của metap (chưa merge); P3 trở đi chưa làm.** Nhánh làm việc và commit: xem §9.
+**Trạng thái (2026-11-24): quyết định đã chốt với chủ dự án; P0, P1, P2 và bản đầu của P3 đã làm trên nhánh `feat/120-rbac-router-action-ctx` của metap (chưa merge); phần còn lại của P3 và P4 trở đi chưa làm.** Nhánh làm việc và commit: xem §9.
 
 ## 1. Vấn đề (đo từ mã)
 
@@ -73,7 +73,7 @@ an toàn:
 - `a.Audit(...)` và `a.Emit(...)` **chỉ xếp hàng**, được ghi cùng transaction của bước đó khi commit; handler lỗi thì không ghi gì.
 - **Audit và event là tùy chọn.** Không gọi thì không có (ngoài audit theo cấu hình `Audit.Enabled` của entity khi đi qua
   `a.Update`). Chỉ thêm một quy tắc có test: mọi thao tác ghi thuộc nhóm `Admin` và bảo mật phải có audit.
-- Tương thích ngược: `ActionHandler` cũ chạy song song; port dần.
+- Tương thích ngược: `ActionHandler` cũ chạy song song; port dần. Đã có bản đầu (P3): audit của action ghi là `audit.ActionCustom` ("action") với tên action trong `transition_action`, nằm chung chuỗi băm của tenant.
 
 ### 2.5 Hai chế độ truy cập dữ liệu
 
@@ -157,7 +157,7 @@ Thứ tự (mỗi bước là một PR, merge **squash** theo quy ước của r
 | P0 | Kiểm chứng distributor với nhiều event (chỉ đọc). **Xong**, kết quả ở §7 | waap |
 | P1 | `RoleMatrix`, role cache có TTL (session tức thì), middleware cổng ở router. **Xong**: cache role 45 giây (`ROLE_CACHE_TTL_SECONDS`), `MatrixStore` giữ policy cấp entity của tenant trong bộ nhớ 45 giây (`POLICY_CACHE_TTL_SECONDS`), cổng `gateEntity`/`gateTransition` trên các route record. Khác bản đầu: ma trận giữ **mọi** policy cấp entity (cả deny, điều kiện theo context, scoped role), không chỉ dòng RBAC thuần, nên quyết định không đổi | metap |
 | P2 | Pipeline cho CRUD; `Trusted`/`Gated`. **Xong** (xem §2.3 cho điều chỉnh so với bản đầu) | metap |
-| P3 | `action.Ctx`, `Step`/Operation, `actiontest`; `ActionHandler` cũ chạy song song | metap |
+| P3 | `action.Ctx`, `Step`/Operation, `actiontest`; `ActionHandler` cũ chạy song song. **Bản đầu xong** (`pkg/action`, `pkg/action/actiontest`, `AppState.ActionDeps`): `action.Entity`/`action.Record` với input và output có kiểu, input giải mã nghiêm ngặt, `Ctx.Records`/`Audit`/`Emit`, `Ctx.Step`. **Chưa có**: nhật ký operation để retry bỏ qua bước đã xong; ghi thay đổi record cùng transaction với event của một bước (hiện mỗi lần `Records.Update` tự commit như CRUD vẫn làm, còn event và audit của bước được ghi sau đó); `Within(scope)` và repository ép scope | metap |
 | P4 | `internal/admin` theo pattern mới (bỏ `adminCaller`, thêm audit và transaction qua `persist`) | metap |
 | P5 | Port `zones` (hai action đầu rồi phần còn lại) | waap |
 | P6 | `Scope` trong `pkg/kit` cho adapter DB ngoài | metap, `a-api` |
