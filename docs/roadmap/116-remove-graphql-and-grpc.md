@@ -256,3 +256,7 @@ không chạy trong lần này); xóa rule thì hết bị chặn sau một lầ
 
 **Chưa kiểm:** đường sự kiện RabbitMQ (môi trường không có RabbitMQ; resync là đường đảm bảo hội tụ nên phần cốt lõi đã được chạy),
 chặng distributor → analytics-api, và pillar DDoS / IP access list qua cùng pipeline (chỉ có unit test).
+
+## Cập nhật sau khi waap gộp management thành một process (2026-11-23)
+
+waap #67 bỏ `api-gateway`: management plane là một process (`m-management/cmd/management-service`), portal đi qua nginx. `pkg/apigateway` vẫn còn trong metap cho sản phẩm nhiều service, nhưng waap không dùng nó, nên `?expand=` (chỉ gateway làm) không có trong waap (portal không dùng). Các phần của 116 vẫn đúng với bản mới, đã kiểm lại bằng chạy thật: management-service một process, distributor đọc zones qua REST (`ZONES_URL` mặc định `:3000`), `configVersion` theo nội dung (rule thêm khi edge đang chạy tới được edge sau tối đa một lần resync cộng một chu kỳ làm mới của edge, cỡ 18 giây với cấu hình thử), `tenantId` có trong rule-set. Cấu hình `TRUSTED_PROXIES` giờ là `trusted_proxies` trong YAML. Test integration của metap và waap qua hết (trừ test cần Redis/Vault thật).
