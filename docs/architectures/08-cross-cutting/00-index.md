@@ -115,7 +115,7 @@ Bài học khi bỏ gRPC/GraphQL: sau gateway, mọi người dùng đều đế
 trở thành một bucket chung cho cả portal (~5 req/s) — service phải đặt `TRUSTED_PROXIES` là địa chỉ gateway, gateway đặt là
 địa chỉ nginx/LB.
 
-**Phân vai ở lớp ngoài:**
+**Phân vai ở lớp ngoài** (WAAP từ 2026-11-22 không còn gateway: management là một process, nginx đứng trước và `trusted_proxies` trong `management.yaml` thay cho `TRUSTED_PROXIES` của gateway; `pkg/apigateway` vẫn là thư viện cho sản phẩm nhiều service):
 - **Rate limit:** gateway giới hạn theo người gọi (`RATE_LIMIT_PER_MS`/`RATE_LIMIT_BURST`, mặc định 200 ms / burst 300); mỗi
   service vẫn giới hạn theo cấu hình tenant/nền tảng (`http.rateLimitPerMillisecond`/`http.rateLimitBurst`) với cùng định
   nghĩa người gọi, nên đi thẳng vào service cũng không né được.
