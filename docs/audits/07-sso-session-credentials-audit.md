@@ -16,10 +16,10 @@ hai cơ chế cùng việc đã lệch nhau.
 | # | Mức độ | Vấn đề | Trạng thái |
 |---|---|---|---|
 | 1 | MEDIUM | `POST /auth/password` kiểm mật khẩu hiện tại bằng `identity.CheckPassword`, không tính vào khoá tài khoản, và route nằm ngoài nhóm `guarded` → người giữ được một session (cookie/token bị trộm) dò mật khẩu không bị khoá | Đã sửa (metap #80): `identity.VerifyCurrentPassword` đếm lần sai cùng bộ đếm khoá với đăng nhập |
-| 2 | LOW | Login CSRF ở callback SSO: `state` dùng một lần nhưng không gắn với trình duyệt đã bắt đầu đăng nhập | Mở |
+| 2 | LOW | Login CSRF ở callback SSO: `state` dùng một lần nhưng không gắn với trình duyệt đã bắt đầu đăng nhập | Đã sửa OIDC (metap #81): cookie `metap_sso_bind` gắn state với trình duyệt; SAML giữ rủi ro đã chấp nhận (ACS là POST chéo site) |
 | 3 | LOW | Hai danh sách chặn IP khác nhau cho cùng một việc (SSRF): `cronscheduler.IsBlockedIP` yếu hơn `safehttp.PublicAddress`, và cả hai chưa chặn NAT64/6to4/Teredo | Đã sửa (metap #80): một danh sách `safehttp.PublicAddress`, thêm NAT64/6to4/Teredo |
 | 4 | LOW | Route SSO công khai chỉ qua bucket rate limit chung (burst 300), không qua bucket `guarded`; mỗi lượt `start` ghi một dòng DB và (OIDC) gọi ra IdP | Đã sửa (metap #80): `discover`/`start` dùng chung bucket `guarded` |
-| 5 | LOW | Xoá workspace chỉ cần gõ tên, không yêu cầu nhập lại mật khẩu/MFA | Mở |
+| 5 | LOW | Xoá workspace chỉ cần gõ tên, không yêu cầu nhập lại mật khẩu/MFA | Đã sửa (metap #81, waap #73): xoá workspace cần mật khẩu của owner, và mã MFA nếu có |
 | 6 | INFO | SAML dùng `NameID` làm `external_subject`; với format `emailAddress` thì định danh = email | Mở |
 
 ## Chi tiết
