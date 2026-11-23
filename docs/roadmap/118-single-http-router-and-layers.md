@@ -1,4 +1,4 @@
-# 118. Một router HTTP, một thư viện handler, và phân lớp cho route (BẢN NHÁP, chờ duyệt)
+# 118. Một router HTTP, một thư viện handler, và phân lớp cho route
 
 Chủ dự án nhận xét (2026-11-23): tầng HTTP của metap đang lẫn lộn. Cùng một codebase dùng `chi` ở chỗ này và
 `http.ServeMux` có sẵn ở chỗ khác; convention của handler không thống nhất; phần admin chưa chia lớp đúng. Cho
@@ -6,6 +6,11 @@ phép chọn chỉ dùng mux có sẵn và viết một thư viện handler nh�
 
 Tài liệu này ghi hiện trạng đo được, quyết định đề xuất, quy ước, và các pha làm. Không đổi hành vi HTTP bên ngoài
 (đường dẫn, mã trạng thái, thân phản hồi giữ nguyên); đây là đổi cấu trúc.
+
+**Trạng thái (2026-11-23):** chủ dự án đã duyệt hướng làm ("làm lần lượt"; metap và waap chưa phát hành ổn định nên
+được phép phá API). Pha 1 (`kit/httpx/router`, #74), pha 2 (bỏ `chi`, #75, waap #72) và pha 3 (auth là middleware, mọi
+route nằm trong đúng một nhóm truy cập `public|authenticated|admin|platform-admin|self-auth`, test kiểm kê route thất
+bại nếu có route không thuộc nhóm nào, `routes.golden` ghi quyền của từng route) đã xong. Còn pha 4–6.
 
 ## 1. Hiện trạng (đọc từ mã, 2026-11-23)
 
