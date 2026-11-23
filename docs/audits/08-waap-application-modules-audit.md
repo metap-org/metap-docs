@@ -22,7 +22,7 @@ mạng) thì không ai kiểm.
 | 4 | LOW | `DecidePlanChange` áp thay đổi gói rồi mới đánh dấu request đã quyết định: hai quyết định đồng thời → gói đã đổi nhưng request ghi "rejected" | **Đã fix** 2026-11-23 — claim request (Update theo version đã đọc) trước khi áp gói; áp lỗi thì mở lại request. Còn lại: chưa có ràng buộc unique một phần cho "một request chờ" mỗi tenant |
 | 5 | LOW | Quota gói: fail-open khi không resolve được gói, kiểm-rồi-tạo không nguyên tử, và chỉ kiểm lúc `Create` (đổi `zoneId` của rule bằng `Update` vượt hạn mức từng zone) | **Một phần** 2026-11-23 — đã chặn đường `Update` đổi `zoneId` (test mới); fail-open giữ nguyên có chủ đích (test `TestPlanQuotasFollowWhatTheBillingDomainSays` ghim: billing lỗi không chặn onboarding), nâng log lên error; kiểm-rồi-tạo vẫn không nguyên tử |
 | 6 | LOW | `SubmitFindings` không nguyên tử/idempotent: tạo finding trước rồi mới chuyển trạng thái job; job đã `completed` → 500 sau khi finding đã ghi, retry sinh trùng; số finding mỗi lần gọi chỉ bị giới hạn bởi 1 MiB body | **Đã fix** 2026-11-23 — callback từ chối job không ở `queued`/`running` (409 `scan_not_running`) trước khi ghi gì, và giới hạn 500 finding/lần (413); lỗi giữa vòng vẫn có thể để lại một phần |
-| 7 | INFO | `accountGuard` giữ nguyên `accountId` do client gửi khi không đọc được zone/zone không có account — cần test với role giới hạn theo account | Cần xác nhận |
+| 7 | INFO | `accountGuard` giữ nguyên `accountId` do client gửi khi không đọc được zone/zone không có account — cần test với role giới hạn theo account | **Đã fix** 2026-11-23 — `withZoneAccount` luôn bỏ `accountId` do client gửi trước, rồi mới chép từ zone (waap #73); test `TestRuleAccountIsTheZonesNotTheClients` |
 
 ## Chi tiết
 
