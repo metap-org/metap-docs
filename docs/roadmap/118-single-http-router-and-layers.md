@@ -10,7 +10,14 @@ Tài liệu này ghi hiện trạng đo được, quyết định đề xuất, 
 **Trạng thái (2026-11-23):** chủ dự án đã duyệt hướng làm ("làm lần lượt"; metap và waap chưa phát hành ổn định nên
 được phép phá API). Pha 1 (`kit/httpx/router`, #74), pha 2 (bỏ `chi`, #75, waap #72) và pha 3 (auth là middleware, mọi
 route nằm trong đúng một nhóm truy cập `public|authenticated|admin|platform-admin|self-auth`, test kiểm kê route thất
-bại nếu có route không thuộc nhóm nào, `routes.golden` ghi quyền của từng route) đã xong. Còn pha 4–6.
+bại nếu có route không thuộc nhóm nào, `routes.golden` ghi quyền của từng route) đã xong.
+Pha 4 (#77): policy, config và preferences thành `adminapi.PolicyAdminService`/`ConfigAdminService`/`PreferencesService`
+phục vụ qua typed op (cùng đường dẫn, mã trạng thái, JSON). Pha 5 (#78, #79): `pkg/signin` giữ đăng nhập mật khẩu, bước
+MFA, đổi tenant, đổi mật khẩu, lời mời, đặt lại mật khẩu, đăng ký và phần kết thúc SSO; handler chỉ còn cookie, chuyển
+hướng, mã trạng thái. Pha 6 (#79): luật depguard (không `chi`; `adminapi`/`signin`/`identity`/`permission`/`crud` không
+import transport, router, huma; `httpserver` không import `pgconn`/`pgtype`) và ghi vào `CLAUDE.md`.
+Chưa chuyển (ghi trong `CLAUDE.md`): trao đổi giao thức OIDC/SAML ở `routes_sso.go`, gia hạn phiên `/auth/me` và
+`/auth/token`, `adminapi/scim.go` (test cần harness nội bộ của `adminapi`).
 
 ## 1. Hiện trạng (đọc từ mã, 2026-11-23)
 
