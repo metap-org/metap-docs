@@ -17,7 +17,7 @@ mạng) thì không ai kiểm.
 | # | Mức độ | Vấn đề | Trạng thái |
 |---|---|---|---|
 | 1 | **HIGH** | Webhook của `AlertPolicy` gọi URL do tenant nhập bằng `httpx.NewClient`, không phải `safehttp` → SSRF có phản hồi dạng oracle vào mạng nội bộ | **Đã fix** 2026-11-23 — `safehttp`, bắt buộc https, trả mã ngắn thay vì lỗi dial; test `notify_test.go` |
-| 2 | MEDIUM | Route action của metap chỉ gọi `requireAuth`; action không đụng record (`resolveHostname`, `probeOrigin`) mở cho **mọi** thành viên đã đăng nhập, kể cả Viewer. waap không dùng `DeclareResource/CheckResource` ở đâu | Mở |
+| 2 | MEDIUM | Route action của metap chỉ gọi `requireAuth`; action không đụng record (`resolveHostname`, `probeOrigin`) mở cho **mọi** thành viên đã đăng nhập, kể cả Viewer. waap không dùng `DeclareResource/CheckResource` ở đâu | **Đã fix** 2026-11-23 — chọn sửa ở metap: `EntityAction.Requires` (route kiểm quyền entity trước handler), waap khai báo `Requires: create` cho `resolveHostname`/`probeOrigin`; test e2e `TestDeclaredActionRequiresEntityPermission` |
 | 3 | LOW | `testAlertPolicy`/`evaluateAlerts` gọi webhook **trước** khi ghi notification: người chỉ có quyền đọc policy kích được webhook dù việc ghi bị 403 | **Đã fix** 2026-11-23 — `ensureCanRecord` kiểm quyền tạo notification trước khi gọi webhook (test e2e chưa chạy: không có Postgres trong phiên) |
 | 4 | LOW | `DecidePlanChange` áp thay đổi gói rồi mới đánh dấu request đã quyết định: hai quyết định đồng thời → gói đã đổi nhưng request ghi "rejected" | Mở |
 | 5 | LOW | Quota gói: fail-open khi không resolve được gói, kiểm-rồi-tạo không nguyên tử, và chỉ kiểm lúc `Create` (đổi `zoneId` của rule bằng `Update` vượt hạn mức từng zone) | Mở |
