@@ -93,6 +93,15 @@ ký operation (để retry, không phải audit cho người dùng). `Atomic()` 
 thật sự lớn chạy dưới dạng job bất đồng bộ (`pkg/jobs`). Lý do: giữ connection khi chờ I/O là nguyên nhân deadlock pool đã sửa ở
 metap #88 và #89.
 
+**Cùng transaction (P3):** mỗi `Step` là một unit of work (`tenancy.Router.BeginUnit`). Trong context của nó, `Router.Begin` trả về
+một savepoint trên transaction của unit thay vì lấy connection mới, nên ghi record qua CRUD, đọc policy và xếp event vào outbox cùng
+chạy trên **một** connection. Điều này giữ đúng quy tắc của #88/#89 (không đường nào giữ một connection trong khi cần cái thứ hai;
+một pool chỉ có 2 connection vẫn phục vụ được, và test khẳng định một step giữ đúng một connection). Một thao tác lỗi bên trong unit
+chỉ hoàn tác chính nó; unit rollback thì hoàn tác tất cả. Việc không đi qua `Router.Begin` (audit store có chuỗi băm riêng, cache
+trong bộ nhớ) đăng ký bằng `tenancy.OnCommit` để chạy sau commit và không chạy khi rollback: audit của CRUD và của action đều theo
+cách này, nên một ghi bị hoàn tác không để lại audit entry. Giới hạn: một backend từ xa (không phải `CrudService` trong process) không
+tham gia unit; và vì step giữ một connection nên `fn` của step chỉ nên đọc và ghi record của tenant, không gọi dịch vụ khác.
+
 ### 2.7 DB ngoài metap
 
 Adapter của store ngoài **bắt buộc nhận `Scope` làm tham số** (`Query(ctx, scope, q)`), tự biên dịch thành `WHERE` hoặc filter.
@@ -157,7 +166,7 @@ Thứ tự (mỗi bước là một PR, merge **squash** theo quy ước của r
 | P0 | Kiểm chứng distributor với nhiều event (chỉ đọc). **Xong**, kết quả ở §7 | waap |
 | P1 | `RoleMatrix`, role cache có TTL (session tức thì), middleware cổng ở router. **Xong**: cache role 45 giây (`ROLE_CACHE_TTL_SECONDS`), `MatrixStore` giữ policy cấp entity của tenant trong bộ nhớ 45 giây (`POLICY_CACHE_TTL_SECONDS`), cổng `gateEntity`/`gateTransition` trên các route record. Khác bản đầu: ma trận giữ **mọi** policy cấp entity (cả deny, điều kiện theo context, scoped role), không chỉ dòng RBAC thuần, nên quyết định không đổi | metap |
 | P2 | Pipeline cho CRUD; `Trusted`/`Gated`. **Xong** (xem §2.3 cho điều chỉnh so với bản đầu) | metap |
-| P3 | `action.Ctx`, `Step`/Operation, `actiontest`; `ActionHandler` cũ chạy song song. **Bản đầu xong** (`pkg/action`, `pkg/action/actiontest`, `AppState.ActionDeps`): `action.Entity`/`action.Record` với input và output có kiểu, input giải mã nghiêm ngặt, `Ctx.Records`/`Audit`/`Emit`, `Ctx.Step`. **Chưa có**: nhật ký operation để retry bỏ qua bước đã xong; ghi thay đổi record cùng transaction với event của một bước (hiện mỗi lần `Records.Update` tự commit như CRUD vẫn làm, còn event và audit của bước được ghi sau đó); `Within(scope)` và repository ép scope | metap |
+| P3 | `action.Ctx`, `Step`/Operation, `actiontest`; `ActionHandler` cũ chạy song song. **Xong phần chính** (`pkg/action`, `pkg/action/actiontest`, `AppState.ActionDeps`, `tenancy.Unit`): `action.Entity`/`action.Record` với input và output có kiểu, input giải mã nghiêm ngặt, `Ctx.Records`/`Audit`/`Emit`, và `Ctx.Step` là **một unit of work**: ghi record, event và audit của bước commit cùng nhau hoặc không gì cả, trên đúng một connection. **Chưa có**: nhật ký operation để retry bỏ qua bước đã xong; `Within(scope)` và repository ép scope | metap |
 | P4 | `internal/admin` theo pattern mới (bỏ `adminCaller`, thêm audit và transaction qua `persist`) | metap |
 | P5 | Port `zones` (hai action đầu rồi phần còn lại) | waap |
 | P6 | `Scope` trong `pkg/kit` cho adapter DB ngoài | metap, `a-api` |
