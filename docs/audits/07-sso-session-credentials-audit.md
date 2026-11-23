@@ -21,6 +21,11 @@ hai cơ chế cùng việc đã lệch nhau.
 | 4 | LOW | Route SSO công khai chỉ qua bucket rate limit chung (burst 300), không qua bucket `guarded`; mỗi lượt `start` ghi một dòng DB và (OIDC) gọi ra IdP | Đã sửa (metap #80): `discover`/`start` dùng chung bucket `guarded` |
 | 5 | LOW | Xoá workspace chỉ cần gõ tên, không yêu cầu nhập lại mật khẩu/MFA | Đã sửa (metap #81, waap #73): xoá workspace cần mật khẩu của owner, và mã MFA nếu có |
 | 6 | INFO | SAML dùng `NameID` làm `external_subject`; với format `emailAddress` thì định danh = email | Đã sửa 2026-11-23: tenant chọn `nameIdFormat` = `persistent`; NameID mờ là subject, địa chỉ chỉ đến từ attribute (bắt buộc khai `emailAttribute`); mặc định vẫn `emailAddress` |
+| 7 | MEDIUM | Mã MFA sai **không được đếm**: cả 4 nơi gọi `VerifyMFA` (đăng nhập bước 2, tắt MFA, tạo lại recovery code, xoá workspace) rollback khi sai mã, và không có bộ đếm theo danh tính. Ai có mật khẩu (tạo challenge mới mỗi lần, 5 lần thử/challenge) hoặc giữ được một session (route `/me/mfa*` chỉ qua bucket chung) có thể dò mã TOTP 6 chữ số | Đã sửa 2026-11-23: `mfa_factors.failed_attempts/locked_until` (migration 0059), 5 mã sai khoá 15 phút trên mọi route, caller commit khi sai mã để bộ đếm không bị rollback; 429 `account_locked` |
+| 8 | MEDIUM | Phiên hỗ trợ giữ vai `admin` được cấp vẫn tạo được **truy cập sống lâu hơn grant**: service account, API key, lời mời, vai trò, đặt lại mật khẩu/MFA, cài đặt SSO. Thu hồi grant chỉ xoá chính member của phiên, không xoá những gì phiên đã tạo | Đã sửa 2026-11-23: `adminDurable` từ chối các thao tác đó khi caller là member của phiên hỗ trợ (`support_sessions`); admin của tenant không bị ảnh hưởng |
+| 9 | LOW | SCIM `filter=userName eq "x"` tìm theo chuỗi con rồi so khớp chính xác trong **trang đầu**: khi hơn một trang địa chỉ chứa `x`, IdP không thấy user và tạo lại (409/trùng) | Đã sửa 2026-11-23: duyệt các trang kết quả cho tới khi gặp địa chỉ chính xác; test 120 địa chỉ chứa nhau |
+| 10 | LOW | File cấu hình YAML chỉ dặn "không đặt secret", không có gì kiểm; ví dụ trong chính tài liệu của nó là `database.url` | Đã sửa 2026-11-23: cảnh báo khi file có khoá trông như credential (tên khoá chứa PASSWORD/SECRET/TOKEN/..., hoặc `*_URL` có mật khẩu), kèm cờ file đọc được bởi mọi người; chỉ ghi tên khoá, không bao giờ giá trị |
+| 11 | INFO | `TestServiceAccountAndAPIKeyLifecycle` chỉ qua khi tạo key và disable rơi cùng một giây (so sánh cắt về giây); hành vi thật là key cấp trước lúc disable chết hẳn kể cả sau khi enable | Đã sửa test (key lùi giờ, khẳng định đúng hành vi) |
 
 ## Chi tiết
 
@@ -119,9 +124,26 @@ dùng nó khi có.
 - **Link huỷ xoá workspace**: token ngẫu nhiên, chỉ lưu băm, dùng một lần, hết hạn; một lỗi chung
   cho mọi trường hợp (không dò được token nào tồn tại); route nằm trong `guarded`.
 
-## Chưa kiểm (để lần sau)
+## Đợt 2 (2026-11-23): các mục trước đây chưa kiểm
 
-`/admin/credentials*` (kiểm quyền từng thao tác và việc "đang dùng" chặn xoá), `pkg/configfile`
-(ưu tiên env > file, file không chứa secret), SCIM (`/scim/v2`), phiên hỗ trợ (`support grants`),
-đếm lần sai của `/me/mfa*`, và quyền của từng operation huma trong `ops_admin.go` (một bảng
-route × guard nên sinh tự động từ OpenAPI để so với mong đợi).
+- **Bảng route × guard của operation huma**: 88 method công khai trong `internal/admin`, tất cả đi qua
+  một wrapper guard (`s.admin`, `s.platformAdmin`, `s.d.caller`, `adminDurable`) — kể cả những
+  method chỉ gọi helper dùng chung (`setStatus`, `changeRole`, `lifecycle`). Không có method nào
+  không kiểm quyền. `ListTenantUsers` cho mọi thành viên xem email các đồng nghiệp đang hoạt động
+  (có chủ đích, dùng cho ô chọn người; service account không hiện).
+- **`/admin/credentials*`**: mọi thao tác cần admin; giá trị chỉ ghi, không đọc ra; audit chỉ ghi
+  tên/loại/nơi lưu; mỗi credential đúng một bản (chuyển nơi lưu xoá bản kia); xoá bị chặn khi cron
+  job đang dùng (409). Còn lại, mức INFO, không sửa: cập nhật ghi giá trị mới trước khi cập nhật
+  dòng (đụng tên → lỗi nhưng giá trị đã đổi); chuyển external→database xoá bản external theo kiểu
+  best-effort; kiểm "đang dùng" và xoá không cùng giao dịch với việc tạo cron job.
+- **`pkg/config/file.go`**: thứ tự env > file > mặc định đúng (`env.Lookup` coi biến rỗng như chưa đặt);
+  log chỉ ghi số khoá. Xem finding 10.
+- **SCIM**: xác thực bằng API key của service account admin, mọi quy tắc admin áp qua
+  `UserAdminService`; bộ lọc chỉ nhận một dạng, giá trị đi vào tìm kiếm tham số hoá; lỗi 5xx không lộ
+  chi tiết. Xem finding 9.
+- **Phiên hỗ trợ**: grant cần lý do, vai trò phải tồn tại, tối đa 168 giờ, chỉ người (không phải
+  service account) cấp; phiên là service account `Support: <email>` giữ đúng vai được cấp, key hết hạn
+  cùng grant và tối đa 8 giờ; thu hồi xoá member và key. Xem finding 8. **Còn mở (LOW)**: phiên hỗ
+  trợ giữ vai `admin` vẫn tạo được cron job webhook và credential (chạy nền, sống sau grant); chặn
+  cần kiểm ở route cron/credential, chưa làm. Cấp vai hẹp hơn `admin` cho vendor tránh được.
+- **Đếm lần sai MFA**: xem finding 7.
