@@ -20,7 +20,7 @@ minh hoạ); các bài 1-9 phía sau đi sâu từng mảnh.
 
 | Việc | Ai làm | Ở đâu |
 |---|---|---|
-| Route CRUD và transition | metap | `GET/POST /api/{entity}`, `GET/PATCH/DELETE /api/{entity}/{id}`, `POST /api/{entity}/{id}/transitions/{action}` (`pkg/httpserver/routes_records.go`) |
+| Route CRUD và transition | metap | `GET/POST /api/{entity}`, `GET/PATCH/DELETE /api/{entity}/{id}`, `POST /api/{entity}/{id}/transitions/{action}` (`internal/httpapi/routes_records.go`) |
 | Authn (JWT) | metap | `RequireAuth` trước mọi handler |
 | Validation | metap | Đọc từ khai báo field: `Require`, `Min/Max`, `MinLength/MaxLength`, enum, `Unique`, `Reference` |
 | Authz | metap | Quyền entity, rồi quyền theo bản ghi (ABAC), rồi `transition:<tên>` riêng từng action (`CanTransitionAction`) |
@@ -89,45 +89,61 @@ bootstrap.Submit(func() bootstrap.Bootstrap {
 
 `requester` gọi `approve` nhận `403`. `admin` mặc định toàn quyền trong tenant của nó.
 
-### Bước 3. Thao tác ngoài CRUD: đăng ký handler của action
+### Bước 3. Thao tác ngoài CRUD: viết action có kiểu
 
 ```go
-Actions: func(state *httpserver.AppState, reg *crud.ActionRegistry) error {
-	return reg.Register("waf.change_requests", "bulkClose", func(ctx context.Context, c crud.ActionCall) (crud.JsonObject, error) {
-		var in struct{ Reason string `json:"reason"` }
-		raw, _ := json.Marshal(c.Input)
-		if err := json.Unmarshal(raw, &in); err != nil {
-			return nil, crud.NewServiceErrorMsg(http.StatusBadRequest, errcode.ValidationFailed, "Invalid input.")
-		}
-		return crud.ToObject(bulkClose(ctx, state.Crud, c.RC, in.Reason)) // hàm nghiệp vụ thuần
-	})
+Actions: func(state *web.State, reg *crud.ActionRegistry) error {
+	return bulkClose.Register(reg, state.ActionDeps())
 },
 
-func bulkClose(ctx context.Context, backend crud.RecordBackend, rc *permission.RequestContext, reason string) (map[string]any, error) {
-	if reason == "" {
-		return nil, crud.NewServiceErrorFields(http.StatusUnprocessableEntity, errcode.ValidationFailed,
-			map[string][]string{"reason": {"is required"}})
-	}
-	// ... List các bản ghi pending rồi backend.Transition(ctx, entity, id, "reject", version, nil, rc, nil)
-	return map[string]any{"closed": n}, nil
-}
+type bulkCloseIn struct{ Reason string `json:"reason"` }
+type bulkCloseOut struct{ Closed int `json:"closed"` }
+
+var bulkClose = action.Entity("waf.change_requests", "bulkClose",
+	func(ctx context.Context, a *action.Ctx, in bulkCloseIn) (bulkCloseOut, error) {
+		if in.Reason == "" {
+			return bulkCloseOut{}, crud.NewServiceErrorFields(http.StatusUnprocessableEntity, errcode.ValidationFailed,
+				map[string][]string{"reason": {"is required"}})
+		}
+		closed := 0
+		// Một step là một transaction: ghi bản ghi, event và audit của nó cùng thành công hoặc cùng không.
+		err := a.Step(ctx, "reject pending", func(ctx context.Context) error {
+			pending, err := a.Records.List(ctx, "waf.change_requests", pendingQuery, a.RC)
+			if err != nil {
+				return err
+			}
+			for _, r := range pending.Data {
+				if _, err := a.Records.Transition(ctx, "waf.change_requests", r.ID, "reject", r.Version, nil, a.RC, nil); err != nil {
+					return err
+				}
+				closed++
+			}
+			a.Audit("change_requests.bulk_closed", uuid.Nil, map[string]any{"reason": in.Reason, "closed": closed}) // tuỳ chọn
+			return nil
+		})
+		return bulkCloseOut{Closed: closed}, err
+	})
 ```
 
-Handler không tự kiểm authn hay authz: metap làm trước khi gọi tới. Khi cần đổi trạng thái, gọi
-`backend.Transition(...)`: guard, quyền, audit và event vẫn chạy như khi gọi qua HTTP, và chạy với
-`c.RC` của người gọi nên không vượt quyền họ.
+Input và output là struct (input được giải mã **nghiêm ngặt**: field lạ hoặc sai kiểu là `400`, không bị bỏ qua).
+Handler không tự kiểm authn hay authz: cổng route làm trước khi gọi tới; `a.Records` đọc và ghi với quyền của người gọi
+nên không vượt quyền họ, và đổi trạng thái vẫn đi qua `Transition` (guard, quyền, audit, event như khi gọi qua HTTP).
+Audit (`a.Audit`) và event (`a.Emit`) là **tuỳ chọn**: không gọi thì không có.
+
+Test không cần DB hay RabbitMQ: `actiontest.Run(bulkClose, actiontest.Call(...), seed)` trả về kết quả, các lần ghi,
+event và audit đã xếp hàng (`pkg/action/actiontest`).
 
 ### Khi cần route HTTP thật sự riêng
 
-Chỉ cho người gọi là **dịch vụ** (`/internal/*`, webhook), mount qua `Options.Routes`:
+Chỉ cho người gọi là **dịch vụ** (`/internal/*`, webhook), mount qua `Options.Routes`. Một service ngoài metap chỉ import `github.com/metap-org/metap/pkg/web` (mặt công khai của phần HTTP; phần còn lại là `internal/httpapi`):
 
 ```go
-rc, ok := httpserver.RequireAuth(w, r, state)                       // authn; tự ghi 401
+rc, ok := web.RequireAuth(w, r, state)                       // authn; tự ghi 401
 var body in
-if !httpserver.DecodeJSONBody(w, r, &body) { return }               // body giới hạn kích thước, tự ghi 400/413
+if !web.DecodeJSONBody(w, r, &body) { return }               // body giới hạn kích thước, tự ghi 400/413
 out, err := doWork(r.Context(), state.Crud, rc, body)
-if err != nil { httpserver.WriteCrudError(w, err); return }         // lỗi đúng dạng chuẩn
-httpserver.WriteJSON(w, 200, map[string]any{"data": out})
+if err != nil { web.WriteCrudError(w, err); return }         // lỗi đúng dạng chuẩn
+web.WriteJSON(w, 200, map[string]any{"data": out})
 ```
 
 Với route dành cho người dùng thì dùng action (bước 3), không dùng cách này.
@@ -151,16 +167,24 @@ Cấm: bảng/migration tay cho entity; gõ lại chuỗi `"waf.plans"`.
 ## 2. Thêm thao tác ngoài CRUD (action)
 
 1. Khai báo trong `EntityDefinition.Actions`: `{Name, Label, Description, Scope}`, scope
-   `ActionScopeRecord` (có `{id}`) hoặc `ActionScopeEntity`.
-2. Đăng ký trong `RegisterActions(cfg)` (trả về `func(*httpserver.AppState, *crud.ActionRegistry) error`),
-   handler có chữ ký `crud.ActionHandler`.
-3. Handler mỏng: đọc `c.Input`, gọi **hàm nghiệp vụ** `(ctx, backend, rc, ...) (kết quả, error)`,
-   trả `crud.ToObject(kết quả, err)`.
-4. Phục vụ ở `POST /api/{entity}[/{id}]/actions/{action}`; quyền theo grant của người gọi.
+   `ActionScopeRecord` (có `{id}`) hoặc `ActionScopeEntity`. Quyền gọi: `Roles` là các role được chạy (policy `action:<tên>` của
+   tenant ghi đè), `Requires` là quyền cấp entity người gọi phải có (`read`, `create`, `update`, `delete`, `transition`); cả hai được
+   kiểm tra trước khi đọc input. Không khai gì thì mọi người đã đăng nhập đều gọi được.
+2. Viết action bằng `pkg/action`: `action.Entity` (thao tác trên cả entity) hoặc `action.Record` (trên một bản ghi: nó được đọc trước,
+   với quyền của người gọi, và giải mã vào kiểu bạn chọn; `a.Current` giữ bản ghi và version của nó).
+3. Đăng ký: `x.Register(reg, state.ActionDeps())` trong `RegisterActions(cfg)` (trả về
+   `func(*web.State, *crud.ActionRegistry) error`). Action cũ viết bằng `crud.ActionHandler` vẫn chạy song song.
+4. Handler mỏng: quy tắc nghiệp vụ là **hàm thuần** (test như hàm thường); handler chỉ quyết định đọc gì, ghi gì, audit gì.
+   Việc gọi mạng (DNS, webhook, scanner) làm **ngoài** `a.Step`: một step giữ đúng một connection tới khi kết thúc.
+5. Phục vụ ở `POST /api/{entity}[/{id}]/actions/{action}`.
 
-Mẫu: `waap/m-management/billing/actions.go` (`RegisterActions`), `m-management/billing/changes.go` (`registerChangeActions`).
+Mẫu: `waap/m-management/zones/actions.go` (nhiều action ngắn), `zones/netcheck/checks.go` (`VerifyDomain`: tra DNS ngoài
+transaction, rồi ghi domain, lan sang các zone và audit trong một step), `zones/actions.go` (`ApplyPreset`: cả preset hoặc không gì).
 Lỗi nghiệp vụ là `*crud.ServiceError` (`crud.NewServiceErrorMsg`/`...Fields`), mã ở `kit/errcode`
 hoặc `model`. Cấm: route REST riêng cho một action; tự viết JSON lỗi.
+
+Dữ liệu ngoài metap (ClickHouse, Elasticsearch): adapter đọc qua `scope.Scope` (`pkg/kit/scope`), không nhận tenant trần; xem
+`roadmap/121-scope-for-data-outside-metap.md`.
 
 ## 3. Thêm ràng buộc khi ghi (guard)
 
