@@ -65,10 +65,7 @@ func (s *PermissionService) ScopeFor(ctx context.Context, rc *RequestContext, re
 
 ## 4. Chưa làm (có chủ đích)
 
-- **Đưa danh sách zone vào token** hoặc để `a-api` hỏi management. Hôm nay `a-api` dựng `ForTenant`, nên giới hạn theo zone **chưa có
-  hiệu lực end to end**: kiểu, biên dịch, và `ScopeFor` có, nhưng nguồn cho `a-api` thì chưa. Hai hướng, chọn sau khi có nhu cầu thật:
-  (a) claim `zones` trong token (đơn giản, nhưng token dài với người có nhiều zone và quyền đổi chỉ có hiệu lực khi token mới);
-  (b) `a-api` hỏi management (chính xác hơn, thêm một phụ thuộc và một lần gọi mỗi request, hoặc cache ngắn).
+- ~~**Đưa danh sách zone vào token**~~ **Đã làm (2026-11-24), theo hướng thứ ba, xem §8.**
 - **Adapter Elasticsearch.** Repo chưa có; `Plan` đủ để viết nó (mệnh đề thành `term`/`terms` filter), không làm trước.
 - **Đẩy `ScopeFor` vào `pkg/action`** (`Ctx.Scope`): để khi có action đọc store ngoài. waap hiện đọc event qua `m-analytics.Backend` như
   một entity ngoài, với token của caller, nên `a-api` là nơi áp Scope.
@@ -103,6 +100,25 @@ func (s *PermissionService) ScopeFor(ctx context.Context, rc *RequestContext, re
   đọc; giới hạn rỗng trả rỗng và không truy vấn; chiều store không lọc được là lỗi; Scope zero bị từ chối. Có test kế hoạch SQL và một test trên
   ClickHouse thật (list, get, aggregate với scope giới hạn theo zone).
 
-**Chưa nối (đúng như §4):** `Identity.Scope()` của `a-api` là cả tenant vì token chưa mang quyền theo zone, nên giới hạn theo zone có tác dụng ở
+**Đã nối sau đó, xem §8.** (Đoạn dưới là trạng thái lúc P6 xong.) **Chưa nối lúc đó:** `Identity.Scope()` của `a-api` là cả tenant vì token chưa mang quyền theo zone, nên giới hạn theo zone có tác dụng ở
 mọi nơi *trừ* việc có ai đó đưa nó vào. Bước nối còn lại là chọn (a) claim `zones` trong token hoặc (b) `a-api` hỏi management, rồi để
 management dựng Scope bằng `ScopeFor`. Kiểu, biên dịch, `ScopeFor` và `a-api` đã sẵn sàng cho bước đó.
+
+## 8. Nối giới hạn zone end to end: token đọc ngắn hạn (2026-11-24)
+
+Hai hướng ở §4 đều bị loại: claim `zones` trong token đăng nhập (sống lâu, dài theo số zone, đổi quyền chỉ có hiệu lực khi token mới) và
+`a-api` hỏi management (mọi thứ phụ thuộc management lúc đọc). Chọn hướng thứ ba:
+
+- **Management ký một token đọc cho đúng một lần đọc** (`metap/pkg/auth/jwks.MintDownstream`): audience `waap-analytics` (không phải
+  `metap-api`), sống 60 giây, claim `zoneAccess` (`all` hoặc `limited`) và `zones` (tính từ quyền của người gọi ngay lúc đó). Ký là thao tác
+  cục bộ, không gọi mạng.
+- **`a-api` tự thực thi** từ chữ ký: không gọi management khi đọc. `Identity.Scope()` trả `(Scope, ok)`: token đọc `all` là cả tenant, `limited`
+  là `Limit("zone", zones...)` (không zone nào thì không thấy gì). Token thường (audience `metap-api`) vẫn xác minh được nhưng **không đọc được
+  event nào** (403): không còn mặc định "cả tenant". Token đọc thì không ghi được (ingest từ chối), và token thiếu `zoneAccess` bị từ chối chứ
+  không hiểu là `all`.
+- **Ai được thấy zone nào** (`m-management/analytics/readtoken.go`, `ReadTokens.ForCaller`): quyền đọc entity `waf.security_events` (policy cấp
+  tenant) cho mọi zone; không có thì resource `waf.security_events` action `read` (khai báo ở đó, cấp trong role editor), tính bằng
+  `PermissionService.ScopeFor` từ các `ScopedRole` của họ: chỉ những zone đó; không có gì thì 403 và không ký gì.
+- **Sweep của alerting** (correlate, evaluate) đọc cả tenant bằng `TenantWide`: route của chúng đã quyết ai được chạy, đây là xử lý hệ
+  thống chứ không phải một người đang xem.
+- Chưa làm: cấp resource `waf.security_events` cho persona nào trong `m-bootstrap` (admin cấp bằng tay), ghi (ingest) theo scope.
