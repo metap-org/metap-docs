@@ -43,7 +43,7 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
 | P0b | Audit nguyên tử: `audit.Enqueue` trong transaction của `CrudService` và `Step`; `audit.Drain`/`RunDrain` idempotent; wiring `app.Run` và `cmd/outbox-publisher` | **Xong** (metap `ec1d462`) |
 | P1 | waap: chuyển handler cần tuỳ biến sang `Custom` (19 handler hiện vẫn chạy nguyên); đẩy cặp nhánh trùng tên với metap | Chưa |
 | P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikeys`, `mfa` (package con `internal/admin/<slice>/`, dùng `internal/admin/kernel`); tài liệu `docs/guides/02-admin-slice-template.md`; luật depguard `slice-rules-pure` và `slice-service-no-driver`; contract test chạy trên memstore và pgstore | **Xong** (xem §6) |
-| P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | Chưa |
+| P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | **Nền đã xong** (2026-11-24): `tenancy.SharedTx(ctx)` và `kernel.IdentityDB` (một câu lệnh identity chạy trên transaction của unit trong ctx nếu tenant dùng DB chung, không thì trên pool); `apikeys`, `sessions`, `preferences` dùng nó; test pool một connection. Các slice còn lại và audit nguyên tử của chúng chưa chuyển, xem §7 |
 | P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | Chưa |
 
 ## 4. Rủi ro và cách xử lý
@@ -85,3 +85,21 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
   tương ứng. Còn ở `admin`: `CreateServiceAccount`/`ListServiceAccounts` (dính tới role và người dùng), `ResetMfa` (cần guard chủ sở hữu).
 - **Chưa kiểm chứng ở môi trường này**: `golangci-lint` (build bằng Go 1.25, không đọc được `go.mod` 1.26), nên hai luật depguard mới chưa được
   chạy thật; CI sẽ chạy. Nếu glob không khớp, luật chỉ im lặng không bắt gì (không làm hỏng build).
+
+## 7. P3: nền đã làm, và điều phải quyết trước khi chuyển slice (2026-11-24)
+
+**Đã làm.** `pkg/auth/identity` vốn đã nhận `DBTX`; vấn đề nằm ở chỗ `internal/admin` truyền vào pool. Nay `tenancy.SharedTx(ctx)` trả transaction của unit
+trong ctx khi tenant dùng DB chung (chiến lược Schema; bảng identity nằm ở đó), và `kernel.IdentityDB` là `identity.DBTX` chọn lúc gọi: transaction của
+unit nếu có, pool nếu không. Một thay đổi identity trong `Step` vì vậy chung connection và chung commit với dữ liệu của tenant, và pool một connection không
+bị deadlock (test `TestIdentityStatementsJoinTheUnitOfWorkOnAPoolOfOne`). Ngoài unit thì hành vi y hệt trước, nên ba slice đã có (`apikeys`, `sessions`,
+`preferences`) được nối vào mà không đổi gì quan sát được.
+
+**Giới hạn cố hữu.** Tenant có database riêng (`DedicatedDb`) thì dữ liệu identity ở DB chung, không thể cùng transaction với unit của tenant: identity
+vẫn đi qua pool (connection khác, transaction khác). Atomic chỉ có với tenant Schema; với tenant Dedicated là hai transaction nối bằng thứ tự và audit sau cùng.
+`SharedTx` là chính transaction của unit chứ không phải savepoint: một câu lệnh lỗi (vi phạm unique mà code định bắt) làm hỏng cả unit, nên code mong đợi lỗi
+như vậy (`isUniqueViolation` trong `owner.go`, `ensureIdentity`) phải tự mở savepoint trước khi chuyển.
+
+**Chưa làm, cần quyết.** Chuyển một slice sang audit nguyên tử nghĩa là thay `kernel.Auditor.Record` (ghi sau, dạng `ActionUpdate` với cặp before/after) bằng entry
+xếp hàng trong `Step`. `Unit.AuditEntry` hiện chỉ tạo entry dạng `ActionCustom` với `detail`; trail của admin hôm nay dùng `ActionUpdate` và cặp before/after, và UI đọc
+dạng đó. Hai hướng: (a) cho `Unit` nhận entry dựng sẵn, giữ nguyên dạng audit hiện có (đổi `pkg/action`, không đổi trail); (b) chuyển admin sang dạng `Custom`
+(đổi trail và UI). Đề xuất (a).
