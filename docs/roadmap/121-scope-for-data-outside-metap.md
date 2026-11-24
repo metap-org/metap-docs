@@ -1,8 +1,7 @@
 # 121. Scope cho dữ liệu ngoài metap: ClickHouse, Elasticsearch (ADR, P6 của roadmap 120)
 
 Roadmap 120 §2.7 chốt một câu: adapter của store ngoài metap phải nhận `Scope` làm tham số bắt buộc. Tài liệu này là ADR cho phần đó:
-hình dạng của `Scope`, ai dựng nó, adapter dùng nó thế nào, và những gì cố ý chưa làm. **Trạng thái (2026-11-24): quyết định đã viết,
-chưa có mã; cập nhật ở §7 khi làm.**
+hình dạng của `Scope`, ai dựng nó, adapter dùng nó thế nào, và những gì cố ý chưa làm. **Trạng thái (2026-11-24): đã làm (§7).**
 
 ## 1. Vấn đề (đo từ mã)
 
@@ -91,6 +90,19 @@ func (s *PermissionService) ScopeFor(ctx context.Context, rc *RequestContext, re
 - `a-api`: mọi câu truy vấn đọc chứa `tenant_id = ?`; có giới hạn zone thì chứa `zone_id IN`; chiều rỗng không truy vấn; test trên các
   `Plan*` hiện có vẫn qua.
 
-## 7. Trạng thái
+## 7. Trạng thái (2026-11-24)
 
-Chờ cập nhật khi làm xong.
+**Đã làm**, trên các nhánh `feat/120-*` (metap `5932cb4`) và `feat/120-typed-actions` (waap `7f8c7c3`):
+
+- `metap/pkg/kit/scope`: `Scope`, `ForTenant`, `Limit` (chỉ thu hẹp), `Valid`, `Allows`, `Limits`, `Plan`, `Clause.SQL`. 10 test: giá trị zero bị từ
+  chối, `Limit` hai lần là giao, chiều rỗng cho `None`, chiều lạ là lỗi, thứ tự ổn định, giá trị không bao giờ vào câu SQL.
+- `metap/pkg/permission`: `PermissionService.ScopeFor(ctx, rc, resource, action) (scope.Scope, PermissionDecision, error)`; 6 test (admin và role
+  toàn tenant: cả tenant; chỉ `ScopedRole`: đúng các zone được cấp; không có gì: bị từ chối kèm Scope zero; quyền một action không kéo theo action
+  khác; nhiều loại scope thu hẹp cùng nhau; resource chưa khai báo là lỗi).
+- `waap/a-api`: `List`, `Get`, `Aggregate` nhận `scope.Scope`; tenant luôn đứng đầu mệnh đề `WHERE`; giới hạn `zone` thêm `zone_id IN (...)` cho cả ba kiểu
+  đọc; giới hạn rỗng trả rỗng và không truy vấn; chiều store không lọc được là lỗi; Scope zero bị từ chối. Có test kế hoạch SQL và một test trên
+  ClickHouse thật (list, get, aggregate với scope giới hạn theo zone).
+
+**Chưa nối (đúng như §4):** `Identity.Scope()` của `a-api` là cả tenant vì token chưa mang quyền theo zone, nên giới hạn theo zone có tác dụng ở
+mọi nơi *trừ* việc có ai đó đưa nó vào. Bước nối còn lại là chọn (a) claim `zones` trong token hoặc (b) `a-api` hỏi management, rồi để
+management dựng Scope bằng `ScopeFor`. Kiểu, biên dịch, `ScopeFor` và `a-api` đã sẵn sàng cho bước đó.
