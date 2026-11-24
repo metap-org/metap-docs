@@ -5,7 +5,7 @@ Chủ dự án yêu cầu (2026-11-24), sau roadmap 120: handler của action n�
 để mọi thứ nhất quán. Audit chuyển sang ghi **nguyên tử** bằng event (outbox). Tài liệu này là kế hoạch và danh sách rủi ro; quyết định
 kỹ thuật của phần đã làm nằm ở roadmap 120 §2.8.
 
-**Trạng thái (2026-11-24): P0 (lõi `pkg/action`), P0b (audit nguyên tử) và P2 (bốn slice mẫu) đã làm; P1, P3, P4 chưa làm.**
+**Trạng thái (2026-11-24): P0 (lõi `pkg/action`), P0b (audit nguyên tử) và P2 (bốn slice mẫu) đã làm; P1 đã làm; P3, P4 chưa làm.** `RegenerateRecoveryCodes` được audit (chốt 2026-11-24).
 
 ## 1. Hiện trạng đo từ mã (`internal/`, commit 3ca65ae)
 
@@ -41,7 +41,7 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
 |---|---|---|
 | P0 | Lõi `pkg/action`: lớp tường minh, `Unit`, `Emit` chỉ trong `Step`, step không lồng | **Xong** (metap `2bb8b36`) |
 | P0b | Audit nguyên tử: `audit.Enqueue` trong transaction của `CrudService` và `Step`; `audit.Drain`/`RunDrain` idempotent; wiring `app.Run` và `cmd/outbox-publisher` | **Xong** (metap `ec1d462`) |
-| P1 | waap: chuyển handler cần tuỳ biến sang `Custom` (19 handler hiện vẫn chạy nguyên); đẩy cặp nhánh trùng tên với metap | Chưa |
+| P1 | waap: chuyển handler cần tuỳ biến sang `Custom` | **Xong** (2026-11-24): 7 trong 19 chuyển (`syncConfigState`, `validatePolicy`, `rollback`, `applyPreset`, `testOrigin`, `run`, `test`), vì chúng hoặc tự đọc bản ghi trong hàm lõi (bỏ lần đọc thừa: `rollback`, `applyPreset`, `test`) hoặc cần `LoadRecord` nói rõ ra (cổng "bản ghi có và người gọi đọc được"). 12 handler còn lại giữ `Entity`/`Record`: input và bản ghi đúng là thứ chúng dùng |
 | P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikeys`, `mfa` (package con `internal/admin/<slice>/`, dùng `internal/admin/kernel`); tài liệu `docs/guides/02-admin-slice-template.md`; luật depguard `slice-rules-pure` và `slice-service-no-driver`; contract test chạy trên memstore và pgstore | **Xong** (xem §6) |
 | P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | Chưa |
 | P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | Chưa |
