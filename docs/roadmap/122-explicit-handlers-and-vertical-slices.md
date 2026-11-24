@@ -43,7 +43,7 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
 | P0b | Audit nguyên tử: `audit.Enqueue` trong transaction của `CrudService` và `Step`; `audit.Drain`/`RunDrain` idempotent; wiring `app.Run` và `cmd/outbox-publisher` | **Xong** (metap `ec1d462`) |
 | P1 | waap: chuyển handler cần tuỳ biến sang `Custom` | **Xong** (2026-11-24): 7 trong 19 chuyển (`syncConfigState`, `validatePolicy`, `rollback`, `applyPreset`, `testOrigin`, `run`, `test`), vì chúng hoặc tự đọc bản ghi trong hàm lõi (bỏ lần đọc thừa: `rollback`, `applyPreset`, `test`) hoặc cần `LoadRecord` nói rõ ra (cổng "bản ghi có và người gọi đọc được"). 12 handler còn lại giữ `Entity`/`Record`: input và bản ghi đúng là thứ chúng dùng |
 | P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikeys`, `mfa` (package con `internal/admin/<slice>/`, dùng `internal/admin/kernel`); tài liệu `docs/guides/02-admin-slice-template.md`; luật depguard `slice-rules-pure` và `slice-service-no-driver`; contract test chạy trên memstore và pgstore | **Xong** (xem §6) |
-| P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | **Nền đã xong** (2026-11-24): `tenancy.SharedTx(ctx)` và `kernel.IdentityDB` (một câu lệnh identity chạy trên transaction của unit trong ctx nếu tenant dùng DB chung, không thì trên pool); `apikeys`, `sessions`, `preferences` dùng nó; test pool một connection. Các slice còn lại và audit nguyên tử của chúng chưa chuyển, xem §7 |
+| P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | **Audit nguyên tử đã xong cho mọi service quản trị (§9); tách thành slice (types/rules/store) chưa làm.** Nền đã xong (2026-11-24): `tenancy.SharedTx(ctx)` và `kernel.IdentityDB` (một câu lệnh identity chạy trên transaction của unit trong ctx nếu tenant dùng DB chung, không thì trên pool); `apikeys`, `sessions`, `preferences` dùng nó; test pool một connection. Các slice còn lại và audit nguyên tử của chúng chưa chuyển, xem §7 |
 | P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | Chưa |
 
 ## 4. Rủi ro và cách xử lý
@@ -117,3 +117,23 @@ Quyết định (chủ dự án chốt (a)): giữ nguyên dạng audit mà trai
   (secret của DB riêng trỏ vào hư không, vì unit chung không bao giờ mở nó), kèm một thay đổi hỏng sau khi ghi khoá thì cả khoá lẫn entry biến mất.
 - Còn lại (cùng khuôn): `mfa`, `sessions`, `preferences` rồi `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, `identity`.
   Phần ghi vào DB riêng của tenant (`user_roles`) trong cùng thao tác vẫn là transaction thứ hai, nhất quán sau cùng.
+
+## 9. P3: audit nguyên tử cho mọi service quản trị (2026-11-24)
+
+`kernel.Change` / `ChangeNew` (DB chung) và `ChangeInTenant` / `ChangeInTenantNew` (DB của tenant) chạy một thay đổi quản trị cùng entry audit của nó trong một
+transaction; `IdentityConfig.Sink` bật chúng, không có Sink thì đường cũ (đổi rồi ghi best-effort). Đã chuyển: `support`, `config` (khoá nền tảng trên DB chung,
+override của tenant trên DB tenant), `credentials`, `sso` (cấu hình OIDC/SAML), `owner`, `tenant` (tạo và vòng đời), `role` và quyền của role, `policy`, và `identity`
+(tạo, sửa, trạng thái, xoá, đặt lại mật khẩu, gán/thu hồi role và role theo phạm vi).
+
+Quy tắc rút ra, để các slice sau theo:
+- **Trong một change không mở DB riêng của tenant** khi change chạy trên DB chung (cần connection thứ hai, pool một connection sẽ treo): việc trên `user_roles`
+  làm trước hoặc sau change. Change ở DB tenant (`ChangeInTenant`) thì `withTenantTx` tham gia như savepoint.
+- **Bước ghi cache hoặc snapshot đi theo commit** (`tenancy.OnCommit`): `config.Store` đổi snapshot khi unit commit, không phải trước.
+- **Gọi mạng không nằm trong change** (gửi mail, tra DNS, secret manager): `InviteUser`, `ResendInvitation` và `VerifySsoDomain` giữ đường cũ vì thế.
+- **Mã MFA sai vẫn phải được đếm**: `kernel.CommitDespite`.
+- **Lỗi một phần còn lại** là phần ghi lên DB riêng của tenant cùng thao tác với DB chung (xoá thành viên rồi thu hồi role): hai transaction, nhất quán sau cùng.
+  `CreateUser` mà không gán được role thì hoàn tác thành viên và ghi thêm một entry nói rõ.
+- Test chạy với `Sink` và gọi `drainAudit()` trước khi đọc trail; chạy ở `METAP_TEST_POOL_MAX=1` để bắt deadlock.
+
+**Chưa làm:** tách mỗi service thành slice (`types`, `rules`, `store`, `pgstore`, `service`, memstore và contract test) như `apikeys`: các service trên vẫn nằm trong package
+`admin` với `identityDeps`. Việc đó là di chuyển mã không đổi hành vi và nên làm từng service một, bây giờ đã có lưới test atomic ở trên.
