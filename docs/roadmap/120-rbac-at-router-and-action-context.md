@@ -44,6 +44,11 @@ trong process với TTL ngắn (đề xuất 30–60 giây, chốt lúc làm) c�
 cache cực ngắn). Đây là điểm đảo một phần quyết định cũ ở `internal/authctx` (role "never cached"): chỉ phần role đổi, không phải
 session.
 
+**Cập nhật (2026-11-24):** thay đổi role hoặc grant ghi qua `rolestore` **trong cùng process** có hiệu lực ngay trên instance đó
+(`rolestore.Subscribe`, nối ở `pkg/app` bằng `authctx.SubscribeChanges`: gán hoặc thu hồi role xoá cache role của đúng thành viên, một scope biến
+mất xoá cache của cả tenant, lưu grant của role xoá ma trận policy của tenant). Thay đổi do process khác ghi vẫn chờ tối đa 45 giây, và một
+ghi nằm trong transaction được báo khi câu lệnh được phát ra, trước khi commit (TTL phủ khoảng đua đó).
+
 ### 2.3 CRUD là một pipeline; câu hỏi quyền cấp entity được tiêm vào, mặc định bật
 
 **Đã điều chỉnh (2026-11-24, chủ dự án chọn):** bản đầu của mục này nói `CrudService` không tự kiểm tra role và chỉ lấy ra qua
