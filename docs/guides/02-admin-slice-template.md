@@ -45,4 +45,4 @@ còn memstore ban đầu trả rỗng.
   §2.8) cần store nhận `DBTX` lấy từ `ctx` thay vì pool cố định; đó là P3. Vì audit đi qua port `Auditor`, đổi sau này không đụng service.
 - **Store dùng pool trực tiếp**, chưa dùng `Step`. Slice nào cần nhiều ghi trong một transaction (P3) sẽ dùng `action.Unit.Step`.
 - `mfa` chỉ gồm phần của chính người dùng; admin đặt lại MFA của người khác (`ResetMfa`) ở lại service người dùng vì cần guard chủ sở hữu và
-  identity dùng chung. `RegenerateRecoveryCodes` hiện **không** audit (như trước khi chuyển); có nên audit hay không là câu hỏi riêng.
+  identity dùng chung. `RegenerateRecoveryCodes` được audit (chủ dự án chốt 2026-11-24): entry nói là đã đổi, không bao giờ chứa mã.
