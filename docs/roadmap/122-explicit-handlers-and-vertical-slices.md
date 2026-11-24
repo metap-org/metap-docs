@@ -5,7 +5,7 @@ Chủ dự án yêu cầu (2026-11-24), sau roadmap 120: handler của action n�
 để mọi thứ nhất quán. Audit chuyển sang ghi **nguyên tử** bằng event (outbox). Tài liệu này là kế hoạch và danh sách rủi ro; quyết định
 kỹ thuật của phần đã làm nằm ở roadmap 120 §2.8.
 
-**Trạng thái (2026-11-24): P0 (lõi `pkg/action`) và P0b (audit nguyên tử) đã làm, đã push; P1 đến P4 chưa làm.**
+**Trạng thái (2026-11-24): P0 (lõi `pkg/action`), P0b (audit nguyên tử) và P2 (bốn slice mẫu) đã làm; P1, P3, P4 chưa làm.**
 
 ## 1. Hiện trạng đo từ mã (`internal/`, commit 3ca65ae)
 
@@ -42,7 +42,7 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
 | P0 | Lõi `pkg/action`: lớp tường minh, `Unit`, `Emit` chỉ trong `Step`, step không lồng | **Xong** (metap `2bb8b36`) |
 | P0b | Audit nguyên tử: `audit.Enqueue` trong transaction của `CrudService` và `Step`; `audit.Drain`/`RunDrain` idempotent; wiring `app.Run` và `cmd/outbox-publisher` | **Xong** (metap `ec1d462`) |
 | P1 | waap: chuyển handler cần tuỳ biến sang `Custom` (19 handler hiện vẫn chạy nguyên); đẩy cặp nhánh trùng tên với metap | Chưa |
-| P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikey`, `mfa`; tài liệu slice mẫu; luật depguard; contract test | Chưa |
+| P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikeys`, `mfa` (package con `internal/admin/<slice>/`, dùng `internal/admin/kernel`); tài liệu `docs/guides/02-admin-slice-template.md`; luật depguard `slice-rules-pure` và `slice-service-no-driver`; contract test chạy trên memstore và pgstore | **Xong** (xem §6) |
 | P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | Chưa |
 | P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | Chưa |
 
@@ -70,3 +70,18 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
   ("reconcile cần pool ít nhất 2") hoặc test cố ý lấy hai connection (`TestAUnitOnlyCapturesItsOwnTenant`).
 - Test mới: lớp tường minh và `Unit` (`pkg/action`), audit trong cùng transaction với event (`sink_postgres_test.go`), drain idempotent,
   thứ tự theo tenant, dòng hỏng bị đặt riêng (`pkg/audit/drain_e2e_test.go`), publisher bỏ qua topic audit.
+
+## 6. Kết quả P2 (2026-11-24)
+
+- **Bốn slice**, mỗi slice có `types`, `rules`, `store`, `pgstore`, `service`, memstore, contract test và test của service. OpenAPI
+  (`api.golden.json`) và `routes.golden` **không đổi một byte**; toàn bộ `internal/admin/...` và `internal/httpapi` vẫn xanh.
+- **`internal/admin/kernel`** (caller, lỗi, `Durable`, `ParseID`, `Auditor`) là phần dùng chung; `admin` ủy quyền sang đó nên chỉ còn một định
+  nghĩa cho `WithCaller`, `identityErr`, ghi audit và thông điệp từ chối của support session.
+- **Tìm thấy và gỡ một bản cài đặt trùng**: tính năng sessions có hai bản, `admin.AccountService.ListMySessions...` (không route nào dùng, chỉ test
+  gọi) và `internal/httpapi/ops_sessions.go` (tầng transport tự gọi `identity.*`, vi phạm phân tầng của roadmap 118). Nay chỉ còn slice
+  `sessions`, và `ops_sessions.go` chỉ decode và gọi nó.
+- **Contract test bắt một giả định sai** ngay lần chạy đầu (`preferences`: mặc định là `en`, không phải rỗng).
+- Phần của `admin` bị gỡ: `PreferencesService`, `AccountService.{Sessions,Mfa}`, `UserAdminService.{CreateApiKey,ListApiKeys,RevokeApiKey}` và các DTO
+  tương ứng. Còn ở `admin`: `CreateServiceAccount`/`ListServiceAccounts` (dính tới role và người dùng), `ResetMfa` (cần guard chủ sở hữu).
+- **Chưa kiểm chứng ở môi trường này**: `golangci-lint` (build bằng Go 1.25, không đọc được `go.mod` 1.26), nên hai luật depguard mới chưa được
+  chạy thật; CI sẽ chạy. Nếu glob không khớp, luật chỉ im lặng không bắt gì (không làm hỏng build).
