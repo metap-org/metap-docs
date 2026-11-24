@@ -272,3 +272,15 @@ việc đó là thừa.
   không có tương đương Go cho `metap-graphql*`/`metap-app` (Go giữ REST, GraphQL động chưa port), bốn workflow
   chaos/benchmark/pentest bị xoá chứ chưa port (mất phủ kiểm thử có chủ đích), các repo downstream phải tự
   chuyển sang module Go.
+- **Phân quyền ở router, handler của ứng dụng có kiểu, một step là một unit of work (2026-11-24, chủ dự án quyết định).**
+  RBAC (role → action) tra trong bộ nhớ và kiểm ở router; ABAC chỉ nạp khi entity cần. Role và policy được cache 45 giây
+  (thu hồi và áp dụng có thể trễ tới đó; session bị thu hồi, tài khoản bị khoá và khoá MFA vẫn kiểm tra ngay mỗi request). CRUD là
+  một pipeline `resolve → authorize → load → prepare → persist`; câu hỏi quyền cấp entity được tiêm vào (`EntityAccess`, mặc định bật,
+  `Trusted()` tắt có tên). Action của ứng dụng viết bằng `pkg/action` (input/output có kiểu, `a.Records` với quyền người gọi, `a.Audit` và
+  `a.Emit` tuỳ chọn, `a.Step` là một transaction chung record, event và audit). `EntityAction.Roles` khai ai được chạy, policy
+  `action:<tên>` của tenant ghi đè. Mọi operation quản trị khai mức truy cập ở một bảng (`operationAccess`) kèm test từ chối, định nghĩa
+  "admin" ở một chỗ (`internal/access`). Phần HTTP chuyển vào `internal/httpapi`, mặt công khai là `pkg/web`. Chi tiết và những gì
+  không làm: `docs/roadmap/120-rbac-at-router-and-action-context.md`.
+- **`Scope` cho dữ liệu ngoài metap (2026-11-24).** Adapter của store ngoài (ClickHouse, Elasticsearch) đọc qua `scope.Scope`
+  (`pkg/kit/scope`: tenant cộng giới hạn chỉ thu hẹp theo chiều; giá trị zero bị từ chối; giới hạn rỗng là đóng; chiều store không lọc
+  được là lỗi), không nhận tenant trần. Chi tiết: `docs/roadmap/121-scope-for-data-outside-metap.md`.
