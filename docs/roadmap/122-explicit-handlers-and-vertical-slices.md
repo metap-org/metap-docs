@@ -103,3 +103,17 @@ như vậy (`isUniqueViolation` trong `owner.go`, `ensureIdentity`) phải tự 
 xếp hàng trong `Step`. `Unit.AuditEntry` hiện chỉ tạo entry dạng `ActionCustom` với `detail`; trail của admin hôm nay dùng `ActionUpdate` và cặp before/after, và UI đọc
 dạng đó. Hai hướng: (a) cho `Unit` nhận entry dựng sẵn, giữ nguyên dạng audit hiện có (đổi `pkg/action`, không đổi trail); (b) chuyển admin sang dạng `Custom`
 (đổi trail và UI). Đề xuất (a).
+
+## 8. P3: audit nguyên tử trên DB chung, slice mẫu `apikeys` (2026-11-24)
+
+Quyết định (chủ dự án chốt (a)): giữ nguyên dạng audit mà trail và UI đang đọc (cập nhật với cặp before/after), và ghi nó nguyên tử với thay đổi.
+
+- **Audit store là một, ở DB chung**; `audit.RunDrain` đã drain outbox của DB chung lẫn của từng DB riêng vào đó. Nên thao tác identity ghi entry vào **outbox của DB
+  chung, trong cùng transaction với thay đổi identity**, cho mọi tenant: không cần cơ chế event mới, và tenant có DB riêng cũng atomic cho phần này.
+- `tenancy.Router.BeginSharedUnit` mở unit trên DB chung bất kể chiến lược của tenant (không bao giờ mở DB riêng của tenant). `action.NewSharedUnit` +
+  `SharedSink` chạy `Step` trong đó; `Unit.AuditPrepared` nhận entry dựng sẵn; `kernel.AuditEntryOf` dựng đúng entry mà `WriteAudit` ghi.
+- `apikeys.Service.WithSink(action.NewSink(router))`: `Create` và `Revoke` là một `Step`, khoá và entry cùng commit hoặc cùng rollback. Không sink thì giữ
+  đường cũ ("đổi rồi ghi best-effort"). Test: sink trong bộ nhớ; tích hợp trên pool một connection cho cả tenant dùng DB chung lẫn tenant có DB riêng
+  (secret của DB riêng trỏ vào hư không, vì unit chung không bao giờ mở nó), kèm một thay đổi hỏng sau khi ghi khoá thì cả khoá lẫn entry biến mất.
+- Còn lại (cùng khuôn): `mfa`, `sessions`, `preferences` rồi `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, `identity`.
+  Phần ghi vào DB riêng của tenant (`user_roles`) trong cùng thao tác vẫn là transaction thứ hai, nhất quán sau cùng.
