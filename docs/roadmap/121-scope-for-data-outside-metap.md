@@ -121,4 +121,4 @@ Hai hướng ở §4 đều bị loại: claim `zones` trong token đăng nhập
   `PermissionService.ScopeFor` từ các `ScopedRole` của họ: chỉ những zone đó; không có gì thì 403 và không ký gì.
 - **Sweep của alerting** (correlate, evaluate) đọc cả tenant bằng `TenantWide`: route của chúng đã quyết ai được chạy, đây là xử lý hệ
   thống chứ không phải một người đang xem.
-- Chưa làm: cấp resource `waf.security_events` cho persona nào trong `m-bootstrap` (admin cấp bằng tay), ghi (ingest) theo scope.
+- Bootstrap cấp resource `waf.security_events` action `read` cho `security_analyst` và `viewer` (`bootstrap.Grant.Resources`, mới). Chưa làm: ghi (ingest) theo scope.
