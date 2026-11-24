@@ -75,7 +75,7 @@ an toàn:
 
 - Handler nhận input/output là struct Go (huma đã dùng cách này ở `typedapi.go`), record đã nạp cho action cấp record, và
   `*action.Ctx` với `Records` (đã bọc `Gated`), `Audit`, `Emit`, `Scope`, `Deps` (một struct dependency cho mỗi domain).
-- `a.Audit(...)` và `a.Emit(...)` **chỉ xếp hàng**, được ghi cùng transaction của bước đó khi commit; handler lỗi thì không ghi gì.
+- `a.Audit(...)` và `a.Emit(...)` **chỉ xếp hàng**, được ghi vào outbox **trong transaction của `Step`** đó (xem §2.8); handler lỗi thì không ghi gì. `Emit` ngoài `Step` là lỗi.
 - **Audit và event là tùy chọn.** Không gọi thì không có (ngoài audit theo cấu hình `Audit.Enabled` của entity khi đi qua
   `a.Update`). Chỉ thêm một quy tắc có test: mọi thao tác ghi thuộc nhóm `Admin` và bảo mật phải có audit.
 - Tương thích ngược: `ActionHandler` cũ chạy song song; port dần. Đã có bản đầu (P3): audit của action ghi là `audit.ActionCustom` ("action") với tên action trong `transition_action`, nằm chung chuỗi băm của tenant.
@@ -102,10 +102,36 @@ metap #88 và #89.
 một savepoint trên transaction của unit thay vì lấy connection mới, nên ghi record qua CRUD, đọc policy và xếp event vào outbox cùng
 chạy trên **một** connection. Điều này giữ đúng quy tắc của #88/#89 (không đường nào giữ một connection trong khi cần cái thứ hai;
 một pool chỉ có 2 connection vẫn phục vụ được, và test khẳng định một step giữ đúng một connection). Một thao tác lỗi bên trong unit
-chỉ hoàn tác chính nó; unit rollback thì hoàn tác tất cả. Việc không đi qua `Router.Begin` (audit store có chuỗi băm riêng, cache
-trong bộ nhớ) đăng ký bằng `tenancy.OnCommit` để chạy sau commit và không chạy khi rollback: audit của CRUD và của action đều theo
-cách này, nên một ghi bị hoàn tác không để lại audit entry. Giới hạn: một backend từ xa (không phải `CrudService` trong process) không
+chỉ hoàn tác chính nó; unit rollback thì hoàn tác tất cả. Việc không đi qua `Router.Begin` (cache trong bộ nhớ) đăng ký bằng `tenancy.OnCommit` để chạy sau commit và không chạy khi rollback. Audit không còn thuộc nhóm này: nó nằm trong transaction (§2.8). Giới hạn: một backend từ xa (không phải `CrudService` trong process) không
 tham gia unit; và vì step giữ một connection nên `fn` của step chỉ nên đọc và ghi record của tenant, không gọi dịch vụ khác.
+
+### 2.8 Hai lớp handler, `Unit`, audit nguyên tử (2026-11-24, chủ dự án yêu cầu)
+
+**Hai lớp.** Lớp mặc định là *tường minh*: `action.Custom(entity, name, func(ctx, *Ctx) (any, error))`, handler tự gọi từng bước
+(`a.Decode(&in)` strict, `a.LoadRecord(ctx, &rec)` đọc bằng quyền người gọi và đặt `a.Current`, `a.Step`, `a.Audit`, `a.Emit`), nên
+muốn bỏ một bước hay chen một bước thì chỉ cần viết hoặc không viết dòng đó. `action.Record` và `action.Entity` (generic) chỉ là
+đường tắt gọi các bước đó theo thứ tự cố định, dùng cho handler không cần gì thêm. Lý do: generic che mất chỗ cần tuỳ biến (không
+cần record, input tuỳ chọn, bước không được chạy).
+
+**`Unit`.** Phần không phụ thuộc entity của ngữ cảnh (người gọi, tenant, `Step`, `AuditEntry`, `Emit`, `Close`) là `action.Unit`;
+`action.Ctx` nhúng nó. Thao tác quản trị (không có entity) dùng `Unit` trực tiếp khi chuyển sang kiểu này. Steps không lồng nhau.
+
+**`Emit`.** Chỉ hợp lệ trong `Step`: event thuộc về transaction của các ghi mà nó thông báo. Gọi ngoài `Step` trả
+`ErrEmitOutsideStep` và action vẫn lỗi ở `Close` dù handler bỏ qua giá trị trả về.
+
+**Audit nguyên tử.** Trước đây audit được ghi *sau* commit, bằng transaction riêng của `audit.Store`, nên một crash giữa hai bước làm
+mất đúng một dòng. Nay `CrudService` (create/update/delete/transition) và `Step` ghi entry vào **outbox trong chính transaction của
+lần ghi** (topic `audit.entry`, `audit.Enqueue`): ghi đã commit thì chắc chắn có entry, đã rollback thì không có. `audit.Drain`/`RunDrain`
+chuyển entry vào chuỗi băm của từng tenant, **idempotent** (`PostgresStore.RecordOnce` dùng id dòng outbox làm id entry và kiểm tra tồn
+tại dưới khoá đầu chuỗi, nên một dòng giao hai lần chỉ vào chuỗi một lần), không giữ connection trong lúc ghi (tránh họ lỗi deadlock
+pool). Publisher bỏ qua topic này. `app.Run` chạy drain (DB dùng chung và DB riêng của từng tenant `dedicated_db`) trừ khi
+`AUDIT_DRAIN_DISABLED=true`; `cmd/outbox-publisher` cũng chạy; chạy nhiều nơi vô hại.
+
+Hệ quả cần biết: (1) audit **nhất quán sau cùng**: có độ trễ (mặc định poll 500 ms) giữa commit và lúc entry xuất hiện trong chuỗi và
+trong `ListAuditEvents`; test đọc audit ngay sau ghi gọi `audit.DrainAll`. (2) Thứ tự trong chuỗi theo thứ tự drain, không theo lúc xảy ra;
+`occurred_at` vẫn là lúc xảy ra thật. (3) Nếu không có tiến trình nào chạy drain thì entry nằm chờ trong outbox, không mất. (4) Chỗ
+còn ghi audit kiểu cũ (sau commit, best-effort): các service quản trị trong `internal/admin` (`writeAdminAudit`) và `ops_sessions`;
+chuyển cùng từng slice khi áp dụng khuôn này cho `internal/`.
 
 ### 2.7 DB ngoài metap
 
