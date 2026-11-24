@@ -157,6 +157,18 @@ Kiểu `Scope` nằm trong `pkg/kit` (thuần stdlib) vì `e-edge` và `a-api` c
 - Condition record không đẩy xuống SQL được cho list (`CrossRecordConditionInListError`, `UnsupportedContainsConditionInListError`)
   vẫn trả 500 như hiện nay.
 
+## 8b. Bố cục package đổi theo (2026-11-24, chủ dự án yêu cầu)
+
+`pkg/httpserver` (9,4 nghìn dòng route, typed operation, SCIM, sign-in) chuyển hết vào `metap/internal/httpapi`, cùng các nhóm route
+tuỳ chọn (`attachmentroutes`, `cronroutes`, `dashboardroutes`, `oauth2routes`). Mặt công khai duy nhất là `metap/pkg/web`, một file mỏng
+gọi thẳng sang đó: `web.State` (trạng thái dùng chung của một service; trước là `AppState`), `web.NewState`, các hàm trả lời theo envelope
+chuẩn (`WriteJSON`, `WriteServiceError`, `WriteInternalError`, `WriteRouterUnavailable`, `WriteCrudError`), `DecodeJSONBody`, các guard
+(`RequireAuth`, `RequireAdmin`, `RequirePlatformAdmin`), `RC`, `SessionCookies`, `ParseOptionalUUID`, `Mount`. Lý do chọn façade bằng type
+alias thay vì dựng lại `State` ở `pkg/web`: nó không đổi dòng nào bên trong `httpapi` (không rủi ro, test vẫn là test cũ), và bề mặt công
+khai nằm trọn trong một file. Quy tắc lint theo: một application service không được import `internal/httpapi` lẫn `pkg/web`. Phạm vi đổi
+tên chỉ là `httpserver` (chủ dự án chọn); các package khác của `pkg/` giữ nguyên. `metap-lowcode` vẫn import `pkg/httpserver` cũ nhưng nó
+đã không build được từ trước (chi, đường dẫn cũ), làm riêng.
+
 ## 9. Thứ tự làm và quy ước git
 
 Thứ tự (mỗi bước là một PR, merge **squash** theo quy ước của repo):
