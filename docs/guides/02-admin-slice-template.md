@@ -1,8 +1,8 @@
-# Khuôn slice cho `internal/admin` (roadmap 122, P2)
+# Khuôn slice cho `internal/admin` (roadmap 122, P2 và P3)
 
 Một slice là một nhóm thao tác quản trị viết đủ các lớp trong một package con `internal/admin/<slice>/`, để đọc từ trên xuống, test từng
-lớp riêng, và sửa một chỗ khi cần tuỳ biến. Bốn slice đầu tiên làm mẫu: `preferences`, `sessions`, `apikeys`, `mfa`. Muốn thêm slice mới,
-sao chép slice nhỏ nhất (`preferences`) rồi đổi tên.
+lớp riêng, và sửa một chỗ khi cần tuỳ biến. Bốn slice đầu tiên làm mẫu: `preferences`, `sessions`, `apikeys`, `mfa`; P3 đưa toàn bộ phần còn lại vào khuôn (`trail`, `support`, `settings`, `tenants`, `roles`, `policies`,
+`credentials`, `ssoconfig`, `owner`, `users`, `account`), nên package `admin` chỉ còn nối dây (`wiring.go`). Muốn thêm slice mới, sao chép slice nhỏ nhất (`preferences`) rồi đổi tên.
 
 ## Các file và việc của từng file
 
@@ -29,7 +29,7 @@ không vòng.
 
 ## Luật (depguard, `.golangci.yml`)
 
-- `rules.go` không import `pgx` và `net/http`.
+- `rules.go` không import `pgx` và `net/http` (nói mã HTTP qua `kernel.StatusBadRequest`, `StatusConflict`, ...).
 - `service.go` không import `pgx`: chỉ chạm DB qua `Store`.
 - Tầng ứng dụng không import transport (`httpapi`, huma, router): luật có từ roadmap 118.
 
@@ -39,10 +39,19 @@ Memstore và pgstore là hai bản cài đặt của cùng một port; nếu ch�
 Contract là một bộ ca chạy trên cả hai. Nó đã bắt một giả định sai ngay ở slice đầu: store thật trả `en` (locale mặc định) khi chưa lưu gì,
 còn memstore ban đầu trả rỗng.
 
+## Những điều P3 thêm vào khuôn
+
+- **Slice không import nhau.** Cái cần ở slice khác là một interface nhỏ nhận trong `New` (`users.Owners`, `ssoconfig.OwnerOf`), do `admin/wiring.go` thoả mãn. Kiểu dùng chung thì để ở `kernel`
+  và `admin` giữ bí danh (`type Empty = kernel.Empty`), để tên schema OpenAPI không đổi.
+- **Audit nguyên tử là mặc định.** `service` gọi `deps.Change`, `ChangeNew`, `ChangeInTenant` hoặc `ChangeInTenantNew`; có `Sink` thì thay đổi và entry cùng một transaction, không thì "đổi rồi ghi".
+  Store nhận `ctx` và (với DB chung) dùng `kernel.IdentityDB` nên tham gia transaction của unit.
+- **Trong một change: không mở DB riêng của tenant, không gọi mạng, không ghi cache trước commit** (§9). Đặt phần đó trước hoặc sau change; ví dụ `owner.CompleteRecovery` gán role admin *trước* change.
+- **Test của `service` dùng fake viết tay** có `auditSpy` (implements `audit.Store`) và `kernel.Deps{IsSupport: ...}` để khỏi chạm DB. Fake không có transaction: kiểm "không ghi audit khi lỗi", còn rollback thật
+  để test tích hợp.
+- **Slice có nhiều chỗ chạm identity** (như `users`) vẫn một `Store` rộng, chia theo nhóm trong file; nếu ngày nào quá to thì tách interface theo nhóm như `signin` (`People`, `Sessions`, ...).
+
 ## Điều slice hiện chưa làm (có chủ đích)
 
-- **Audit vẫn ghi kiểu cũ** (sau thao tác, best-effort, qua `kernel.Auditor`). Chuyển sang nguyên tử (cùng transaction, qua outbox, roadmap 120
-  §2.8) cần store nhận `DBTX` lấy từ `ctx` thay vì pool cố định; đó là P3. Vì audit đi qua port `Auditor`, đổi sau này không đụng service.
-- **Store dùng pool trực tiếp**, chưa dùng `Step`. Slice nào cần nhiều ghi trong một transaction (P3) sẽ dùng `action.Unit.Step`.
-- `mfa` chỉ gồm phần của chính người dùng; admin đặt lại MFA của người khác (`ResetMfa`) ở lại service người dùng vì cần guard chủ sở hữu và
-  identity dùng chung. `RegenerateRecoveryCodes` được audit (chủ dự án chốt 2026-11-24): entry nói là đã đổi, không bao giờ chứa mã.
+- Slice P3 không có memstore và contract test dùng chung (chỉ bốn slice P2 có); các test tích hợp cũ là lưới an toàn cho `pgstore`.
+- Tenant `DedicatedDb`: dữ liệu identity ở DB chung nên không cùng transaction với phần ghi `user_roles` của tenant; hai transaction nối bằng thứ tự (roadmap 122 §7).
+- `mfa` chỉ gồm phần của chính người dùng; admin đặt lại MFA của người khác là `users.ResetMfa`. `RegenerateRecoveryCodes` được audit (chủ dự án chốt 2026-11-24): entry nói là đã đổi, không bao giờ chứa mã.

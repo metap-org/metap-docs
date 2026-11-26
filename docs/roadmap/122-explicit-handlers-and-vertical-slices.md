@@ -5,7 +5,7 @@ Chủ dự án yêu cầu (2026-11-24), sau roadmap 120: handler của action n�
 để mọi thứ nhất quán. Audit chuyển sang ghi **nguyên tử** bằng event (outbox). Tài liệu này là kế hoạch và danh sách rủi ro; quyết định
 kỹ thuật của phần đã làm nằm ở roadmap 120 §2.8.
 
-**Trạng thái (2026-11-24): P0 (lõi `pkg/action`), P0b (audit nguyên tử) và P2 (bốn slice mẫu) đã làm; P1 đã làm; P3, P4 chưa làm.** `RegenerateRecoveryCodes` được audit (chốt 2026-11-24).
+**Trạng thái (2026-11-26): P0, P0b, P1, P2, P3 và P4 đã làm** (kết quả P3/P4 ở §10). `RegenerateRecoveryCodes` được audit (chốt 2026-11-24).
 
 ## 1. Hiện trạng đo từ mã (`internal/`, commit 3ca65ae)
 
@@ -43,8 +43,8 @@ hai bản không lệch nhau. depguard ép lớp: `rules` không import pgx/huma
 | P0b | Audit nguyên tử: `audit.Enqueue` trong transaction của `CrudService` và `Step`; `audit.Drain`/`RunDrain` idempotent; wiring `app.Run` và `cmd/outbox-publisher` | **Xong** (metap `ec1d462`) |
 | P1 | waap: chuyển handler cần tuỳ biến sang `Custom` | **Xong** (2026-11-24): 7 trong 19 chuyển (`syncConfigState`, `validatePolicy`, `rollback`, `applyPreset`, `testOrigin`, `run`, `test`), vì chúng hoặc tự đọc bản ghi trong hàm lõi (bỏ lần đọc thừa: `rollback`, `applyPreset`, `test`) hoặc cần `LoadRecord` nói rõ ra (cổng "bản ghi có và người gọi đọc được"). 12 handler còn lại giữ `Entity`/`Record`: input và bản ghi đúng là thứ chúng dùng |
 | P2 | Slice mẫu trong metap: `preferences`, `sessions`, `apikeys`, `mfa` (package con `internal/admin/<slice>/`, dùng `internal/admin/kernel`); tài liệu `docs/guides/02-admin-slice-template.md`; luật depguard `slice-rules-pure` và `slice-service-no-driver`; contract test chạy trên memstore và pgstore | **Xong** (xem §6) |
-| P3 | Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | **Audit nguyên tử đã xong cho mọi service quản trị (§9); tách thành slice (types/rules/store) chưa làm.** Nền đã xong (2026-11-24): `tenancy.SharedTx(ctx)` và `kernel.IdentityDB` (một câu lệnh identity chạy trên transaction của unit trong ctx nếu tenant dùng DB chung, không thì trên pool); `apikeys`, `sessions`, `preferences` dùng nó; test pool một connection. Các slice còn lại và audit nguyên tử của chúng chưa chuyển, xem §7 |
-| P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | Chưa |
+| P3 | **Xong (2026-11-26, §10).** Slice có transaction: `config`, `credentials`, `sso`, `owner`, `support`, `tenant`, `role`/`policy`, cuối cùng `identity`. Trước đó tách `identity.*` khỏi pool để nhận `DBTX` | **Audit nguyên tử đã xong cho mọi service quản trị (§9); tách thành slice (types/rules/store) chưa làm.** Nền đã xong (2026-11-24): `tenancy.SharedTx(ctx)` và `kernel.IdentityDB` (một câu lệnh identity chạy trên transaction của unit trong ctx nếu tenant dùng DB chung, không thì trên pool); `apikeys`, `sessions`, `preferences` dùng nó; test pool một connection. Các slice còn lại và audit nguyên tử của chúng chưa chuyển, xem §7 |
+| P4 | `signin`, `authctx`, SCIM: để sau khi P2/P3 chứng minh khuôn (gần transport: cookie, redirect, state machine) | **Xong (2026-11-26, §10)** |
 
 ## 4. Rủi ro và cách xử lý
 
@@ -135,5 +135,38 @@ Quy tắc rút ra, để các slice sau theo:
   `CreateUser` mà không gán được role thì hoàn tác thành viên và ghi thêm một entry nói rõ.
 - Test chạy với `Sink` và gọi `drainAudit()` trước khi đọc trail; chạy ở `METAP_TEST_POOL_MAX=1` để bắt deadlock.
 
-**Chưa làm:** tách mỗi service thành slice (`types`, `rules`, `store`, `pgstore`, `service`, memstore và contract test) như `apikeys`: các service trên vẫn nằm trong package
-`admin` với `identityDeps`. Việc đó là di chuyển mã không đổi hành vi và nên làm từng service một, bây giờ đã có lưới test atomic ở trên.
+**Việc tách mỗi service thành slice** (`types`, `rules`, `store`, `pgstore`, `service`) đã làm sau đó, xem §10: một di chuyển mã không đổi hành vi, từng service một, dựa vào lưới test atomic ở trên.
+
+## 10. Kết quả P3 và P4 (2026-11-26)
+
+**`internal/admin` nay chỉ còn nối dây.** Mười một slice mới, mỗi slice `types`, `rules`, `store`, `pgstore`, `service` và test: `trail`, `support`, `settings`
+(cấu hình nền tảng và của tenant), `tenants`, `roles` (kèm quyền của role), `policies`, `credentials`, `ssoconfig`, `owner`, `users` (thành viên, role theo tenant và theo
+phạm vi, lời mời, đặt lại mật khẩu, `ResetMfa`, service account) và `account` (hồ sơ của chính người gọi). Cùng bốn slice của P2 là mười lăm (cộng `kernel`, phần dùng chung). Package `admin` còn `wiring.go` (các hàm
+`NewUserService`, `NewSsoService`, `NewOwnerService`, ... dựng slice từ `IdentityConfig`), `errors.go` (`WithCaller`, ...), `config.go` và `types.go` (bí danh). `identityDeps` đã bị xoá.
+`api.golden.json` và `routes.golden` **không đổi một byte**; `go test -tags integration ./internal/...` xanh, và `admin` cùng `signin` xanh ở `METAP_TEST_POOL_MAX=1`.
+
+**Cách các slice dùng nhau mà không import nhau.** Cái một slice cần ở slice khác là một interface nhỏ nó nhận trong `New`, `admin/wiring.go` thoả mãn: `users.Owners` (`Ensure`, `Guard`)
+và `ssoconfig.OwnerOf` đều do `owner.Ensure/Guard` đáp. Kiểu dùng chung (`Empty`, `AuditEvent`, `ListUserAuditResponse`, `CredentialManager`) chuyển vào `kernel`, `admin` giữ bí danh nên tên
+schema OpenAPI không đổi. `kernel.Status*` đặt tên các mã HTTP cho `rules.go`, vì luật depguard `slice-rules-pure` cấm `net/http` ở đó (xem "chưa chạy lint" bên dưới). `kernel.Deps.IsSupport`
+cho test đơn vị thay phép hỏi DB "đây có phải phiên support không" (`AdminDurable`).
+
+**Điều khác với khuôn P2, có chủ đích.** Các slice P3 **không** có memstore và contract test dùng chung: store của chúng bọc nhiều hàm `identity`/`rolestore`/`tenancy` và một bản trong bộ
+nhớ sẽ phải chép lại cả máy trạng thái đó. Thay vào đó: test của `service` chạy trên một fake nhỏ viết tay (kèm một `auditSpy`), còn **các test tích hợp cũ giữ nguyên** làm lưới an toàn cho `pgstore`
+(đã chuyển sang gọi qua slice, không đổi ca nào). Hệ quả cần biết: fake không có transaction, nên các ca "change lỗi thì không còn gì" chỉ kiểm được ở mức "không ghi audit"; việc rollback thật do test
+tích hợp và test pool một connection gánh.
+
+**P4.** `internal/signin` giữ tên package và API, nhưng nay đọc ghi qua `Store` (`People`, `Sessions`, `Challenges`, `Joining`, `Federation`; `Deps.Store` thay được, mặc định là `PgStore` trên `Deps.Pool`). Bốn
+chỗ từng tự mở transaction (`VerifyMFA` với "mã sai vẫn được đếm", `ConfirmMFAEnrollment`, `AcceptInvitation`, tạo workspace từ signup) thành một hàm của store. Phần thuần (ánh xạ lỗi, `passwordMode`, tên tenant
+bị chặn, `SameOrigin`) ở `rules.go`. `internal/authctx` có `Resolver` trên `Store` (kiểm session, khoá API, role, thuộc tính ngữ cảnh); `ResolveRequestContext`, `ResolveAPIKeyContext`, `ApplySessionClaim` còn đó, mỏng,
+nên chỗ gọi không đổi. SCIM tách `internal/scim` (thuần: resource, body, patch, bộ lọc, `Problem`) khỏi `internal/httpapi/scim.go` (chỉ xác thực, gọi `users.Service`, ghi phản hồi).
+
+**Hành vi đổi nhỏ, biết trước.** (1) `AcceptInvitation` ánh xạ lỗi của `SetPassword` qua `InvitationError`: mật khẩu yếu ở bước đó nay là 400 thay vì lỗi nội bộ (chính sách đã được kiểm ngay trước đó,
+nên chỉ chạm ca hiếm). (2) PATCH của SCIM kiểm `userName` sau khi đọc hết các operation, không giữa chừng: chỉ đổi thứ tự khi một request vừa sai `active` vừa đổi `userName`. (3) `users` và `policies` chịu một
+`ContextInvalidator`/`Owners` nil theo cách mềm hơn (bỏ qua) thay vì panic.
+
+**Chưa làm hoặc chưa kiểm chứng.**
+- **`golangci-lint` vẫn không chạy được ở môi trường này** (Go 1.25 so với `go.mod` 1.26). Kiểm bằng `grep` tay thì lộ ra một vi phạm có thật: chín `rules.go` (cả `support` của đợt trước) import `net/http`; đã sửa bằng `kernel.Status*`.
+  Các luật còn lại chỉ được kiểm bằng `grep`, CI mới là lần chạy thật.
+- Không có `register.go` (mức truy cập và route vẫn ở `operationAccess`, `ops_admin.go`), và không có audit nguyên tử cho `signin` (nó ghi `sessions`, không phải audit quản trị).
+- Tenant `DedicatedDb` vẫn là hai transaction (xem §7); `CreateUser` không gán được role vẫn hoàn tác thành viên bằng một thay đổi riêng và ghi vào trail.
+- Quét pool một connection cho `internal/httpapi`: các FAIL còn lại là giới hạn đã biết ("reconcile cần pool ít nhất 2"), không phải treo.
