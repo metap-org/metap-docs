@@ -1,6 +1,6 @@
 # 125. Bộ lọc list nghiêm ngặt, lease cho lượt chạy cron, job Direct chạy nền (2026-11-28)
 
-Trạng thái: code xong trên nhánh `fix/strict-list-filters` (`metap`, `waap`, `platform-ui`), chưa merge.
+Trạng thái (2026-11-28): đã sửa, test và merge (`metap`, `waap`, `platform-ui`).
 
 ## 1. Bộ lọc không hợp lệ bị bỏ qua
 
