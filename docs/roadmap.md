@@ -169,6 +169,7 @@ ownership/process của team, xem `docs/team-charter.md`, `docs/CONTRIBUTING.md`
 | [121. Scope cho dữ liệu ngoài metap](roadmap/121-scope-for-data-outside-metap.md) | `Scope` bắt buộc ở adapter của store ngoài metap (ClickHouse, Elasticsearch); đã làm |
 | [122. Handler tường minh và vertical slice cho `internal/`](roadmap/122-explicit-handlers-and-vertical-slices.md) | Áp khuôn handler tường minh + slice đủ layer (rules, store, pgstore, service, register) cho `internal/` của metap để nhất quán; 8 rủi ro và cách xử lý. P0, P0b, P1, P2, P3, P4 xong: `internal/admin` chỉ còn nối dây, 15 slice, `signin`/`authctx`/SCIM có port và test |
 | [123. Audit metap core (2026-11-27)](roadmap/123-audit-metap-core-2026-11.md) | Quy ước, bảo mật bề mặt, atomicity/audit/outbox/consumer event/rollback: đã sửa 4 lỗi (nhãn metrics vô hạn, audit ngoài transaction ở 3 thao tác user, transaction rò khi handler panic, event giao lại bắn job hai lần — migration 0060); còn 4 mục mở |
+| [124. Vá backlog bảo mật (2026-11-28)](roadmap/124-security-backlog-2026-11-28.md) | Cookie `Secure` mặc định, khoá tài khoản nguyên tử và không còn lộ mật khẩu đúng khi khoá, SAML gắn trình duyệt, action bắt buộc khai quyền. Có thay đổi phá vỡ (§2) |
 | [105. Cấu trúc lại module Go và JWKS một nơi cấp token](roadmap/105-go-module-restructure-and-single-issuer-jwks.md) | Done 2026-11-07 — `metap` PR #41 (module ra gốc, `pkg/`, testkit, kit, app) và `metap-demo-waf` PR #28 (zones-service là nơi duy nhất cấp token) |
 
 ## Định hướng chưa lên phase (chưa có trigger)
