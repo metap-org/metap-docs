@@ -1,6 +1,6 @@
 # 124. Vá backlog bảo mật (2026-11-28)
 
-**Trạng thái (2026-11-28): code đã sửa và test trên nhánh `fix/security-backlog` của `metap`, `waap`; chưa merge.**
+**Trạng thái (2026-11-28): đã sửa, test và merge (`metap`, `waap`).**
 
 ## 1. Đổi trong `metap`
 
@@ -26,5 +26,5 @@
 
 ## 3. Còn mở (từ 123 §3)
 
-`StartRun` chiếm quyền chạy (cần cả thời hạn lẫn cách giao lại message khi đang bị giữ) và job `Direct` chạy trong
-handler consumer: cả hai đổi cách bảo đảm giao message, chờ quyết.
+`StartRun` chiếm quyền chạy và job `Direct` chạy trong handler consumer: không nằm trong đợt này, làm ở
+[125](125-strict-list-filters-cron-lease.md).
